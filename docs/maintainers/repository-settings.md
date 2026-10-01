@@ -5,6 +5,23 @@ enforce them. Apply them once as a repository admin, then re-check them after
 changing workflow or job names. The `gh api` commands below assume an
 authenticated `gh` with admin access to `debpalash/VoiceStudio`.
 
+## Rolling out the CLA check
+
+Do these in order, after the pull request that adds `.github/workflows/cla.yml`
+is merged:
+
+1. Create the labels `cla` (signing issues) and `cla-override` (maintainer
+   review): `gh label create cla` and `gh label create cla-override`.
+2. Open the public signing issue, label it `cla`, and pin it.
+3. Comment `recheck` on each open pull request, so it gets a `CLA` status.
+4. Then apply the `main` ruleset below. A required check that never reported
+   blocks the merge with "Expected — waiting for status".
+5. Apply the `cla-signatures` ruleset once the first signature creates the
+   branch, or before; the ruleset can exist first.
+
+When you fold other people's pull requests into one, write `Supersedes #N` in
+the description: the check then asks their authors to sign too.
+
 ## Ruleset: `main`
 
 Requires the backend/frontend test job and the CLA check, and blocks force-push
@@ -31,7 +48,9 @@ gh api --method POST repos/debpalash/VoiceStudio/rulesets --input - <<'JSON'
   "target": "branch",
   "enforcement": "active",
   "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
-  "bypass_actors": [],
+  "bypass_actors": [
+    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request" }
+  ],
   "rules": [
     { "type": "deletion" },
     { "type": "non_fast_forward" },
@@ -50,9 +69,11 @@ gh api --method POST repos/debpalash/VoiceStudio/rulesets --input - <<'JSON'
 JSON
 ```
 
-Leave `bypass_actors` empty unless the owner chooses an emergency bypass. To add
-one, use `{ "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request" }`
-(repository admins, pull requests only). Do not enable "Require review from
+The bypass lets repository admins merge a pull request whose checks are not
+green, for example to land an urgent fix, but never to push to `main` directly.
+For the CLA, prefer the `cla-override` label: it records that a maintainer
+reviewed the pull request by hand. Remove the bypass entry for a stricter
+setup. Do not enable "Require review from
 Code Owners" while `@debpalash` is the only code owner, because GitHub does not
 let authors approve their own pull requests.
 
@@ -118,8 +139,8 @@ gh api --method PUT repos/debpalash/VoiceStudio/private-vulnerability-reporting
 ## Dependabot alerts
 
 UI: **Settings → Code security → Dependabot alerts → Enable**. This setting
-turns on alerts only. The repository has no `.github/dependabot.yml`, so
-Dependabot does not open version-update pull requests.
+turns on security alerts. Version updates for GitHub Actions are configured
+separately in `.github/dependabot.yml`.
 
 ```bash
 gh api --method PUT repos/debpalash/VoiceStudio/vulnerability-alerts

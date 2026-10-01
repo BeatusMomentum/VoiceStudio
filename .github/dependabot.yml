@@ -1,7 +1,8 @@
 version: 2
 updates:
   # Keeps the SHA-pinned actions in .github/workflows current (pins are
-  # enforced by tests/test_actions_pinned.py). One grouped PR per week.
+  # enforced by tests/test_actions_pinned.py). Minor and patch updates arrive
+  # as one grouped PR per week; major versions come as separate PRs.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -10,5 +11,8 @@ updates:
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
     commit-message:
       prefix: "chore(ci)"

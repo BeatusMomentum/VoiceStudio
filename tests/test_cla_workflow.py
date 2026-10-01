@@ -68,7 +68,7 @@ def test_workflow_comment_filter_admits_the_sign_phrase_and_recheck():
 
 def test_published_agreements_are_never_edited():
     for path, expected in _PUBLISHED_AGREEMENTS.items():
-        text = (_REPO / path).read_text(encoding="utf-8")
+        text = (_REPO / path).read_text(encoding="utf-8").replace("\r\n", "\n")
         assert hashlib.sha256(text.encode()).hexdigest() == expected, (
             f"{path} changed. Publish the new terms as a new version file instead."
         )

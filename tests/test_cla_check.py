@@ -128,8 +128,9 @@ def test_comment_renders_untrusted_identities_as_inert_code():
 class FakeGitHub:
     repo = "debpalash/VoiceStudio"
 
-    def __init__(self, comments, actors, store=None):
+    def __init__(self, comments, actors, store=None, pr=None, others=None):
         self.comments, self.actors = comments, actors
+        self.pr, self.others = pr or {}, others or {}
         self.files = {} if store is None else {cla.SIGNATURE_PATH: store}
         self.branch = store is not None
         self.statuses, self.posted, self.patched = [], [], []
@@ -137,7 +138,7 @@ class FakeGitHub:
     def get(self, path):
         assert path.endswith("/pulls/7")
         return {"state": "open", "user": {"login": "alice", "id": 1001, "type": "User"},
-                "head": {"sha": "abc"}, "base": {"repo": {"id": 99, "default_branch": "main"}}}
+                "head": {"sha": "abc"}, "base": {"repo": {"id": 99, "default_branch": "main"}}, **self.pr}
 
     def paginate(self, path, limit=None):
         return self.comments
@@ -150,6 +151,9 @@ class FakeGitHub:
             "pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": nodes}}}}
 
     def request(self, method, path, body=None):
+        if method == "GET" and "/pulls/" in path:
+            number = int(path.rsplit("/", 1)[1])
+            return (200, {"user": self.others[number]}, {}) if number in self.others else (404, None, {})
         if "/contents/" in path and method == "GET":
             if cla.SIGNATURE_PATH not in self.files:
                 return 404, None, {}
@@ -187,6 +191,7 @@ def test_first_signature_creates_the_store_and_turns_the_status_green():
     result = cla.run(gh, "issue_comment", {"issue": {"number": 7}})
     assert result.passed and gh.branch
     saved = gh.files[cla.SIGNATURE_PATH]["signatures"]
+    assert len(saved) == 1 and len(saved[0].pop("body_sha256")) == 64
     assert saved == [{"login": "alice", "id": 1001, "pull_request": 7, "comment_id": 5,
                       "signed_at": "2026-10-02T00:00:00Z", "version": cla.CLA_VERSION, "repo_id": 99}]
     assert gh.statuses[-1]["state"] == "success" and gh.statuses[-1]["context"] == "CLA"
@@ -208,37 +213,86 @@ def test_someone_elses_sign_comment_does_not_count():
     assert gh.files[cla.SIGNATURE_PATH]["signatures"] == []
 
 
-def _issue_event(labels, user_type="User", body=None):
-    return {"issue": {"number": 42, "labels": [{"name": l} for l in labels]},
-            "comment": {"id": 9, "body": body or cla.SIGN_PHRASE, "created_at": "2026-10-02T00:00:00Z",
-                        "user": {"login": "velixio", "id": 270455167, "type": user_type}},
-            "repository": {"id": 99}}
+def _comment(user_id=1001, login="alice", body=None, edited=False, user_type="User", cid=5):
+    created = "2026-10-02T00:00:00Z"
+    return {"id": cid, "user": {"id": user_id, "login": login, "type": user_type},
+            "body": cla.SIGN_PHRASE if body is None else body,
+            "created_at": created, "updated_at": "2026-10-03T00:00:00Z" if edited else created}
 
 
-def test_past_contributors_sign_on_a_labelled_issue():
-    gh = FakeGitHub([], [], store=cla.empty_store())
-    gh.request_log = []
+def test_edited_sign_comments_do_not_count():
+    gh = FakeGitHub([_comment(edited=True)], [actor("alice", 1001)], store=cla.empty_store())
+    assert not cla.run(gh, "issue_comment", {"issue": {"number": 7}}).passed
+    assert gh.files[cla.SIGNATURE_PATH]["signatures"] == []
+
+
+def test_stored_signature_records_a_hash_of_the_comment():
+    gh = FakeGitHub([_comment()], [actor("alice", 1001)], store=cla.empty_store())
+    cla.run(gh, "issue_comment", {"issue": {"number": 7}})
+    stored = gh.files[cla.SIGNATURE_PATH]["signatures"][0]
+    assert len(stored["body_sha256"]) == 64 and stored["pull_request"] == 7
+
+
+@pytest.mark.parametrize("email", [
+    "cline@openai.com", "codex@openai.com", "175728472+Copilot@users.noreply.github.com",
+    "cursoragent@cursor.com", "41898282+github-actions[bot]@users.noreply.github.com",
+])
+def test_agent_identities_never_need_to_sign(email):
+    linked = actor("Copilot", 175728472, email=email) if "Copilot" in email else actor(email=email)
+    assert cla.evaluate(OPENER, False, [linked], {1001}).passed
+
+
+def test_superseded_pull_request_authors_must_sign():
+    assert cla.superseded_numbers("Consolidates fixes.\nSupersedes #12, #15 and #12.\nCloses #99") == [12, 15]
+
+
+def _issue_event(labels):
+    return {"issue": {"number": 42, "labels": [{"name": l} for l in labels]}, "repository": {"id": 99}}
+
+
+def _with_reactions(gh):
+    gh.reactions = []
     original = gh.request
 
     def request(method, path, body=None):
         if path.endswith("/reactions"):
-            gh.request_log.append(body)
+            gh.reactions.append(path)
             return 201, {}, {}
         return original(method, path, body)
 
     gh.request = request
-    assert cla.sign_on_issue(gh, _issue_event(["cla"]))
-    assert gh.files[cla.SIGNATURE_PATH]["signatures"][0]["id"] == 270455167
-    assert gh.files[cla.SIGNATURE_PATH]["signatures"][0]["issue"] == 42
-    assert gh.request_log == [{"content": "+1"}]
+    return gh
 
 
-@pytest.mark.parametrize("event", [
-    _issue_event([]),                       # unlabelled issue
-    _issue_event(["cla"], user_type="Bot"),  # bots cannot sign
-    _issue_event(["cla"], body="> " + cla.SIGN_PHRASE),
-])
-def test_issue_signing_requires_the_label_a_person_and_the_phrase(event):
-    gh = FakeGitHub([], [], store=cla.empty_store())
-    assert not cla.sign_on_issue(gh, event)
+def test_past_contributors_sign_on_a_labelled_issue_and_none_are_lost():
+    comments = [_comment(270455167, "velixio", cid=1), _comment(2002, "carol", cid=2),
+                _comment(3003, "dave", body="> " + cla.SIGN_PHRASE, cid=3),
+                _comment(4004, "erin", edited=True, cid=4), _comment(5005, "bot", user_type="Bot", cid=5)]
+    gh = _with_reactions(FakeGitHub(comments, [], store=cla.empty_store()))
+    assert cla.sign_on_issue(gh, _issue_event(["cla"])) == 2
+    stored = gh.files[cla.SIGNATURE_PATH]["signatures"]
+    assert [s["id"] for s in stored] == [270455167, 2002] and stored[0]["issue"] == 42
+    assert len(gh.reactions) == 2
+    assert cla.sign_on_issue(gh, _issue_event(["cla"])) == 0  # idempotent
+
+
+def test_unlabelled_issues_record_nothing():
+    gh = FakeGitHub([_comment()], [], store=cla.empty_store())
+    assert cla.sign_on_issue(gh, _issue_event([])) == 0
     assert gh.files[cla.SIGNATURE_PATH]["signatures"] == []
+
+
+def test_superseding_pr_waits_for_the_original_authors():
+    others = {12: {"login": "frank", "id": 6006, "type": "User"},
+              13: {"login": "dependabot[bot]", "id": 49699333, "type": "Bot"}}
+    gh = FakeGitHub([], [actor("alice", 1001)], store=cla.empty_store(),
+                    pr={"body": "Supersedes #12 and #13"}, others=others)
+    result = cla.run(gh, "pull_request_target", {"pull_request": {"number": 7}})
+    assert result.unsigned == [cla.Person("alice", 1001), cla.Person("frank", 6006)]
+
+
+def test_maintainer_override_label_passes_without_checking():
+    gh = FakeGitHub([], [actor(email="you@example.com")], store=cla.empty_store(),
+                    pr={"labels": [{"name": cla.OVERRIDE_LABEL}]})
+    assert cla.run(gh, "pull_request_target", {"pull_request": {"number": 7}}).passed
+    assert gh.statuses[-1]["state"] == "success" and "maintainer" in gh.statuses[-1]["description"]

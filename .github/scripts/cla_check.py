@@ -11,13 +11,17 @@ git name, so changing `user.name` cannot impersonate a signer. Authors whose
 commit email is not linked to a GitHub account cannot be verified and fail the
 check with instructions.
 
-Each run rescans every comment on the pull request, so a run that GitHub
-cancels while queued cannot lose a signature. The result is a commit status
-named "CLA" on the head commit, which branch protection can require.
+Each run rescans every comment on the pull request (or signing issue) and
+records any valid signature not yet stored, so the next run picks up anything a
+run cancelled while queued missed. Edited comments never count. The result is a
+commit status named "CLA" on the head commit, which branch protection can
+require. A maintainer can apply the `cla-override` label after reviewing a pull
+request by hand, for example one that folds in commits from agent identities.
 """
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import re
@@ -36,6 +40,7 @@ STATUS_CONTEXT = "CLA"
 # Issues carrying this label (only maintainers can apply labels) accept
 # signatures from anyone, so past contributors can sign without a pull request.
 SIGNING_LABEL = "cla"
+OVERRIDE_LABEL = "cla-override"
 COMMENT_MARKER = "<!-- voicestudio-cla -->"
 MAX_COMMITS = 250
 
@@ -50,10 +55,14 @@ BOT_IDS = {
 # GitHub App bots also commit as "<id>+<name>[bot]@users.noreply.github.com";
 # a person cannot hold such a login, and the authenticated opener still signs.
 TOOL_EMAILS = re.compile(
-    r"^(noreply@anthropic\.com|cursoragent@cursor\.com|codex@openai\.com|noreply@coderabbit\.ai"
+    r"^(noreply@anthropic\.com|cursoragent@cursor\.com|[^@]+@openai\.com|noreply@coderabbit\.ai"
+    r"|codex@users\.noreply\.github\.com|\d+\+copilot@users\.noreply\.github\.com"
     r"|\d+\+[^@]*\[bot\]@users\.noreply\.github\.com)$",
     re.I,
 )
+# A pull request that says it supersedes others must also be signed by their authors.
+SUPERSEDES = re.compile(r"supersed", re.I)
+PR_REF = re.compile(r"#(\d+)")
 NOREPLY = re.compile(r"^(?:(\d+)\+)?([A-Za-z0-9-]+)@users\.noreply\.github\.com$", re.I)
 CO_AUTHOR = re.compile(r"^co-authored-by:\s*(.*?)\s*<([^>]*)>\s*$", re.I | re.M)
 
@@ -83,8 +92,25 @@ def is_sign_comment(body: str) -> bool:
     return any(" ".join(line.lower().split()) == target for line in (body or "").splitlines())
 
 
-def is_recheck(body: str) -> bool:
-    return (body or "").strip().lower() == "recheck"
+def is_valid_signature(comment: dict) -> bool:
+    """A signing comment that was never edited after it was posted."""
+    edited = comment.get("updated_at") and comment.get("updated_at") != comment.get("created_at")
+    return is_sign_comment(comment.get("body")) and not edited
+
+
+def superseded_numbers(body: str) -> list[int]:
+    """Pull request numbers on lines of a description that say they are superseded."""
+    found: list[int] = []
+    for line in (body or "").splitlines():
+        if SUPERSEDES.search(line):
+            found += [n for n in map(int, PR_REF.findall(line)) if n not in found]
+    return list(dict.fromkeys(found))
+
+
+def signature(user: dict, comment: dict, repo_id, **where) -> dict:
+    return {"login": user["login"], "id": int(user["id"]), **where, "comment_id": comment["id"],
+            "signed_at": comment["created_at"], "version": CLA_VERSION, "repo_id": repo_id,
+            "body_sha256": hashlib.sha256((comment.get("body") or "").encode()).hexdigest()}
 
 
 def exempt(person: Person) -> bool:
@@ -111,6 +137,8 @@ def evaluate(opener: Person, opener_is_bot: bool, actors: list[dict], signed_ids
         require(opener)
     for actor in actors:
         email = (actor.get("email") or "").strip()
+        if TOOL_EMAILS.match(email):
+            continue
         if actor.get("id"):
             require(Person(actor["login"], int(actor["id"])))
             continue
@@ -118,7 +146,7 @@ def evaluate(opener: Person, opener_is_bot: bool, actors: list[dict], signed_ids
             if match.group(1):
                 require(Person(match.group(2), int(match.group(1))))
                 continue
-        if TOOL_EMAILS.match(email) or (opener_is_bot and "[bot]" in email):
+        if opener_is_bot and "[bot]" in email:
             continue
         identity = f"{actor.get('name') or '?'} <{email or 'no email'}>"
         if identity not in result.unknown:
@@ -312,19 +340,29 @@ def upsert_comment(gh: GitHub, number: int, body: str, create: bool) -> None:
         gh.request("POST", f"/repos/{gh.repo}/issues/{number}/comments", {"body": body})
 
 
-def sign_on_issue(gh: GitHub, event: dict) -> bool:
-    """Record a signature posted on a maintainer-labelled signing issue."""
-    issue, comment = event.get("issue") or {}, event.get("comment") or {}
-    user = comment.get("user") or {}
-    labels = {label.get("name") for label in issue.get("labels") or []}
-    if SIGNING_LABEL not in labels or user.get("type") != "User" or not is_sign_comment(comment.get("body")):
-        return False
-    save_signatures(gh, [{"login": user["login"], "id": int(user["id"]), "issue": issue["number"],
-                          "comment_id": comment["id"], "signed_at": comment["created_at"],
-                          "version": CLA_VERSION, "repo_id": (event.get("repository") or {}).get("id")}],
-                    issue["number"])
-    gh.request("POST", f"/repos/{gh.repo}/issues/comments/{comment['id']}/reactions", {"content": "+1"})
-    return True
+def sign_on_issue(gh: GitHub, event: dict) -> int:
+    """Record every valid signature on a maintainer-labelled signing issue.
+
+    Rescans all comments, so signatures posted while another run was queued are
+    not lost. Returns the number of new signatures.
+    """
+    issue = event.get("issue") or {}
+    if SIGNING_LABEL not in {label.get("name") for label in issue.get("labels") or []}:
+        return 0
+    store, _ = load_store(gh)
+    have = {int(s["id"]) for s in store["signatures"]}
+    new, comment_ids = [], []
+    for comment in gh.paginate(f"/repos/{gh.repo}/issues/{issue['number']}/comments"):
+        user = comment.get("user") or {}
+        if user.get("type") == "User" and int(user.get("id") or 0) not in have and is_valid_signature(comment):
+            have.add(int(user["id"]))
+            new.append(signature(user, comment, (event.get("repository") or {}).get("id"), issue=issue["number"]))
+            comment_ids.append(comment["id"])
+    if new:
+        save_signatures(gh, new, issue["number"])
+        for comment_id in comment_ids:
+            gh.request("POST", f"/repos/{gh.repo}/issues/comments/{comment_id}/reactions", {"content": "+1"})
+    return len(new)
 
 
 def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://github.com") -> Evaluation:
@@ -334,8 +372,19 @@ def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://git
         return Evaluation()
     opener = Person(pr["user"]["login"], int(pr["user"]["id"]))
     opener_is_bot = pr["user"].get("type") == "Bot" and opener.id in BOT_IDS
+    doc_url = f"{server_url}/{gh.repo}/blob/{pr['base']['repo']['default_branch']}/{DOCUMENT_PATH}"
+    if OVERRIDE_LABEL in {label.get("name") for label in pr.get("labels") or []}:
+        gh.request("POST", f"/repos/{gh.repo}/statuses/{pr['head']['sha']}", {
+            "state": "success", "context": STATUS_CONTEXT, "target_url": doc_url,
+            "description": "CLA reviewed by a maintainer"})
+        return Evaluation()
 
     actors, count = pr_actors(gh, number)
+    for ref in superseded_numbers(pr.get("body")):
+        status, other, _ = gh.request("GET", f"/repos/{gh.repo}/pulls/{ref}")
+        if status == 200 and (other.get("user") or {}).get("type") == "User":
+            actors.append({"name": other["user"]["login"], "email": "",
+                           "login": other["user"]["login"], "id": other["user"]["id"]})
     store, _ = load_store(gh)
     signed_ids = {int(s["id"]) for s in store["signatures"]}
     evaluation = evaluate(opener, opener_is_bot, actors, signed_ids)
@@ -345,18 +394,15 @@ def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://git
     new = []
     for comment in gh.paginate(f"/repos/{gh.repo}/issues/{number}/comments"):
         user = comment.get("user") or {}
-        if user.get("id") in pending and is_sign_comment(comment.get("body")):
-            person = pending.pop(user["id"])
-            new.append({"login": person.login, "id": person.id, "pull_request": number,
-                        "comment_id": comment["id"], "signed_at": comment["created_at"],
-                        "version": CLA_VERSION, "repo_id": pr["base"]["repo"]["id"]})
+        if user.get("id") in pending and is_valid_signature(comment):
+            pending.pop(user["id"])
+            new.append(signature(user, comment, pr["base"]["repo"]["id"], pull_request=number))
     if new:
         save_signatures(gh, new, number)
         evaluation = evaluate(opener, opener_is_bot, actors, signed_ids | {s["id"] for s in new})
 
-    doc_url = f"{server_url}/{gh.repo}/blob/{pr['base']['repo']['default_branch']}/{DOCUMENT_PATH}"
     if count >= MAX_COMMITS:
-        evaluation.unknown.append(f"more than {MAX_COMMITS} commits; ask a maintainer to review the CLA by hand")
+        evaluation.unknown.append(f"more than {MAX_COMMITS} commits; a maintainer can review them and apply `{OVERRIDE_LABEL}`")
     description = ("All contributors have signed the CLA" if evaluation.passed
                    else f"{len(evaluation.unsigned) + len(evaluation.unknown)} contributor(s) still need to sign")
     gh.request("POST", f"/repos/{gh.repo}/statuses/{pr['head']['sha']}", {
@@ -373,11 +419,8 @@ def main() -> int:
     gh = GitHub(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"],
                 os.environ.get("GITHUB_API_URL", "https://api.github.com"))
     if event_name == "issue_comment":
-        body = (event.get("comment") or {}).get("body")
         if not (event.get("issue") or {}).get("pull_request"):
-            print("CLA:", "signature recorded" if sign_on_issue(gh, event) else "not a signing comment")
-            return 0
-        if not (is_sign_comment(body) or is_recheck(body)):
+            print("CLA: recorded", sign_on_issue(gh, event), "signature(s) from the issue")
             return 0
     evaluation = run(gh, event_name, event, os.environ.get("GITHUB_SERVER_URL", "https://github.com"))
     print("CLA:", "passed" if evaluation.passed else f"waiting on {evaluation.unsigned} {evaluation.unknown}")

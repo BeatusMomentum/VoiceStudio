@@ -44,8 +44,13 @@ _spec.loader.exec_module(cla)
 
 SIGNATURES = f"origin/{cla.SIGNATURE_BRANCH}:{cla.SIGNATURE_PATH}"
 BINARY = re.compile(r"\.(lock|png|jpe?g|gif|webp|ico|icns|svg|wav|mp3|flac|ogg|woff2?|ttf|pdf|onnx|bin)$", re.I)
-# Identities that do not name the person who submitted the work.
-AGENT = re.compile(r"^(noreply@anthropic\.com|.*@openai\.com|codex@users\.noreply\.github\.com|test@local|you@example\.com|)$")
+# Identities that do not name the person who submitted the work: the checker's
+# AI-tool list plus placeholder identities, credited to whoever opened the PR.
+PLACEHOLDER = re.compile(r"^(test@local|you@example\.com|)$|\.local$", re.I)
+
+
+def is_agent(email: str) -> bool:
+    return bool(cla.TOOL_EMAILS.match(email) or PLACEHOLDER.search(email))
 FOLDS_IN = re.compile(r"\bsupersed", re.I)
 NOTES = {
     "lookup-failed": "GitHub lookup failed; set GH_TOKEN and rerun",
@@ -98,7 +103,7 @@ def commit_messages(commits: set[str]) -> dict[str, str]:
 
 def account_for(email: str, commit: str) -> tuple[str | None, int | None, str]:
     """GitHub account for an author email: (login, id, noreply|api|unlinked|lookup-failed)."""
-    if AGENT.match(email):
+    if is_agent(email):
         return None, None, "unlinked"
     if (match := cla.NOREPLY.match(email)) and match.group(1):
         return match.group(2), int(match.group(1)), "noreply"
@@ -123,7 +128,7 @@ def names_to_logins() -> dict[str, tuple[str, int]]:
     log = git("log", "--format=%aN <%aE>%n%(trailers:key=Co-authored-by,valueonly)")
     for match in re.finditer(r"^(.+?) <([^>]+)>$", log, re.M):
         noreply = cla.NOREPLY.match(match.group(2))
-        if noreply and noreply.group(1) and not AGENT.match(match.group(2).lower()):
+        if noreply and noreply.group(1) and not is_agent(match.group(2).lower()):
             names.setdefault(match.group(1).strip().lower(), (noreply.group(2), int(noreply.group(1))))
     return names
 
@@ -156,10 +161,11 @@ def main() -> None:
     credits: collections.Counter = collections.Counter()  # (email, name, commit, path) -> lines
     for (email, name, commit, path), n in blamed.items():
         credits[(email, name, commit, path)] += n
-        for co in cla.co_authors(messages.get(commit, "")):
-            co_email = co["email"].lower()
+        # Each co-author once per commit, however often a trailer repeats.
+        co_emails = {co["email"].lower(): co["name"] for co in cla.co_authors(messages.get(commit, ""))}
+        for co_email, co_name in co_emails.items():
             if not cla.TOOL_EMAILS.match(co_email) and co_email != email:
-                credits[(co_email, co["name"], commit, path)] += n
+                credits[(co_email, co_name, commit, path)] += n
 
     first_commit: dict[str, str] = {}
     for email, _, commit, _ in credits:

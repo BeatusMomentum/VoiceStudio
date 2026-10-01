@@ -362,7 +362,8 @@ I have read the VoiceStudio CLA 1.0 and I hereby sign it.
 ```
 
 The signature covers your earlier and future contributions, and the check
-turns green on its own. Contributed before and have no open pull request? Post
+turns green on its own. If a maintainer folds your pull request into another
+one, you sign once there too. Contributed before and have no open pull request? Post
 the same line on the [issue labelled `cla`](https://github.com/debpalash/VoiceStudio/issues?q=label%3Acla). If it lists a commit it cannot link to a GitHub
 account, either add that commit email to your account (Settings → Emails), or
 rewrite the commits with an email that is on it (`git commit --amend

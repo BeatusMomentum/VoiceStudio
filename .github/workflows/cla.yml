@@ -4,7 +4,8 @@
 # .github/CLA-1.0.md once, by comment. .github/scripts/cla_check.py records
 # signatures on the `cla-signatures` branch (created on first use) and sets the
 # "CLA" commit status that branch protection requires. Past contributors can
-# also sign on any issue a maintainer labels `cla`.
+# also sign on any issue a maintainer labels `cla`; a maintainer can apply
+# `cla-override` to a pull request after reviewing it by hand.
 #
 # Security: pull_request_target and issue_comment run with a write token, even
 # for fork PRs. This workflow therefore checks out only the base branch (the
@@ -15,15 +16,12 @@ name: CLA
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
   issue_comment:
     types: [created]
 
 permissions:
   contents: read
-
-concurrency:
-  group: cla-${{ github.event.pull_request.number || github.event.issue.number }}
 
 jobs:
   cla:
@@ -32,6 +30,10 @@ jobs:
       contains(github.event.comment.body, 'VoiceStudio CLA') ||
       (github.event.issue.pull_request && contains(github.event.comment.body, 'recheck'))
     runs-on: ubuntu-24.04
+    # Job level, so comments the `if` skips never take the queue slot. Each run
+    # rescans all comments, so a queued run GitHub cancels loses nothing.
+    concurrency:
+      group: cla-${{ github.event.pull_request.number || github.event.issue.number }}
     permissions:
       contents: write
       issues: write
