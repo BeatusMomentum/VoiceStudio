@@ -323,6 +323,9 @@ hard rules from the first prompt.
 - **Security posture:** the backend serves loopback HTTP — treat every
   query/path/form parameter as hostile. User-chosen filesystem destinations
   are authorized in Electron main (native save dialog), never via HTTP params.
+- **CI supply chain:** every remote action in `.github/workflows/` is pinned
+  to a full 40-char commit SHA with a trailing `# vX.Y.Z` comment
+  (`tests/test_actions_pinned.py`); Dependabot bumps the pins weekly.
 
 ## Contribution licensing
 
