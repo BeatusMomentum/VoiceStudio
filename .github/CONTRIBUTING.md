@@ -240,6 +240,13 @@ bad:  update
 bad:  WIP
 ```
 
+Commit with a real identity (your GitHub noreply address works). The
+`commit-identity` PR check (`scripts/check_commit_identities.py`) fails when a
+PR commit's author, committer, or `Co-authored-by:`/`Signed-off-by:` email is
+a placeholder (`test@local`, `you@example.com`, `mergetest`, hostname-style
+`*.local`) or on the hashed block list; fix it with
+`git rebase --exec 'git commit --amend --no-edit --reset-author' origin/main`.
+
 ---
 
 ## Testing
