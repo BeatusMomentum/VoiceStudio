@@ -1,0 +1,48 @@
+# Contributor License Agreement check.
+#
+# Every pull request's opener and commit authors and co-authors sign
+# .github/CLA-1.0.md once, by comment. .github/scripts/cla_check.py records
+# signatures on the `cla-signatures` branch (created on first use) and sets the
+# "CLA" commit status that branch protection requires. Past contributors can
+# also sign on any issue a maintainer labels `cla`.
+#
+# Security: pull_request_target and issue_comment run with a write token, even
+# for fork PRs. This workflow therefore checks out only the base branch (the
+# default for both events) and runs the base branch's checker; pull-request code
+# is never checked out or executed. tests/test_cla_workflow.py enforces that.
+
+name: CLA
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cla-${{ github.event.pull_request.number || github.event.issue.number }}
+
+jobs:
+  cla:
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      contains(github.event.comment.body, 'VoiceStudio CLA') ||
+      (github.event.issue.pull_request && contains(github.event.comment.body, 'recheck'))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Check CLA signatures
+        run: python3 .github/scripts/cla_check.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

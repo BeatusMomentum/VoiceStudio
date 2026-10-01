@@ -26,6 +26,11 @@ VoiceStudio in a closed-source or proprietary product or service without
 the AGPL-3.0 copyleft obligations. Pricing tiers are coming soon; for inquiries
 contact `VoiceStudio@palash.dev`.
 
+Contributors license their contributions to Yupcha Softwares Private Limited,
+the company that maintains VoiceStudio, under the
+[Contributor License Agreement](.github/CLA-1.0.md). Contributions stay
+available under the AGPL-3.0.
+
 (This Notice is a plain-language summary; the binding terms are the full GNU
 AGPL-3.0 text in [`LICENSE`](LICENSE).)
 

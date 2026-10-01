@@ -77,6 +77,7 @@ metadata and the backend fallback mirror it.
 - Footer sponsor hover details show dated GitHub reach, and its X opens the Pro page (#2302)
 - Linux AppImages use the static runtime so launching them no longer needs libfuse2 (#2328) — thanks @shuvashish76!
 - Voice Clone shows upload and record side by side instead of behind a toggle (#2307)
+- Pull requests ask their opener and every commit author and co-author to sign a one-time Contributor License Agreement by comment; the contributing guide explains how
 
 ### Docs
 - Chinese README now matches the Electron installation and migration guide (#2377) — thanks @lg114!
