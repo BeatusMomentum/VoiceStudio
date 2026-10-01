@@ -24,7 +24,7 @@ text in [`LICENSE`](LICENSE).
 A **commercial license is available** for organizations that want to embed
 VoiceStudio in a closed-source or proprietary product or service without
 the AGPL-3.0 copyleft obligations. Pricing tiers are coming soon; for inquiries
-contact `VoiceStudio@palash.dev`.
+contact `hi@voicestudio.sh`.
 
 Contributors license their contributions to Yupcha Softwares Private Limited,
 the company that maintains VoiceStudio, under the

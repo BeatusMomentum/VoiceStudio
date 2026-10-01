@@ -80,6 +80,7 @@ metadata and the backend fallback mirror it.
 - Pull requests ask their opener and every commit author and co-author to sign a one-time Contributor License Agreement by comment; the contributing guide explains how
 
 ### Docs
+- Contact addresses are now hi@voicestudio.sh (general and licensing), partner@voicestudio.sh (partnerships) and security@voicestudio.sh (security reports)
 - Chinese README now matches the Electron installation and migration guide (#2377) — thanks @lg114!
 
 - Record the supplied audio comparisons and installed-engine quality validation (#2406)

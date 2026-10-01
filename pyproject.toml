@@ -9,7 +9,7 @@ description = "VoiceStudio — a private, local-first studio for voice cloning, 
 readme = "README.md"
 # Free and open-source under the GNU Affero General Public License v3 (see
 # LICENSE). A commercial license is available for proprietary/closed-source use
-# without AGPL obligations — contact OmniVoice@palash.dev. The bundled omnivoice/
+# without AGPL obligations — contact hi@voicestudio.sh. The bundled omnivoice/
 # TTS model by Han Zhu remains Apache-2.0 upstream (Apache-2.0 is AGPL-compatible).
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"

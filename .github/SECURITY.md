@@ -24,7 +24,7 @@ download, and never run executables bundled with model archives.
 Instead, report them privately via one of these channels:
 
 1. **GitHub Security Advisories** (preferred) — [Report a vulnerability](https://github.com/debpalash/VoiceStudio/security/advisories/new)
-2. **Email** — Send details to **security@palash.dev**
+2. **Email** — Send details to **security@voicestudio.sh**
 
 ### What to include
 
