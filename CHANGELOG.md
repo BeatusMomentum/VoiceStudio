@@ -78,8 +78,11 @@ metadata and the backend fallback mirror it.
 - Linux AppImages use the static runtime so launching them no longer needs libfuse2 (#2328) — thanks @shuvashish76!
 - Voice Clone shows upload and record side by side instead of behind a toggle (#2307)
 - Pull requests ask their opener and every commit author and co-author to sign a one-time Contributor License Agreement by comment; the contributing guide explains how
+- Pull requests fail when a commit uses a leaked personal email or a placeholder identity such as an unconfigured hostname address
+- GitHub Actions are pinned to exact commits and kept current by Dependabot
 
 ### Docs
+- Maintainer guide for repository settings that can't live in code; the licence notice scope and the contributing guide's list of network calls match the current app
 - Contact addresses are now hi@voicestudio.sh (general and licensing), partner@voicestudio.sh (partnerships) and security@voicestudio.sh (security reports)
 - Chinese README now matches the Electron installation and migration guide (#2377) — thanks @lg114!
 

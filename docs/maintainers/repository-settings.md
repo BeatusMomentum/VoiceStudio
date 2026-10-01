@@ -14,11 +14,14 @@ pull requests.
 The `context` values must match the check names shown on a pull request:
 
 - `Tests (backend + frontend)`: the `name:` of the `test` job in `.github/workflows/ci.yml`.
-- `cla`: the job ID in `.github/workflows/cla.yml`. That job has no `name:`, so
-  its check is called `cla`. If the job gains `name: CLA`, use `CLA` here.
+- `CLA`: the commit status that `.github/scripts/cla_check.py` sets on the
+  pull request's head commit. Require this status, not the `cla` job: the job
+  succeeds whenever the checker runs, and comment-triggered runs are not
+  attached to the pull request.
 
-`integration_id` 15368 is GitHub Actions, so only workflow runs can satisfy
-these checks. `strict_required_status_checks_policy` requires branches to be up
+`integration_id` 15368 is GitHub Actions, so only workflow runs can satisfy the
+test check. The `CLA` entry omits it, so the status counts whichever token the
+workflow uses. `strict_required_status_checks_policy` requires branches to be up
 to date with `main` before merging.
 
 ```bash
@@ -38,7 +41,7 @@ gh api --method POST repos/debpalash/VoiceStudio/rulesets --input - <<'JSON'
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "Tests (backend + frontend)", "integration_id": 15368 },
-          { "context": "cla", "integration_id": 15368 }
+          { "context": "CLA" }
         ]
       }
     }
@@ -60,8 +63,8 @@ pushes** and **Require status checks to pass**, then add both checks with source
 
 ## Ruleset: `cla-signatures`
 
-`.github/workflows/cla.yml` commits signatures to this branch with the
-workflow's `GITHUB_TOKEN`. The ruleset blocks deletion and force-push only. It
+`.github/scripts/cla_check.py` creates this branch on the first signature and
+commits signatures to it with the workflow's `GITHUB_TOKEN`. The ruleset blocks deletion and force-push only. It
 does not restrict updates or require checks, so the workflow can keep committing.
 You can create the ruleset before the branch exists.
 
