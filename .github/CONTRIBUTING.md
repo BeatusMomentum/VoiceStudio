@@ -317,9 +317,17 @@ hard rules from the first prompt.
   path — existing `omnivoice_data/` must keep working with no manual steps.
 - **Engine back-compat:** already-installed engines (model weights on disk)
   must not require reinstall or re-download.
-- **Local-first:** no new outbound calls except GitHub Issues (opt-in
-  reporting) and HuggingFace model downloads. Never log or persist secrets or
-  absolute home paths.
+- **Local-first:** no new outbound calls, and the app must work fully offline
+  with every prompt declined. The only sanctioned ones are: Hugging Face model
+  downloads (gated on install state or an explicit user action); bug reports
+  as prefilled GitHub Issue URLs opened in the user's browser; PostHog
+  analytics only after a yes at the first-run consent prompt
+  (`backend/core/analytics.py`, allowlisted content-free metadata); the
+  GitHub star count (no credentials or referrer, refreshed every 20 minutes
+  while shown); packaged-app update checks against GitHub Releases (downloads
+  wait for the user); and the Lemon Squeezy Pro licence check, only after the
+  user enters a key (`electron/src/main/pro-license.ts`). Adding to this list
+  needs owner approval. Never log or persist secrets or absolute home paths.
 - **Security posture:** the backend serves loopback HTTP — treat every
   query/path/form parameter as hostile. User-chosen filesystem destinations
   are authorized in Electron main (native save dialog), never via HTTP params.

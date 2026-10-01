@@ -36,10 +36,11 @@ AGPL-3.0 text in [`LICENSE`](LICENSE).)
 
 ### Scope
 
-These terms cover the VoiceStudio application — the Tauri desktop shell
-(`frontend/src-tauri/`), the React frontend (`frontend/src/`), the FastAPI
-backend (`backend/`), and supporting build / packaging scripts (`scripts/`,
-`Dockerfile`, `docker-compose.yml`, `.github/`).
+These terms cover the VoiceStudio application — the Electron desktop and web
+app (`electron/`), its native desktop helper (`native/`), the FastAPI backend
+(`backend/`), and supporting build / packaging files (`scripts/`, `deploy/`,
+`.github/`). Electron components adapted from T3 Code keep their MIT notice in
+`electron/T3CODE-LICENSE.txt`.
 
 The bundled `omnivoice/` Python package — the underlying TTS model by Han Zhu —
 is **separately licensed under Apache License 2.0** by its upstream authors and
@@ -52,8 +53,8 @@ weights as CC-BY-NC. Its `audio_tokenizer/LICENSE` contains separate Boson
 Higgs Audio 2 and Meta Llama community terms. A commercial license for
 VoiceStudio-owned code does not replace any of those terms.
 
-Third-party dependencies retain their own licenses. See `Cargo.lock`,
-`bun.lock`, and `uv.lock` for the resolved set.
+Third-party dependencies retain their own licenses. See `bun.lock`, `uv.lock`,
+and `native/desktop-bridge/Cargo.lock` for the resolved set.
 
 ### Reference
 

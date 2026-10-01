@@ -56,7 +56,12 @@ version only after validation.
    include migration steps and real screenshots when relevant, and verify human
    contributors and bug reporters from the tag comparison and included PRs.
 5. Run `uv run pytest tests/test_app_version.py tests/test_changelog_style.py -q`.
-6. Confirm the version matches the intended tag.
+6. Audit contributor agreements: `git fetch origin cla-signatures`, then
+   `GH_TOKEN=... python scripts/cla_audit.py`. Follow up with each unsigned
+   contributor it lists, asking them to sign `.github/CLA-1.0.md` (or their
+   employer the Corporate CLA). This step applies once the CLA workflow and
+   `scripts/cla_audit.py` are on `main`.
+7. Confirm the version matches the intended tag.
 
 ## Build a release draft
 
