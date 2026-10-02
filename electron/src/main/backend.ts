@@ -372,6 +372,17 @@ export async function resolveSpawnPlan(
   };
 }
 
+/** The port of the electron-vite dev renderer URL, if it is a local http URL. */
+export function devRendererPort(rendererUrl: string | undefined): string | null {
+  if (!rendererUrl) return null;
+  try {
+    const url = new URL(rendererUrl);
+    return url.protocol === 'http:' && url.port ? url.port : null;
+  } catch {
+    return null;
+  }
+}
+
 function childEnv(
   port: number,
   region: RuntimeRegion = 'auto',
@@ -395,6 +406,11 @@ function childEnv(
   // Arms backend/core/parent_liveness.py: stdin EOF == "the shell is gone".
   env.OMNIVOICE_DESKTOP_CONTAINED = '1';
   env.OMNIVOICE_PORT = String(port);
+  // The dev renderer is served by Vite on a real port; tell the backend so
+  // Settings -> Sharing reports it. Packaged builds serve app:// (no port).
+  const rendererPort = devRendererPort(env.ELECTRON_RENDERER_URL);
+  if (rendererPort && !env.OMNIVOICE_UI_PORT?.trim() && !env.VOICESTUDIO_UI_PORT?.trim())
+    env.OMNIVOICE_UI_PORT = rendererPort;
   // #2215: the backend resolves uv as OMNIVOICE_BUNDLED_UV first and
   // `shutil.which("uv")` second. The packaged uv lives in resources/tools,
   // which is on nobody's PATH, and a GUI launch does not inherit the shell's

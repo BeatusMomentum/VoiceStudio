@@ -31,6 +31,7 @@ vi.mock('./legacy-storage', () => ({
   }),
 }));
 import {
+  devRendererPort,
   resolveSpawnPlan,
   managedBackendSpawnOptions,
   spawnFailureMessage,
@@ -217,4 +218,19 @@ it('ignores supervisor log lines when this launch printed nothing', async () => 
   expect(supervisor.status.stage).toBe('failed');
   expect(supervisor.status.message).toContain('It printed no output.');
   expect(supervisor.status.message).not.toContain('Reusing compatible');
+});
+
+it('tells the backend the dev renderer port so Sharing reports the real UI port', () => {
+  expect(devRendererPort('http://localhost:3902')).toBe('3902');
+  expect(devRendererPort('app://voicestudio/index.html')).toBeNull();
+  expect(devRendererPort(undefined)).toBeNull();
+  vi.stubEnv('OMNIVOICE_UI_PORT', '');
+  vi.stubEnv('VOICESTUDIO_UI_PORT', '');
+  vi.stubEnv('ELECTRON_RENDERER_URL', 'http://localhost:4102');
+  expect(managedBackendSpawnOptions(3900).env.OMNIVOICE_UI_PORT).toBe('4102');
+  vi.stubEnv('OMNIVOICE_UI_PORT', '4200');
+  expect(managedBackendSpawnOptions(3900).env.OMNIVOICE_UI_PORT).toBe('4200');
+  vi.stubEnv('OMNIVOICE_UI_PORT', '');
+  vi.stubEnv('ELECTRON_RENDERER_URL', '');
+  expect(managedBackendSpawnOptions(3900).env.OMNIVOICE_UI_PORT).toBe('');
 });
