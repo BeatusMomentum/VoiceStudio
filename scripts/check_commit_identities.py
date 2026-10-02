@@ -10,9 +10,13 @@ Checks every commit's author and committer name/email plus each
 * literal placeholder/tool identities that are not personal data
   (``mergetest``, ``test@local``, ``you@example.com``) and hostname-style
   auto-detected emails (``*.local``, ``*.localdomain``, ``*.(none)``);
-* AI agents: an agent email in any field, an agent name in a trailer, or an
-  agent attribution line ("Generated with ...", session links) in the commit
-  message or, with ``--event``, the pull request description. Commits carry
+* AI agents: an agent email in any field, an unambiguous agent name as author
+  or committer (a person may be called Claude, so only names such as "Claude
+  Code" or "Cursor Agent"), any agent name in a trailer, or an agent
+  attribution line ("Generated with ...", session or share links) in the
+  commit message or, with ``--event``, the pull request description. Agent
+  identities live in ``.github/scripts/agent_identities.py``, shared with the
+  CLA check. Commits carry
   the git identity of the person submitting them and nobody else's; human
   co-authors are allowed.
 
@@ -28,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -36,6 +41,10 @@ import sys
 from pathlib import Path
 
 DEFAULT_HASH_FILE = Path(__file__).with_name("blocked_identity_hashes.txt")
+_AGENTS_FILE = Path(__file__).resolve().parents[1] / ".github" / "scripts" / "agent_identities.py"
+_spec = importlib.util.spec_from_file_location("agent_identities", _AGENTS_FILE)
+agents = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(agents)
 
 HASHED_KIND = "blocked personal email (hashed)"
 BLOCKED_NAMES = {"mergetest": "placeholder identity name 'mergetest'"}
@@ -50,24 +59,16 @@ HOSTNAME_KIND = "hostname-style auto-detected email"
 
 AI_KIND = "AI agent identity"
 AI_ATTRIBUTION_KIND = "AI agent attribution"
-# Agents that commit or get credited as co-authors. GitHub App bots such as
-# dependabot[bot] are not agents and stay allowed.
-AI_EMAILS = re.compile(
-    r"^([^@]+@(anthropic\.com|cursor\.com|openai\.com|coderabbit\.ai|devin\.ai|cognition\.ai)"
-    r"|codex@users\.noreply\.github\.com"
-    r"|(\d+\+)?(copilot|claude|codex|cursor|devin-ai-integration|google-labs-jules|copilot-swe-agent"
-    r"|coderabbitai|openhands-agent|sweep-ai)(\[bot\])?@users\.noreply\.github\.com)$"
-)
-# Only checked on trailers: a human author may be called Claude.
-AI_NAMES = re.compile(
-    r"^(claude( (code|opus|sonnet|haiku|fable|\d).*)?|cursor( agent)?|cursoragent|(github )?copilot"
-    r"|(openai )?codex|chatgpt|devin( ai)?|gemini( code assist)?|(google )?jules|aider|cline|coderabbit(ai)?)"
-    r"(\[bot\])?$"
-)
+# Agents that commit or get credited as co-authors (agent_identities.py). GitHub
+# App bots such as dependabot[bot] are not agents and stay allowed, and so do
+# people with a work address at an AI company.
 _AGENTS = r"(claude|cursor|copilot|codex|chatgpt|openai|gemini|devin|jules|aider|cline|windsurf|an? ai\b|ai\b)"
 AI_ATTRIBUTION = re.compile(
     rf"^[ \t>*_-]*(generated|written|created|authored)[ \t]+(with|by|using)[ \t]+\[?{_AGENTS}"
-    r"|🤖[ \t]*(generated|written|created|authored)\b|claude\.(com|ai)/(claude-)?code|^[ \t]*claude-session[ \t]*:",
+    r"|🤖[ \t]*(generated|written|created|authored)\b|^[ \t]*claude-session[ \t]*:"
+    # Agent session and share links.
+    r"|\bclaude\.ai/(c|chat|share|code|new)\b|\bclaude\.com/(claude-)?code\b"
+    r"|\b(chatgpt\.com|chat\.openai\.com)/(c|share)/",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -110,18 +111,19 @@ def classify_email(email: str, hashes: set[str]) -> list[str]:
         kinds.append(BLOCKED_LOCALPARTS[local])
     if "@" in value and value.endswith(HOSTNAME_SUFFIXES):
         kinds.append(HOSTNAME_KIND)
-    if AI_EMAILS.match(value):
+    if agents.is_agent_email(value):
         kinds.append(AI_KIND)
     return kinds
 
 
 def classify_name(name: str) -> list[str]:
+    """Author or committer name: placeholders and unambiguous agent names."""
     kind = BLOCKED_NAMES.get(name.strip().lower())
-    return [kind] if kind else []
+    return ([kind] if kind else []) + ([AI_KIND] if agents.is_agent_author_name(name) else [])
 
 
 def classify_trailer_name(name: str) -> list[str]:
-    return [AI_KIND] if AI_NAMES.match(" ".join(name.lower().split())) else []
+    return [AI_KIND] if agents.is_agent_trailer_name(name) else []
 
 
 def classify_text(text: str) -> list[str]:

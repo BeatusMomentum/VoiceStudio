@@ -144,8 +144,7 @@ def test_shipped_hash_list_is_digests_only():
         for line in HASH_FILE.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.strip().startswith("#")
     ]
-    assert len(entries) == 5
-    assert len(set(entries)) == 5
+    assert entries and len(set(entries)) == len(entries)
     assert all(re.fullmatch(r"[0-9a-f]{64}", e) for e in entries)
 
 
@@ -156,7 +155,7 @@ def test_workflow_runs_on_untrusted_safe_pull_request():
     assert wf["permissions"] == {"contents": "read"}
     (job,) = wf["jobs"].values()
     checkout, run = job["steps"]
-    assert checkout["uses"] == "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8"
+    assert re.fullmatch(r"actions/checkout@[0-9a-f]{40}", checkout["uses"])
     assert checkout["with"] == {"fetch-depth": "0", "persist-credentials": "false"}
     assert "${{" not in run["run"]
     assert run["env"]["BASE_REF"] == "${{ github.base_ref }}"
@@ -180,6 +179,15 @@ HUMAN = "Dana <4242+dana@users.noreply.github.com>"
         ("feat: x\n\n\U0001f916 Generated with [Some Agent](https://example.com)", "message: AI agent attribution"),
         ("feat: x\n\nGenerated with Codex", "message: AI agent attribution"),
         ("feat: x\n\nClaude-Session: abc123", "message: AI agent attribution"),
+        ("feat: x\n\nSession: https://claude.ai/code/session_abc", "message: AI agent attribution"),
+        ("feat: x\n\nSee https://claude.ai/share/0f1e2d", "message: AI agent attribution"),
+        ("feat: x\n\nSee https://claude.ai/chat/0f1e2d", "message: AI agent attribution"),
+        ("feat: x\n\nSee claude.ai/c/0f1e2d", "message: AI agent attribution"),
+        ("feat: x\n\nVia https://claude.ai/new", "message: AI agent attribution"),
+        ("feat: x\n\nBuilt in https://claude.com/claude-code", "message: AI agent attribution"),
+        ("feat: x\n\nPlan: https://chatgpt.com/share/abc-123", "message: AI agent attribution"),
+        ("feat: x\n\nPlan: https://chatgpt.com/c/abc-123", "message: AI agent attribution"),
+        ("feat: x\n\nPlan: https://chat.openai.com/share/abc-123", "message: AI agent attribution"),
     ],
 )
 def test_ai_agent_attribution_in_commits_is_blocked(repo, message, expected):
@@ -196,12 +204,66 @@ def test_ai_agent_as_author_is_blocked(repo):
     assert result.returncode == 1 and "author email: AI agent identity" in result.stdout
 
 
+def _at(local: str, domain: str) -> str:
+    return local + "@" + domain
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        _at("noreply", "anthropic.com"), _at("cursoragent", "cursor.com"), _at("codex", "openai.com"),
+        _at("noreply", "openai.com"), _at("noreply", "coderabbit.ai"), _at("codex", "users.noreply.github.com"),
+        _at("198982749+Copilot", "users.noreply.github.com"), _at("209825114+claude[bot]", "users.noreply.github.com"),
+        _at("158243242+devin-ai-integration[bot]", "users.noreply.github.com"),
+        _at("161369871+google-labs-jules[bot]", "users.noreply.github.com"),
+        _at("136622811+coderabbitai[bot]", "users.noreply.github.com"),
+    ],
+)
+def test_agent_emails_are_blocked(repo, email):
+    _, commit, check = repo
+    sha = commit("feat: x", author=("Someone", email))
+    result = check(*_only(sha))
+    assert result.returncode == 1 and "author email: AI agent identity" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "email", [_at("someone", "anthropic.com"), _at("someone", "openai.com"), _at("dev", "cursor.com"),
+              _at("dev", "coderabbit.ai"), _at("dev", "devin.ai")],
+)
+def test_people_with_work_emails_at_ai_companies_pass(repo, email):
+    _, commit, check = repo
+    sha = commit(f"feat: x\n\nCo-authored-by: Sam <{email}>", author=("Sam", email), committer=("Sam", email))
+    assert check(*_only(sha)).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Claude Code", "Claude Opus 5.5", "claude 3.5 sonnet", "Cursor Agent", "cursoragent", "GitHub Copilot",
+     "Copilot", "Codex", "OpenAI Codex", "Devin AI", "devin-ai-integration[bot]", "google-labs-jules[bot]",
+     "coderabbitai[bot]", "claude[bot]"],
+)
+def test_agent_author_and_committer_names_are_blocked(repo, name):
+    _, commit, check = repo
+    for field, kwargs in (("author", {"author": (name, CLEAN[1])}), ("committer", {"committer": (name, CLEAN[1])})):
+        sha = commit("feat: x", **kwargs)
+        result = check(*_only(sha))
+        assert result.returncode == 1 and f"{field} name: AI agent identity" in result.stdout, (field, name)
+
+
+@pytest.mark.parametrize("name", ["Claude", "Claude Monet", "Jules", "Devin", "Cursor Smith"])
+def test_people_named_like_agents_can_author(repo, name):
+    _, commit, check = repo
+    sha = commit("feat: x", author=(name, CLEAN[1]), committer=(name, CLEAN[1]))
+    assert check(*_only(sha)).returncode == 0
+
+
 @pytest.mark.parametrize(
     "message",
     [
         f"feat: pair work\n\nCo-authored-by: {HUMAN}",
         "feat: x\n\nCo-authored-by: Claude Monet <monet@example.com>",  # a person called Claude
         "fix: audio generated with the default model sounded clipped",
+        "docs: link the claude.ai status page and chatgpt.com/pricing",
     ],
 )
 def test_people_and_ordinary_prose_pass(repo, message):

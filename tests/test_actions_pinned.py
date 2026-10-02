@@ -10,6 +10,7 @@ Local (``./``) actions and ``docker://`` images are exempt.
 """
 from __future__ import annotations
 
+import collections
 import pathlib
 import re
 
@@ -72,14 +73,36 @@ def test_remote_actions_pinned_to_commit_sha():
     )
 
 
-def test_pins_carry_version_comment():
+def _missing_version_comments(text: str, refs: list[str]) -> list[str]:
+    """References whose ``uses:`` lines lack a trailing comment.
+
+    Matches plain, single- and double-quoted scalars. Every collected
+    reference must be found on as many lines as it is used, so a form this
+    scan cannot read fails instead of passing unchecked.
+    """
     bad = []
-    for path, refs in _collect().items():
-        text = path.read_text(encoding="utf-8")
-        for u in set(refs):
-            for m in re.finditer(rf"uses:\s*{re.escape(u)}([^\n]*)", text):
-                if not re.match(r"\s+#\s*\S", m.group(1)):
-                    bad.append(f"{path.relative_to(_ROOT)}: {u}")
+    for u, count in collections.Counter(refs).items():
+        lines = re.findall(rf"""uses:[ \t]*(["']?){re.escape(u)}\1([^\n]*)""", text)
+        if len(lines) < count or any(not re.match(r"\s+#\s*\S", rest) for _, rest in lines):
+            bad.append(u)
+    return bad
+
+
+def test_version_comment_scan_reads_quoted_scalars():
+    sha = "actions/checkout@" + "0" * 40
+    for quote in ("", "'", '"'):
+        line = f"      - uses: {quote}{sha}{quote}"
+        assert _missing_version_comments(line + " # v5.0.0\n", [sha]) == []
+        assert _missing_version_comments(line + "\n", [sha]) == [sha]
+    assert _missing_version_comments("", [sha]) == [sha]  # unreadable form fails closed
+
+
+def test_pins_carry_version_comment():
+    bad = [
+        f"{path.relative_to(_ROOT)}: {u}"
+        for path, refs in _collect().items()
+        for u in _missing_version_comments(path.read_text(encoding="utf-8"), refs)
+    ]
     assert not bad, "Add a '# vX.Y.Z' comment after each SHA pin:\n" + "\n".join(bad)
 
 
