@@ -100,6 +100,25 @@ def test_sh_keeps_runtime_roots_the_app_does_not_own(tmp_path, location):
     assert not user_data.exists()
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="bash script is macOS/Linux-only")
+@pytest.mark.parametrize("make_file", [
+    # Damaged: an owned flag and an unrelated root spread over separate lines.
+    lambda root: '{\n  "owned": true,\n  "other": {"root": "%s"}\n}' % root,
+    lambda root: '{"root": "/somewhere/else", "owned": true}\n{"root": "%s"}' % root,
+    # Well formed, but the folder holds no app project.
+    lambda root: json.dumps({"root": root, "owned": True}),
+])
+def test_sh_ignores_damaged_or_unverified_runtime_records(tmp_path, make_file):
+    home, user_data, _, _ = _layout(tmp_path)
+    root = tmp_path / "unrelated" / "VoiceStudio"
+    (root / "keep-me").mkdir(parents=True)
+    (user_data / "runtime-location.json").write_text(make_file(str(root)))
+
+    applied = _run(tmp_path, home, "--yes")
+    assert applied.returncode == 0, applied.stderr
+    assert (root / "keep-me").exists()
+
+
 def test_scripts_no_longer_cite_the_removed_tauri_backend():
     for path in (SH, PS1):
         with open(path, encoding="utf-8-sig") as handle:
@@ -113,6 +132,7 @@ def test_ps1_targets_electron_folders_and_its_uninstaller():
     assert "Join-Path $appData $electronAppName" in text
     assert "$electronUpdaterCache = 'voicestudio-electron-updater'" in text
     assert "runtime-location.json" in text and "$location.owned -eq $true" in text
+    assert "(Join-Path $root 'project') -PathType Container" in text
     assert "'Uninstall VoiceStudio.exe'" in text
     # The legacy Tauri cleanup stays.
     assert "$legacyIdentifier = 'com.debpalash.omnivoice-studio'" in text

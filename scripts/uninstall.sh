@@ -98,16 +98,20 @@ USER_ENV_DIR="$HOME/.config/omnivoice"
 
 # A custom runtime location the Electron app created (and therefore owns) is
 # recorded in runtime-location.json. Only an owned, absolute folder named
-# VoiceStudio is removed — the same rule the in-app uninstall applies; a reused
-# Tauri environment is recorded unowned and kept.
+# VoiceStudio that holds the app's project is removed — the same rule the
+# in-app uninstall applies; a reused Tauri environment is recorded unowned and
+# kept. The file must be exactly the object the app writes
+# ({"root": "...", "owned": true}); anything else is ignored, so a damaged or
+# hand-edited file can never point the deletion at another folder.
 electron_owned_runtime() {
-  local file="$electron_user_data/runtime-location.json" root
+  local file="$electron_user_data/runtime-location.json" content root
   [ -f "$file" ] || return 0
-  grep -q '"owned"[[:space:]]*:[[:space:]]*true' "$file" 2>/dev/null || return 0
-  root=$(sed -n 's/.*"root"[[:space:]]*:[[:space:]]*"\([^"\\]*\)".*/\1/p' "$file" | head -n1)
+  content=$(tr -d '\r\n' < "$file")
+  root=$(printf '%s' "$content" | sed -n 's/^[[:space:]]*{[[:space:]]*"root"[[:space:]]*:[[:space:]]*"\([^"\\]*\)"[[:space:]]*,[[:space:]]*"owned"[[:space:]]*:[[:space:]]*true[[:space:]]*}[[:space:]]*$/\1/p')
   case "$root" in /*) ;; *) return 0 ;; esac
   [ "$root" = "$electron_user_data/runtime" ] && return 0
   [ "$(basename "$root" | tr '[:upper:]' '[:lower:]')" = "voicestudio" ] || return 0
+  [ -d "$root/project" ] || return 0
   printf '%s\n' "$root"
 }
 ELECTRON_RUNTIME="$(electron_owned_runtime)"

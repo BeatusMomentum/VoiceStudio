@@ -104,7 +104,7 @@ $logsDefault = Join-Path (Join-Path $localApp 'OmniVoice') 'Logs'
 
 # A custom runtime location the Electron app created (and therefore owns) is
 # recorded in runtime-location.json. Only an owned, absolute folder named
-# VoiceStudio is removed — the same rule the in-app uninstall applies; a reused
+# VoiceStudio that holds the app's project is removed — the same rule the in-app uninstall applies; a reused
 # Tauri environment is recorded unowned and kept.
 $electronRuntime = $null
 try {
@@ -114,7 +114,8 @@ try {
     $root = [string]$location.root
     if ($location.owned -eq $true -and [System.IO.Path]::IsPathRooted($root) -and
         (Split-Path $root -Leaf) -eq 'VoiceStudio' -and
-        $root.TrimEnd('\') -ne (Join-Path $electronUserData 'runtime')) {
+        $root.TrimEnd('\') -ne (Join-Path $electronUserData 'runtime') -and
+        (Test-Path -LiteralPath (Join-Path $root 'project') -PathType Container)) {
       $electronRuntime = $root
     }
   }
