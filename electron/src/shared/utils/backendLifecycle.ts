@@ -28,7 +28,7 @@
  * The stage probe now returns `{ stage, message }` and callers surface it.
  */
 
-import { isBackendBusy } from './backendStage';
+import { isBackendBusy } from './backendStage.ts';
 
 export type BackendLifecycleStage = 'ready' | 'starting' | 'failed' | 'unknown';
 

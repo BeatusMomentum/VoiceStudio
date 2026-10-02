@@ -91,3 +91,12 @@ def test_workspace_manifests_agree_on_shared_dependency_ranges():
             name: (root[name], member[name]) for name in root.keys() & member.keys() if root[name] != member[name]
         }
         assert not mismatched, f"root and {workspace} declare different ranges: {mismatched}"
+
+
+def test_the_required_test_job_runs_the_frontend_node_tests():
+    """`bun run test:frontend` ran in no workflow, so its suites rotted unseen."""
+    ci = yaml.safe_load((_WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
+    job = next(j for j in ci["jobs"].values() if j.get("name") == "Tests (backend + frontend)")
+    runs = [str(step.get("run", "")) for step in job["steps"]]
+    assert any("bun run test:frontend" in run for run in runs)
+    assert "test:frontend" in _PACKAGE["scripts"]
