@@ -24,9 +24,11 @@ the description: the check then asks their authors to sign too.
 
 ## Ruleset: `main`
 
-Requires the backend/frontend test job and the CLA check, and blocks force-push
-and deletion. Required checks also stop direct pushes, so changes land through
-pull requests.
+Requires a pull request, the backend/frontend test job and the CLA check, and
+blocks force-push and deletion. Without the pull request rule, a direct push
+whose commit already carries passing checks would be accepted. The rule needs
+no approving review, because `@debpalash` is the only maintainer and GitHub
+does not let authors approve their own pull requests.
 
 The `context` values must match the check names shown on a pull request:
 
@@ -55,6 +57,16 @@ gh api --method POST repos/debpalash/VoiceStudio/rulesets --input - <<'JSON'
     { "type": "deletion" },
     { "type": "non_fast_forward" },
     {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
       "type": "required_status_checks",
       "parameters": {
         "strict_required_status_checks_policy": true,
@@ -78,9 +90,10 @@ Code Owners" while `@debpalash` is the only code owner, because GitHub does not
 let authors approve their own pull requests.
 
 UI: **Settings → Rules → Rulesets → New ruleset → New branch ruleset**. Set the
-target to the default branch, enable **Restrict deletions**, **Block force
-pushes** and **Require status checks to pass**, then add both checks with source
-**GitHub Actions**.
+target to the default branch, enable **Restrict deletions**, **Require a pull
+request before merging** (required approvals: 0, all other options off),
+**Block force pushes** and **Require status checks to pass**, then add both
+checks with source **GitHub Actions**.
 
 ## Ruleset: `cla-signatures`
 

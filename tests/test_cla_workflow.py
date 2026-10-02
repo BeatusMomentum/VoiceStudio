@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import re
 import sys
 from pathlib import Path
@@ -113,3 +114,31 @@ def test_privileged_workflows_never_run_pull_request_code():
                     assert not {"ref", "repository"} & set(options), f"{where} checks out a non-base ref"
                     assert options.get("persist-credentials") is False, f"{where} keeps credentials"
                 assert "${{ github.event" not in str(step.get("run", "")), f"{where} interpolates event data"
+
+
+def _main_ruleset() -> dict:
+    text = (_REPO / "docs" / "maintainers" / "repository-settings.md").read_text(encoding="utf-8")
+    blocks = [json.loads(b) for b in re.findall(r"<<'JSON'\n(.*?)\nJSON\n", text, re.DOTALL)]
+    return next(b for b in blocks if b.get("name") == "main")
+
+
+def test_main_ruleset_requires_pull_requests_and_the_cla_status():
+    rules = {rule["type"]: rule.get("parameters", {}) for rule in _main_ruleset()["rules"]}
+    # Required checks alone accept a direct push whose commit already passed.
+    assert rules["pull_request"] == {
+        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": False,
+        "require_code_owner_review": False, "require_last_push_approval": False,
+        "required_review_thread_resolution": False,
+    }
+    contexts = {c["context"] for c in rules["required_status_checks"]["required_status_checks"]}
+    assert cla.STATUS_CONTEXT in contexts
+    assert {"deletion", "non_fast_forward"} <= set(rules)
+
+
+def test_contributing_states_the_open_source_commitment_limits():
+    agreement = (_REPO / cla.DOCUMENT_PATH).read_text(encoding="utf-8")
+    assert "Open Source\nInitiative" in agreement and "public source repository" in agreement
+    section = (_REPO / ".github" / "CONTRIBUTING.md").read_text(encoding="utf-8").split("## Contribution licensing")[1]
+    summary = " ".join(section.split("\n## ")[0].split())
+    assert "while your contribution is in the public VoiceStudio repository" in summary
+    assert "AGPL-3.0 or another OSI-approved licence" in summary

@@ -357,8 +357,9 @@ a pull request can merge, the person who opened it and every commit author and
 co-author sign the [Contributor License Agreement](CLA-1.0.md) once. You keep
 your copyright. The agreement lets Yupcha Softwares Private Limited, the
 company that maintains VoiceStudio, ship your work in both the AGPL-3.0 app and
-commercial builds, and commits to keeping it available under an open-source
-licence. AI agents can't be co-authors (see
+commercial builds. In return, the company commits that while your contribution
+is in the public VoiceStudio repository, it stays available there under
+AGPL-3.0 or another OSI-approved licence (CLA section 4). AI agents can't be co-authors (see
 [Contributing with AI agents](#contributing-with-ai-agents)); the person
 submitting the work signs for it.
 
