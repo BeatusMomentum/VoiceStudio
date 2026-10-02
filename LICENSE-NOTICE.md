@@ -28,8 +28,9 @@ contact `hi@voicestudio.sh`.
 
 Contributors license their contributions to Yupcha Softwares Private Limited,
 the company that maintains VoiceStudio, under the
-[Contributor License Agreement](.github/CLA-1.0.md). Contributions stay
-available under the AGPL-3.0.
+[Contributor License Agreement](.github/CLA-1.0.md). While a contribution is
+in the public repository, it stays available there under the AGPL-3.0 or
+another OSI-approved licence (CLA section 4).
 
 (This Notice is a plain-language summary; the binding terms are the full GNU
 AGPL-3.0 text in [`LICENSE`](LICENSE).)
