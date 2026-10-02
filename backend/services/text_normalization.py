@@ -51,9 +51,8 @@ audiobook ``apply_lexicon`` overlay). Rationale from the code:
 
 Pinned by ``tests/test_text_normalization.py`` (dictionary-order test).
 
-Gate: prefs key ``text_normalization_enabled`` (default ON) with env override
-``OMNIVOICE_TEXT_NORMALIZATION`` — the same env-wins contract as
-``OMNIVOICE_PRONUNCIATION`` ("0"/"false"/"no"/"off" disable).
+Gate: default ON; the ``OMNIVOICE_TEXT_NORMALIZATION`` env var disables it,
+the same contract as ``OMNIVOICE_PRONUNCIATION`` ("0"/"false"/"no"/"off").
 :func:`normalize_for_tts` is the gated entry point every pipeline calls; it
 never raises — normalization is never allowed to break synthesis.
 """
@@ -69,7 +68,6 @@ from typing import Callable, Optional
 logger = logging.getLogger("omnivoice.text_normalization")
 
 ENV_VAR = "OMNIVOICE_TEXT_NORMALIZATION"
-PREF_KEY = "text_normalization_enabled"
 
 
 # ── Language resolution ───────────────────────────────────────────────────────
@@ -680,16 +678,12 @@ def normalize_text(text: str, language: Optional[str] = None) -> str:
 
 
 def normalization_enabled() -> bool:
-    """Env wins (power-user override, mirrors OMNIVOICE_PRONUNCIATION);
-    otherwise the ``text_normalization_enabled`` pref, default ON."""
+    """Default ON; the env var is the power-user off switch. (A prefs key was
+    once read here too, but nothing ever wrote it.)"""
     env = os.environ.get(ENV_VAR)
-    if env is not None:
-        return env.strip().lower() not in ("0", "false", "no", "off", "")
-    try:
-        from core import prefs
-        return bool(prefs.get(PREF_KEY, True))
-    except Exception:  # noqa: BLE001 — prefs unreadable → default ON
+    if env is None:
         return True
+    return env.strip().lower() not in ("0", "false", "no", "off", "")
 
 
 def normalize_for_tts(text: str, language: Optional[str] = None) -> str:

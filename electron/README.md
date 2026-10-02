@@ -32,8 +32,8 @@ otherwise it checks the prepared `.venv` imports, **spawns** its Python interpre
 supervises it (restart on crash, exit code 78 = port already in use). The
 child's stdin is the liveness signal — closing it makes the backend exit.
 
-Environment knobs: `OMNIVOICE_PORT` (backend port), `VOICESTUDIO_UI_PORT`
-(renderer dev server, default 3902), `VOICESTUDIO_SKIP_BACKEND=1` (never
+Environment knobs: `OMNIVOICE_PORT` (backend port), `OMNIVOICE_UI_PORT`
+(renderer dev server, default 3902; `VOICESTUDIO_UI_PORT` is still accepted), `VOICESTUDIO_SKIP_BACKEND=1` (never
 spawn, only attach), `OMNIVOICE_BACKEND_CMD` (argv override, JSON array or
 whitespace-separated), `OMNIVOICE_STARTUP_BUDGET_S` (default 300, or 600 on a
 host with four or fewer cores or 8 GB of RAM or less; measured from the spawn so

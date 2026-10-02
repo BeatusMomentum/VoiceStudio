@@ -320,10 +320,9 @@ credential at all**, because the API-key middleware waved it through as
 
 Everything above gates *authentication*. A **browser** frontend served from a
 different origin than the backend hits a separate wall first: CORS. The
-backend's allow-list defaults to loopback + desktop origins only
-(`http://localhost:<ui-port>`, `http://127.0.0.1:<ui-port>`, Electron's
-`app://voicestudio`, and the archived Tauri app's `tauri://localhost` /
-`http://tauri.localhost`), so opening a dev/source UI via
+backend's allow-list defaults to loopback + the desktop origin only
+(`http://localhost:<ui-port>`, `http://127.0.0.1:<ui-port>`,
+`app://voicestudio`), so opening a dev/source UI via
 a LAN IP (e.g. `http://192.168.1.159:3901` talking to `…:3900`) blocks every
 request with *"Missing Header: Access-Control-Allow-Origin"* — regardless of
 `OMNIVOICE_SERVER_MODE` or `OMNIVOICE_TRUSTED_NETWORKS`, neither of which
@@ -339,10 +338,11 @@ Each entry must be a bare origin — `scheme://host:port`, exactly what the
 browser sends in its `Origin` header — with no path and no trailing slash
 (`http://192.168.1.159:3901/` would never match). The variable **replaces**
 the default list, so restate the loopback and `app://voicestudio` origins
-alongside your own (add the Tauri origins only for an archived Tauri client). (The in-app LAN share and Tailscale flows in
+alongside your own. (The in-app LAN share and Tailscale flows in
 [docs/sharing.md](sharing.md) don't need this — they serve UI and API from the
 same origin.) If you only moved the Vite dev server's port, set
-`OMNIVOICE_UI_PORT` instead and the default list follows it.
+`OMNIVOICE_UI_PORT` (the older `VOICESTUDIO_UI_PORT` name is still accepted)
+instead; both Vite and the default list follow it.
 
 CORS wraps both authentication gates: credentialless browser preflights are
 answered before PIN/API-key enforcement, and gate-generated `401` responses

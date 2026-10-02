@@ -494,8 +494,8 @@ def create_mcp_server(app=None):
 
         FastMCP exposes the HTTP request via its request context on the
         Streamable-HTTP transport; stdio clients (and any version where the
-        accessor differs) simply resolve to None and fall back to the
-        global default voice."""
+        accessor differs) simply resolve to None and use the backend's
+        default voice."""
         try:
             req = mcp.get_context().request_context.request
             if req is not None:
@@ -522,7 +522,7 @@ def create_mcp_server(app=None):
                 supported. Omit to use the voice profile's saved language;
                 an explicit 'Auto' overrides it.
             profile_id: ID of a saved voice profile to clone. Omit to use this
-                agent's bound voice (Settings → MCP), else the global default.
+                agent's bound voice (Settings → MCP), else the default voice.
             instruct: Style instruction (e.g. 'whisper', 'excited', 'narrator').
             speed: Speech speed multiplier (0.5–2.0, default 1.0).
             steps: Diffusion steps (8=fast/draft, 16=balanced, 32=quality).
@@ -545,7 +545,7 @@ def create_mcp_server(app=None):
             if not await asyncio.to_thread(find_ffmpeg):
                 raise RuntimeError("Ogg/Opus file output requires local ffmpeg; install it or set FFMPEG_PATH")
         # Per-agent voice binding (Wave 2.2): explicit arg wins; otherwise
-        # resolve this client's bound profile, then the global default.
+        # resolve this client's bound profile.
         client_id = _current_client_id()
         try:
             from services import mcp_bindings

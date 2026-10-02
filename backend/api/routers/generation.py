@@ -1714,8 +1714,8 @@ async def generate_speech(
     max_chunk_chars: int = Form(800, ge=0),
     crossfade_ms: int = Form(50, ge=0, le=1000),
     # Expressive-TTS Spec 01: apply the user pronunciation dictionary + inline
-    # [[…]] overrides to the text before synthesis. Default ON; the global
-    # OMNIVOICE_PRONUNCIATION pref can disable it for power users. Omitting it
+    # [[…]] overrides to the text before synthesis. Default ON; the
+    # OMNIVOICE_PRONUNCIATION env var can disable it for power users. Omitting it
     # with an empty dictionary is byte-identical to legacy behavior.
     pronounce: bool = Form(True),
     # Streaming preview: when true, the response is application/x-ndjson —
@@ -2061,14 +2061,7 @@ async def generate_speech(
     # covers generate for every engine. Pure text substitution → identical on
     # mac/Win/Linux. A disabled pref or empty dictionary is a pass-through, so
     # plain text stays byte-identical (#G5 backward-compat).
-    from core import prefs as _prefs
-    _pron_env = os.environ.get("OMNIVOICE_PRONUNCIATION")
-    if _pron_env is not None:
-        # Env wins (power-user override); "0"/"false"/"no"/"off" disable it.
-        _pron_enabled = _pron_env.strip().lower() not in ("0", "false", "no", "off", "")
-    else:
-        _pron_enabled = bool(_prefs.get("pronunciation_enabled", True))
-    if pronounce and _pron_enabled:
+    if pronounce and pronunciation_enabled():
         from services.pronunciation import apply_pronunciation, load_entries_from_db
         try:
             _pron_rows = load_entries_from_db()
@@ -2930,6 +2923,14 @@ def _remove_wav_if_unreferenced(conn, audio_path, exclude_ids=(), defer=None):
 # WAVs). User-tunable via Settings → Storage; 0 = unlimited. The pref key is
 # shared with api/routers/settings.py (the GET/PUT endpoint) — same pattern as
 # perf.torch_compile_disabled, which settings.py and engine_env.py both name.
+def pronunciation_enabled() -> bool:
+    """The pronunciation dictionary is on unless OMNIVOICE_PRONUNCIATION is
+    "0"/"false"/"no"/"off". Env only: a prefs key was once read here too, but
+    no Settings surface ever wrote it."""
+    value = os.environ.get("OMNIVOICE_PRONUNCIATION")
+    return value is None or value.strip().lower() not in ("0", "false", "no", "off", "")
+
+
 HISTORY_CAP_PREF_KEY = "generation_history_cap"
 DEFAULT_HISTORY_CAP = 200
 

@@ -824,7 +824,6 @@
     "channel_stable": "مستقر",
     "channel_preview": "معاينة",
     "channel_set": "تم ضبط قناة التحديث على {{channel}}",
-    "channel_preview_hint": "تتابع المعاينة أحدث إصدار من main — ميزات أحدث وأقل اختبارًا. تعود إلى المستقر إذا كان هناك إصدار مستقر أحدث.",
     "self_check": "تشغيل الفحص الذاتي",
     "self_check_failed": "فشل الفحص الذاتي: {{message}}",
     "self_check_ok": "سليم",

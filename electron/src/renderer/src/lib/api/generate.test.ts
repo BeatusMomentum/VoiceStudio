@@ -11,6 +11,7 @@ import {
   toGenerateForm,
 } from './generate';
 import type { CloneGenerateInput } from './types';
+import { BACKEND_GENERATE_BUDGET_S, generateAbortMs } from '@shared/utils/generateBudget';
 
 // Engine vocabulary (a regional Chinese dialect tag), escaped to keep the source ASCII.
 const DIALECT = '\u56DB\u5DDD\u8BDD';
@@ -302,9 +303,31 @@ describe('generateClone', () => {
         }),
     );
     const pending = generateClone({ ...BASE_INPUT, profileId: 'p1' });
+    let settled = false;
+    pending.catch(() => {}).finally(() => (settled = true));
     const assertion = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
-    await vi.advanceTimersByTimeAsync(21 * 60 * 1000 + 1);
+    // Still waiting where the old 21-minute backstop gave up on a job the
+    // backend was legitimately queueing (30 min) or cold-loading.
+    await vi.advanceTimersByTimeAsync(generateAbortMs(BASE_INPUT.text.length) - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
     await assertion;
+  });
+
+  it('outlasts the backend budget, which grows with the text', () => {
+    const budget = BACKEND_GENERATE_BUDGET_S;
+    const backendMaxS =
+      budget.modelLoad +
+      budget.queueWait +
+      budget.executionBase +
+      budget.sidecarGrace +
+      Math.max(
+        budget.progressExtensionCap,
+        budget.progressExtensionBudgets * (budget.executionBase + budget.sidecarGrace),
+      );
+    expect(generateAbortMs(0)).toBeGreaterThan(backendMaxS * 1000);
+    expect(generateAbortMs(0)).toBeGreaterThan(21 * 60 * 1000);
+    expect(generateAbortMs(50_000)).toBeGreaterThan(generateAbortMs(0) + 4 * 1220 * 1000 - 1);
   });
 });
 

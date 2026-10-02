@@ -824,7 +824,6 @@
     "channel_stable": "Stabil",
     "channel_preview": "Pratinjau",
     "channel_set": "Saluran pembaruan disetel ke {{channel}}",
-    "channel_preview_hint": "Pratinjau mengikuti build main terbaru — fitur lebih baru, lebih sedikit diuji. Kembali ke stabil jika ada rilis stabil yang lebih baru.",
     "self_check": "Jalankan pemeriksaan mandiri",
     "self_check_failed": "Pemeriksaan mandiri gagal: {{message}}",
     "self_check_ok": "OK",

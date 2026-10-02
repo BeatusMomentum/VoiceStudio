@@ -1,13 +1,14 @@
 # Agentic voice: VoiceStudio as a TTS/STT provider
 
 VoiceStudio exposes a **local speech platform**—OpenAI-compatible batch audio,
-a versioned transcription WebSocket, native dictation control, and MCP—so any agent framework that
+a versioned transcription WebSocket, and MCP—so any agent framework that
 speaks to OpenAI's audio endpoints can use your local VoiceStudio for speech —
 in your own cloned voice, with nothing leaving your machine. You bring the
 agent runtime; VoiceStudio is the voice.
 
-For dictating directly into Claude Code, Codex, Pi, Antigravity CLI, Herdr, or
-another focused prompt, use the [Rust control sidecar](speech-platform.md).
+For dictating directly into Claude Code, Codex, Pi, Antigravity CLI, or
+another focused prompt, use the app's dictation shortcut; see the
+[local speech platform](speech-platform.md) for the streaming API.
 
 This is "agentic v1": VoiceStudio is a provider, not the orchestrator. You wire
 your own agent (a support line, a desk assistant, a Discord persona) and point

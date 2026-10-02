@@ -824,7 +824,6 @@
     "channel_stable": "安定版",
     "channel_preview": "プレビュー",
     "channel_set": "アップデートチャンネルを {{channel}} に設定しました",
-    "channel_preview_hint": "プレビューは最新の main ビルドを追跡します。新機能をいち早く利用できますが、テストは少なめです。安定版が先行している場合は安定版にフォールバックします。",
     "self_check": "セルフチェックを実行",
     "self_check_failed": "セルフチェックに失敗しました: {{message}}",
     "self_check_ok": "正常",

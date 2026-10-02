@@ -824,7 +824,6 @@
     "channel_stable": "Stable",
     "channel_preview": "Aperçu",
     "channel_set": "Canal de mise à jour réglé sur {{channel}}",
-    "channel_preview_hint": "L'aperçu suit la dernière version de main : fonctionnalités plus récentes, moins testées. Revient à la version stable si une version stable est plus avancée.",
     "self_check": "Lancer l'auto-diagnostic",
     "self_check_failed": "Échec de l'auto-diagnostic : {{message}}",
     "self_check_ok": "OK",

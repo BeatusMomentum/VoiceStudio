@@ -1777,25 +1777,12 @@ class BearerKeyMiddleware:
         return await self.app(scope, receive, send)
 
 
-# UI dev-server port — single-sourced from OMNIVOICE_UI_PORT so a user who
-# moves the Vite dev server off 3901 still gets a matching CORS allow-list.
-def _ui_port() -> int:
-    raw = os.environ.get("OMNIVOICE_UI_PORT")
-    if raw is None:
-        return 3901
-    try:
-        return int(raw)
-    except (TypeError, ValueError):
-        return 3901
+# Origin policy is single-sourced in core.csrf: the UI port (OMNIVOICE_UI_PORT,
+# alias VOICESTUDIO_UI_PORT) and OMNIVOICE_ALLOWED_ORIGINS feed both this CORS
+# allow-list and the CSRF origin checks, so the two can never disagree.
+from core.csrf import CORS_EXPOSED_HEADERS, allowed_origin_values, ui_port as _ui_port
 
-
-from core.csrf import DEFAULT_DESKTOP_ORIGINS
-
-_ui = _ui_port()
-_allowed = os.environ.get(
-    "OMNIVOICE_ALLOWED_ORIGINS",
-    f"http://localhost:{_ui},http://127.0.0.1:{_ui}," + ",".join(DEFAULT_DESKTOP_ORIGINS),
-).split(",")
+_allowed = allowed_origin_values()
 
 # Registered FIRST → innermost: the startup gate holds every request except
 # the two probe paths until the deferred startup completes (and is a no-op
@@ -1820,14 +1807,16 @@ app.add_middleware(BearerKeyMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _allowed if o.strip()],
+    allow_origins=_allowed,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     # The marker must be readable cross-origin too — a browser UI served from
     # another origin is exactly the deployment that needs to tell "the backend
     # answered 404" from "something else answered 404" (#1385).
-    expose_headers=["Content-Disposition", BACKEND_MARKER_HEADER],
+    # The /generate take metadata (X-Audio-Id, X-Seed, routing, ...) is read
+    # from headers too, so every header the client reads is exposed.
+    expose_headers=[*CORS_EXPOSED_HEADERS, BACKEND_MARKER_HEADER],
 )
 
 # Registered LAST, which in Starlette means OUTERMOST — so the marker lands on
@@ -1964,7 +1953,7 @@ if __name__ == "__main__":
         "--health-check",
         action="store_true",
         help="Boot the server, poll /health, exit 0 on success / 1 on timeout. "
-             "Used by the release-time installer smoke step in .github/workflows/release.yml.",
+             "A self-contained smoke test for an installed or packaged backend.",
     )
     parser.add_argument(
         "--diagnose",
@@ -2044,9 +2033,9 @@ if __name__ == "__main__":
     # SECURITY: default to loopback (127.0.0.1) so the API isn't reachable
     # from the LAN out of the box. VoiceStudio ships no authentication; binding
     # to 0.0.0.0 by default would expose every router on this process to any
-    # host on the user's network. Docker images that need to publish the port
-    # set OMNIVOICE_BIND_HOST=0.0.0.0 explicitly (see deploy/docker-compose.yml)
-    # — the host-side port mapping is what enforces 127.0.0.1-only there.
+    # host on the user's network. The Docker image never reaches this block:
+    # its uvicorn ENTRYPOINT binds 0.0.0.0 itself (deploy/Dockerfile), and the
+    # host-side `127.0.0.1:` port mapping is what keeps it loopback-only there.
     _bind_host = os.environ.get("OMNIVOICE_BIND_HOST", "127.0.0.1")
 
     def _port_taken(host: str, port: int) -> "OSError | None":

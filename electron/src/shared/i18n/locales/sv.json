@@ -824,7 +824,6 @@
     "channel_stable": "Stabil",
     "channel_preview": "Förhandsvisning",
     "channel_set": "Uppdateringskanal inställd på {{channel}}",
-    "channel_preview_hint": "Förhandsvisning följer det senaste main-bygget – nyare funktioner, mindre testade. Återgår till stabil om en stabil version ligger före.",
     "self_check": "Kör självtest",
     "self_check_failed": "Självtestet misslyckades: {{message}}",
     "self_check_ok": "OK",

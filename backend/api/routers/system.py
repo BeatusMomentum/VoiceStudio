@@ -215,19 +215,21 @@ def _nvidia_live_stats() -> tuple[float, float, float] | None:
         return None
 
 
-def _ui_port() -> int:
-    """The Vite UI dev-server port, single-sourced from OMNIVOICE_UI_PORT.
+def _ui_port() -> int | None:
+    """The browser UI dev-server port, or None when there is no such server.
 
-    Mirrors the resolver in main.py (kept local to avoid importing the app
-    module). Falls back to 3901 on a missing or malformed value.
+    Shares core.csrf's resolver (OMNIVOICE_UI_PORT, alias VOICESTUDIO_UI_PORT)
+    so Settings → Sharing reports the port the CORS/CSRF allow-list trusts.
+    The packaged desktop app serves its UI from app://voicestudio, so with no
+    UI port configured a desktop-contained backend has none to report; the
+    Electron dev shell passes its renderer port explicitly.
     """
-    raw = os.environ.get("OMNIVOICE_UI_PORT")
-    if raw is None:
-        return 3901
-    try:
-        return int(raw)
-    except (TypeError, ValueError):
-        return 3901
+    from core.csrf import configured_ui_port, ui_port
+
+    configured = configured_ui_port()
+    if configured is None and os.environ.get("OMNIVOICE_DESKTOP_CONTAINED") == "1":
+        return None
+    return configured or ui_port()
 
 
 def _fast_download_status() -> dict:
@@ -1171,14 +1173,16 @@ PERSISTENT_KEYS = {
     "DEEPL_API_KEY", "DEEPL_BASE_URL",
     "MICROSOFT_API_KEY", "MICROSOFT_BASE_URL",
     "GOOGLE_TRANSLATE_API_KEY", "MICROSOFT_REGION", "AWS_PROFILE", "AWS_REGION",
-    # User-configurable network ports. Persisted so they survive restarts;
-    # the Rust sidecar reads OMNIVOICE_PORT at startup and the backend derives
-    # the LAN-share/UI ports from the others.
-    "OMNIVOICE_PORT", "OMNIVOICE_SHARE_PORT", "OMNIVOICE_UI_PORT",
+    # The LAN-share port is the only persisted port: the backend binds that
+    # listener itself. OMNIVOICE_PORT and OMNIVOICE_UI_PORT are deliberately
+    # NOT persisted — the process that binds them (the desktop shell, the dev
+    # script, Docker, Vite) reads its own environment, never prefs.json, so a
+    # saved value only made the backend misreport the ports it was given.
+    # core.prefs.restore_env ignores values saved by older versions.
+    "OMNIVOICE_SHARE_PORT",
     # Per-job compute-time budgets (#1787). Both are captured at import time
     # by services/model_manager.py (GPU_JOB_TIMEOUT_S / CPU_JOB_TIMEOUT_S), so
-    # a value saved here takes effect on the NEXT backend restart — same
-    # contract as OMNIVOICE_PORT above. Restored into os.environ during the
+    # a value saved here takes effect on the NEXT backend restart. Restored into os.environ during the
     # "env_prefs" startup step (main.py), which runs before model_manager is
     # first imported ("ml_imports"), so the restored value is what the module
     # captures. The Settings UI must say so (RestartBadge).
@@ -1198,7 +1202,7 @@ except Exception:  # pragma: no cover — defensive: env panel > installer wirin
 
 # Keys whose value must be a valid TCP port (1024–65535). Validated before
 # being set so a bad value never reaches uvicorn / the share listener.
-_PORT_KEYS = {"OMNIVOICE_PORT", "OMNIVOICE_SHARE_PORT", "OMNIVOICE_UI_PORT"}
+_PORT_KEYS = {"OMNIVOICE_SHARE_PORT"}
 
 # Keys whose value is a wall-clock compute-time budget in seconds (#1787).
 # Validated the same way as _PORT_KEYS: reject anything that isn't a

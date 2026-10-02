@@ -824,7 +824,6 @@
     "channel_stable": "Stabile",
     "channel_preview": "Anteprima",
     "channel_set": "Canale di aggiornamento impostato su {{channel}}",
-    "channel_preview_hint": "L'anteprima segue l'ultima build di main: funzionalità più recenti, meno testate. Torna alla versione stabile se una release stabile è più avanti.",
     "self_check": "Esegui autodiagnosi",
     "self_check_failed": "Autodiagnosi non riuscita: {{message}}",
     "self_check_ok": "OK",

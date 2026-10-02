@@ -1005,7 +1005,6 @@
     "channel_stable": "稳定版",
     "channel_preview": "预览版",
     "channel_set": "更新通道已设置为 {{channel}}",
-    "channel_preview_hint": "预览版跟踪最新的 main 构建——功能更新，但测试较少。若稳定版更新，则回退到稳定版。",
     "self_check": "运行自检",
     "open_fix_category": "打开 {{category}}",
     "self_check_failed": "自检失败：{{message}}",

@@ -824,7 +824,6 @@
     "channel_stable": "Stabil",
     "channel_preview": "Vorschau",
     "channel_set": "Update-Kanal auf {{channel}} gesetzt",
-    "channel_preview_hint": "Die Vorschau folgt dem neuesten main-Build – neuere Funktionen, weniger getestet. Wechselt zurück zu Stabil, wenn eine stabile Version voraus ist.",
     "self_check": "Selbsttest ausführen",
     "self_check_failed": "Selbsttest fehlgeschlagen: {{message}}",
     "self_check_ok": "OK",

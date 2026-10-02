@@ -61,9 +61,7 @@ def _cookie_transport_allowed(
         origin_host = urlsplit(origin or "").hostname or ""
     except ValueError:
         return False
-    return is_local_host(client_host or "") and (
-        is_local_host(origin_host) or origin_host == "tauri.localhost"
-    )
+    return is_local_host(client_host or "") and is_local_host(origin_host)
 
 
 def _stage_cookie_export(contents: str | None) -> str | None:

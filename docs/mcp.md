@@ -193,8 +193,7 @@ in Scarlett". Voice resolution precedence on every `generate_speech` call:
 
 1. an explicit `profile_id` argument, else
 2. the calling agent's binding, else
-3. the global default voice, else
-4. VoiceStudio's default voice.
+3. VoiceStudio's default voice.
 
 Manage bindings over the loopback REST API (the Settings UI uses these):
 

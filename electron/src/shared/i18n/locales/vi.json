@@ -824,7 +824,6 @@
     "channel_stable": "Ổn định",
     "channel_preview": "Xem trước",
     "channel_set": "Đã đặt kênh cập nhật thành {{channel}}",
-    "channel_preview_hint": "Bản xem trước theo dõi bản dựng main mới nhất — tính năng mới hơn, ít được kiểm thử hơn. Quay lại bản ổn định nếu có bản phát hành ổn định mới hơn.",
     "self_check": "Chạy tự kiểm tra",
     "self_check_failed": "Tự kiểm tra thất bại: {{message}}",
     "self_check_ok": "Ổn",

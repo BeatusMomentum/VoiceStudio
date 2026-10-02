@@ -824,7 +824,6 @@
     "channel_stable": "Estável",
     "channel_preview": "Prévia",
     "channel_set": "Canal de atualização definido como {{channel}}",
-    "channel_preview_hint": "A prévia acompanha a compilação mais recente da main — recursos mais novos, menos testados. Volta para a estável se uma versão estável estiver à frente.",
     "self_check": "Executar autoverificação",
     "self_check_failed": "A autoverificação falhou: {{message}}",
     "self_check_ok": "OK",

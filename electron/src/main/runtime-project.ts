@@ -1,5 +1,6 @@
 import { downloadProxyEnv } from './proxy-env';
 import { downloadRuntimeInstaller } from './runtime-download';
+import { asciiSafePthFiles } from './pth-ascii';
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -644,6 +645,9 @@ export async function installRuntime(
   // New environments must not borrow another application's Python from PATH.
   // Existing compatible environments are kept; Clean & Retry rebuilds explicitly.
   phase('installing_deps');
+  // Heal an existing environment first so its interpreter can run the probes
+  // below (and uv's own interpreter query) instead of dying in `site` (#1783).
+  await asciiSafePthFiles(join(project, '.venv'));
   const interpreterExists = await stat(runtimePython(project)).then(
     (info) => info.isFile(),
     () => false,
@@ -768,6 +772,9 @@ export async function installRuntime(
   }
   await ensureCudnn8Compat(uv, project, run, env, signal);
   signal.throwIfAborted();
+  // A non-English profile path in uv's editable .pth crashes Python 3.11 at
+  // startup on a non-UTF-8 Windows code page (#1783).
+  await asciiSafePthFiles(join(project, '.venv'));
   phase('verifying');
   await run(runtimePython(project), ['-c', RUNTIME_IMPORT_PROBE], project);
   signal.throwIfAborted();
