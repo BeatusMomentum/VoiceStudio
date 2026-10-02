@@ -146,10 +146,15 @@ def evaluate(opener: Person, opener_is_bot: bool, actors: list[dict], signed_ids
                 result.unknown.append(actor["unknown"])
             continue
         email = (actor.get("email") or "").strip()
-        if TOOL_EMAILS.match(email):
-            continue
         if actor.get("id"):
-            require(Person(actor["login"], int(actor["id"])))
+            # GitHub verified this account; a person cannot hold a [bot] login.
+            if not (actor.get("login") or "").lower().endswith("[bot]"):
+                require(Person(actor["login"], int(actor["id"])))
+            continue
+        # A tool named in a co-author trailer is skipped: the person who
+        # submits the work signs for it. An unlinked commit author with a tool
+        # address is not, because anyone can commit under that address.
+        if actor.get("trailer") and TOOL_EMAILS.match(email):
             continue
         # A commit author counts only through the account GitHub linked to it.
         # An unlinked no-reply address may name someone else's account, so it

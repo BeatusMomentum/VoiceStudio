@@ -256,9 +256,23 @@ def test_stored_signature_records_a_hash_of_the_comment():
     "noreply@openai.com", "codex@openai.com", "175728472+Copilot@users.noreply.github.com",
     "cursoragent@cursor.com", "41898282+github-actions[bot]@users.noreply.github.com",
 ])
-def test_agent_identities_never_need_to_sign(email):
-    linked = actor("Copilot", 175728472, email=email) if "Copilot" in email else actor(email=email)
-    assert cla.evaluate(OPENER, False, [linked], {1001}).passed
+def test_agent_co_author_trailers_never_need_to_sign(email):
+    trailer = {**actor(email=email), "trailer": True}
+    assert cla.evaluate(OPENER, False, [trailer], {1001}).passed
+
+
+@pytest.mark.parametrize("email", ["claude@users.noreply.github.com", "noreply@openai.com"])
+def test_unlinked_commit_author_with_a_tool_address_fails_closed(email):
+    # Anyone can commit under a tool address; only GitHub's account link counts.
+    result = cla.evaluate(OPENER, False, [actor(email=email)], {1001})
+    assert not result.passed and result.unknown
+
+
+def test_linked_bot_accounts_are_skipped_but_linked_people_are_not():
+    bot = actor("renovate[bot]", 29139614, email="29139614+renovate[bot]@users.noreply.github.com")
+    person = actor("claude", 5005, email="claude@users.noreply.github.com")
+    result = cla.evaluate(OPENER, False, [bot, person], {1001})
+    assert result.unsigned == [cla.Person("claude", 5005)]
 
 
 def test_superseded_pull_request_authors_must_sign():
@@ -305,7 +319,7 @@ def test_superseding_pr_waits_for_the_original_authors():
     others = {12: {"login": "frank", "id": 6006, "type": "User"},
               13: {"login": "dependabot[bot]", "id": 49699333, "type": "Bot"}}
     commits = {12: [actor("frank", 6006), actor("gina", 7007), actor(name="hal", email="hal@example.com")],
-               13: [actor(email="49699333+dependabot[bot]@users.noreply.github.com")]}
+               13: [actor("dependabot[bot]", 49699333, email="49699333+dependabot[bot]@users.noreply.github.com")]}
     gh = FakeGitHub([], [actor("alice", 1001)], store=cla.empty_store(),
                     pr={"body": "Supersedes #12 and #13"}, others=others, other_commits=commits)
     result = cla.run(gh, "pull_request_target", {"pull_request": {"number": 7}})
