@@ -3,6 +3,7 @@ import { generationFailureMessage } from '@shared/utils/generationFailureMessage
 import i18next from 'i18next';
 import { languageRejectionMessage } from '@shared/utils/languageRejection.ts';
 import { ApiError, apiFetch, isAbortError } from './client';
+import { reportedGenerateBudget } from './generate-budget';
 import type { CloneGenerateInput, GenerateResult } from './types';
 import { beginAppActivity } from '@/lib/app-activity';
 import { createStreamingPreview } from '@/lib/audio/streaming-preview';
@@ -402,7 +403,10 @@ export async function generateClone(
   if (opts.signal?.aborted) controller.abort();
   else opts.signal?.addEventListener('abort', forwardAbort, { once: true });
   // Outlasts the backend's own budget so its descriptive error always wins.
-  const backstop = setTimeout(forwardAbort, generateAbortMs(input.text.length));
+  const backstop = setTimeout(
+    forwardAbort,
+    generateAbortMs(input.text.length, reportedGenerateBudget()),
+  );
   const finishActivity = beginAppActivity('synthesis');
   try {
     const res = await apiFetch('/generate', {

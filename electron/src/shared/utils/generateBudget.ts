@@ -19,8 +19,9 @@
  *   max(OMNIVOICE_PROGRESS_EXTENSION_CAP_S, budgets x execution budget)
  * - freeChars / charsPerSecond: the execution budget's length scaling
  *
- * Operators who raise those budgets through the environment are beyond what
- * the client can know; the margin covers scheduling jitter only.
+ * Operators can raise those budgets through the environment; the backend
+ * reports its active values at GET /generate/budget, and the larger of each
+ * reported value and its default is used. The margin covers scheduling jitter.
  */
 export const BACKEND_GENERATE_BUDGET_S = {
   modelLoad: 1200,
@@ -35,9 +36,24 @@ export const BACKEND_GENERATE_BUDGET_S = {
 
 const CLIENT_MARGIN_S = 60;
 
+export type ReportedGenerateBudget = Partial<
+  Record<'modelLoad' | 'queueWait' | 'executionBase' | 'progressExtensionCap', unknown>
+>;
+
 /** Milliseconds before the client gives up on a /generate for this text. */
-export function generateAbortMs(textLength = 0): number {
-  const budget = BACKEND_GENERATE_BUDGET_S;
+export function generateAbortMs(textLength = 0, reported: ReportedGenerateBudget = {}): number {
+  const raise = (key: keyof ReportedGenerateBudget): number => {
+    const value = reported[key];
+    const base = BACKEND_GENERATE_BUDGET_S[key];
+    return typeof value === 'number' && Number.isFinite(value) ? Math.max(base, value) : base;
+  };
+  const budget = {
+    ...BACKEND_GENERATE_BUDGET_S,
+    modelLoad: raise('modelLoad'),
+    queueWait: raise('queueWait'),
+    executionBase: raise('executionBase'),
+    progressExtensionCap: raise('progressExtensionCap'),
+  };
   const execution =
     budget.executionBase +
     budget.sidecarGrace +

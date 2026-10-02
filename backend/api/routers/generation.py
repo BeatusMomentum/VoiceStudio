@@ -1684,6 +1684,14 @@ def _apply_routing_headers(headers, engine_notice, decision):
     return headers
 
 
+@router.get("/generate/budget")
+def generate_budget():
+    """Active generate budgets, so the UI's backstop follows operator overrides."""
+    from services.model_manager import generate_budget_s
+
+    return generate_budget_s()
+
+
 @router.post("/generate")
 async def generate_speech(
     text: str = Form(...),

@@ -4078,3 +4078,18 @@ def unload_diarization_pipeline() -> bool:
     except Exception:
         logger.debug("Could not clear accelerator cache after diarisation unload", exc_info=True)
     return True
+
+
+def generate_budget_s() -> dict[str, float]:
+    """The active /generate budgets, including operator overrides.
+
+    The client backstop (electron/src/shared/utils/generateBudget.ts) takes the
+    larger of these and its built-in defaults, so raising a timeout through the
+    environment never makes the UI give up on a job that is still running.
+    """
+    return {
+        "modelLoad": _model_load_timeout(),
+        "queueWait": GPU_QUEUE_TIMEOUT_S,
+        "executionBase": max(GPU_JOB_TIMEOUT_S, CPU_JOB_TIMEOUT_S),
+        "progressExtensionCap": progress_extension_cap_s(),
+    }
