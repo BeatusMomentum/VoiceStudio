@@ -571,8 +571,8 @@ _phase_a_finished = threading.Event()
 
 def _phase_a_build() -> None:
     """Everything heavy that used to run at module scope, same relative
-    order per step. Idempotent. Imports are literal statements so
-    PyInstaller's tracer still sees them (backend.spec unchanged).
+    order per step. Idempotent. Imports are literal statements so static
+    import analysis still sees them.
 
     `_phase_a_finished` is set on EVERY exit — including the already-built
     early return — so a shutdown that observed `_phase_a_started` can never

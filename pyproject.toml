@@ -59,7 +59,6 @@ dependencies = [
     # with TypeError. whisperx tests against pyannote 3.3.2+, so we track
     # that range and revisit when whisperx releases a 4-compatible build.
     "pyannote-audio>=3.3.2,<4.0",
-    "pyinstaller>=6.19.0",
     "imageio-ffmpeg>=0.6.0",
     # Directly used by video_context; 12.1 adds get_flattened_data(), the
     # replacement for getdata() ahead of its Pillow 14 removal.
@@ -179,9 +178,7 @@ dependencies = [
     # model load/download 500'd for SOCKS-proxy users ("Using SOCKS proxy, but
     # the 'socksio' package is not installed"). Same failure shape for the
     # OpenAI SDK's client. Pure-Python, MIT, zero transitive deps, ~13 KB —
-    # identical on macOS/Windows/Linux. Also in backend.spec hiddenimports:
-    # httpx imports it lazily inside try/except, so PyInstaller's tracer
-    # misses it and frozen installers would stay broken without the entry.
+    # identical on macOS/Windows/Linux.
     "socksio>=1.0",
     # OS trust store for TLS (#976). Users behind a corporate/antivirus proxy
     # that TLS-inspects traffic get a raw "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE]"
@@ -204,13 +201,11 @@ dependencies = [
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     # Remote GPU workers (backend/worker/). A core dependency rather than an
     # extra even though the feature is opt-in: an installer user who enables a
-    # remote worker in Settings cannot run `uv pip install` inside a frozen
-    # app bundle, so shipping the transport separately would make the feature
+    # remote worker in Settings cannot run `uv pip install` inside the
+    # installed app, so shipping the transport separately would make the feature
     # source-installs-only — a platform/packaging split the parity rule does
     # not allow. Ships prebuilt wheels for every target we build (cp311
-    # macOS arm64/x86_64, Windows x64, manylinux) and PyInstaller has a
-    # first-party hook, so the frozen build needs no spec changes beyond the
-    # protobuf runtime already present transitively.
+    # macOS arm64/x86_64, Windows x64, manylinux).
     "grpcio>=1.60",
     "protobuf>=5.29.6",
     # Security floors for pyannote-audio's checkpoint loader (GHSA-qqmf-gpg7-g8gw).
