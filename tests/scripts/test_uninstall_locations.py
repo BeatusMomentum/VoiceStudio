@@ -136,7 +136,11 @@ def test_ps1_targets_electron_folders_and_its_uninstaller():
     assert "'Uninstall VoiceStudio.exe'" in text
     # The registered uninstaller runs from any install folder, but an elevated
     # run never executes a per-user (user-writable) one.
-    assert "$isElevated -and $entry.PSPath -like '*HKEY_CURRENT_USER*'" in text
+    assert "$isElevated -and ($entry.PSPath -like '*HKEY_CURRENT_USER*'" in text
+    # ...nor one whose file or folder a non-admin can modify.
+    assert "-not (Test-AdminOnlyWritable $candidate)" in text
+    assert "-not (Test-AdminOnlyWritable (Split-Path $candidate -Parent))" in text
+    assert "'S-1-5-32-544'" in text and "InheritOnly" in text
     assert "machineRoots" not in text and "userRoot" not in text
     # The legacy Tauri cleanup stays.
     assert "$legacyIdentifier = 'com.debpalash.omnivoice-studio'" in text

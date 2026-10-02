@@ -51,18 +51,38 @@ if ($RemoveApp) {
   $entries = @(Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -match 'VoiceStudio|OmniVoice' })
   # Run the uninstaller the registry entry names, wherever the user installed
-  # it. Per-user entries (HKCU) are user-writable, so an elevated run never
-  # executes one: that would hand admin rights to a user-writable file.
-  $isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+  # it. An elevated run must not hand admin rights to a file another user can
+  # replace, so it skips per-user (HKCU) entries and any uninstaller whose file
+  # or folder a non-admin can modify. Without elevation the uninstaller asks
+  # for consent itself.
+  $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+  $isElevated = ([Security.Principal.WindowsPrincipal]$currentIdentity).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
+  # SYSTEM, Administrators, TrustedInstaller, and the elevated user running this.
+  $adminSids = @('S-1-5-18', 'S-1-5-32-544',
+    'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464', $currentIdentity.User.Value)
+  # Write, delete, re-permission, or take ownership, including generic write/all.
+  $modifyMask = [int]([Security.AccessControl.FileSystemRights]'Write, Delete, DeleteSubdirectoriesAndFiles, ChangePermissions, TakeOwnership') -bor 0x50000000
+  function Test-AdminOnlyWritable([string]$path) {
+    $acl = Get-Acl -LiteralPath $path
+    if ($adminSids -notcontains $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value) { return $false }
+    foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
+      if ($rule.AccessControlType -ne 'Allow') { continue }
+      if ($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) { continue }
+      if (([int]$rule.FileSystemRights -band $modifyMask) -eq 0) { continue }
+      if ($adminSids -notcontains $rule.IdentityReference.Value) { return $false }
+    }
+    return $true
+  }
   foreach ($entry in $entries) {
     if ([string]$entry.UninstallString -match '^"([^"]+\.exe)"(?:\s+(/currentuser|/allusers))?\s*$' -and
         (Split-Path $Matches[1] -Leaf) -eq 'Uninstall VoiceStudio.exe' -and
         (Test-Path -LiteralPath $Matches[1] -PathType Leaf)) {
       $candidate = [System.IO.Path]::GetFullPath($Matches[1])
       $scope = $Matches[2]
-      if ($isElevated -and $entry.PSPath -like '*HKEY_CURRENT_USER*') {
-        Write-Host "Skipped a per-user uninstaller in an elevated run; run this script without admin rights: $candidate"
+      if ($isElevated -and ($entry.PSPath -like '*HKEY_CURRENT_USER*' -or
+          -not (Test-AdminOnlyWritable $candidate) -or -not (Test-AdminOnlyWritable (Split-Path $candidate -Parent)))) {
+        Write-Host "Skipped an uninstaller other users can modify in an elevated run; run this script without admin rights: $candidate"
         continue
       }
       $nsisUninstaller = $candidate
