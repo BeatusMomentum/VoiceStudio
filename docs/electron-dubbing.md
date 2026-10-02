@@ -1,5 +1,11 @@
 # Electron dubbing workspace
 
+> **Historical context:** this page was written while the Electron and Tauri apps
+> coexisted. Mentions of Tauri helpers, pages, tests and regression results describe
+> that migration period; the Tauri shell has since been removed and the shared code
+> now lives in `electron/src/shared/`. Existing Tauri installs: see the
+> [migration guide](electron-migration.md).
+
 The idle workspace includes an original/dubbed demo comparison with compact
 player controls. Sync playheads aligns positions without starting both videos.
 Sample transcript edits are retained per language while the demo is mounted;

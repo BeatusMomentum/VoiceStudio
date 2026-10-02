@@ -1,5 +1,11 @@
 # Electron runtime setup
 
+> **Historical context:** this page was written while the Electron and Tauri apps
+> coexisted. Mentions of Tauri helpers, pages, tests and regression results describe
+> that migration period; the Tauri shell has since been removed and the shared code
+> now lives in `electron/src/shared/`. Existing Tauri installs: see the
+> [migration guide](electron-migration.md).
+
 The top bar places a GitHub Star button immediately right of Get Pro, showing the exact star count from GitHub's small public endpoint. It refreshes when shown and every 20 minutes while visible; browser caching keeps repeat requests small. A bundled count remains visible if GitHub is unavailable. Requests send no credentials or referrer, and clicking the shortcut opens GitHub in the external browser. The footer shows the project website icon, then Join Discord immediately left of X. Discord opens the community invite in the external browser. The footer includes one X button with a hover popup of follow cards for @idebpalash and @voicestudiosh, plus a heart shortcut to donation options, immediately left of the footer collapse control. The profile popup also opens by click or keyboard; follow links open in the external browser. Profile cards span the popup and bundle their images locally for offline display. The heart opens compact cards with locally bundled brand icons for Ko-fi, PayPal, and GitHub stars, plus the full Support page. Both popups support click and keyboard access. Icons have localized accessible labels. The footer chevron collapses the bar; a slim expand control restores it. Get Pro remains in the top bar.
 
 Low-disk warnings in the notification menu open Settings > Storage, where users can inspect disk use and clear temporary files.

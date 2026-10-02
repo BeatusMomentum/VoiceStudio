@@ -1,5 +1,11 @@
 # Electron compute and performance settings
 
+> **Historical context:** this page was written while the Electron and Tauri apps
+> coexisted. Mentions of Tauri helpers, pages, tests and regression results describe
+> that migration period; the Tauri shell has since been removed and the shared code
+> now lives in `electron/src/shared/`. Existing Tauri installs: see the
+> [migration guide](electron-migration.md).
+
 Settings > Compute device exposes the existing device override, a physical CUDA adapter selector on multi-GPU NVIDIA hosts, the torch.compile workaround, generation time budgets, and hardware readouts. The CUDA selector persists a stable GPU UUID through `CUDA_VISIBLE_DEVICES`; restart the app to apply it to the backend and every engine subprocess.
 
 CUDA selection uses the validated `/api/settings/cuda-device` endpoint; the generic environment setter cannot change it or alter the running process's GPU visibility.

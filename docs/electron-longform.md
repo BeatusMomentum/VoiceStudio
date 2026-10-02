@@ -1,5 +1,11 @@
 # Electron Stories and Audiobooks
 
+> **Historical context:** this page was written while the Electron and Tauri apps
+> coexisted. Mentions of Tauri helpers, pages, tests and regression results describe
+> that migration period; the Tauri shell has since been removed and the shared code
+> now lives in `electron/src/shared/`. Existing Tauri installs: see the
+> [migration guide](electron-migration.md).
+
 Stories and Audiobook are available from the sidebar and command search. Each keeps a separate draft. Choose a saved default voice, enter or import text, then render. Stories supports per-line voice overrides; chapter headings and pause markup use the same `storyToSpans` compiler as Tauri. Audiobook submits the original script to the existing backend parser.
 
 Plain-text audiobook imports recognize chapter-title lines with LF, CRLF or CR line endings. Manuscripts with existing Markdown H1 headings retain their explicit structure and original text.
