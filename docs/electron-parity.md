@@ -1,5 +1,11 @@
 # Electron and Tauri behavior parity
 
+> **Historical context:** this page was written while the Electron and Tauri apps
+> coexisted. Mentions of Tauri helpers, pages, tests and regression results describe
+> that migration period; the Tauri shell has since been removed and the shared code
+> now lives in `electron/src/shared/`. Existing Tauri installs: see the
+> [migration guide](electron-migration.md).
+
 This inventory tracks user-visible behavior. A row is **implemented** when Electron exposes the
 same task and backend contract. Platform-specific performance may differ. A native row stays
 **verification pending** until its real macOS, Windows, and Linux smoke gates pass.
@@ -45,9 +51,9 @@ Clone handoff and cleanup, and round-tripped a generated take into a disposable 
 Its live route sweep remained free of renderer warnings, exceptions and API failures after
 updater, dictation, QR, locale loading, translation-file and local-agent discovery rejection paths
 were contained at their initiating UI boundaries.
-The inventory guard maps every current Tauri page, every static Electron route and every model
-family to its maintained capability or responsive-layout evidence; adding an unmapped page or route
-now fails the required test gate.
+During the migration, an inventory guard mapped every Tauri page, every static Electron route and
+every model family to its maintained capability or responsive-layout evidence; it was retired with
+the Tauri shell.
 An isolated clean Ubuntu 26.04 workspace also completed the Electron typecheck and production
 package, then passed the unpacked Linux artifact contract with its x64 app, bundled `uv`, branded
 resources and native dictation helper present.

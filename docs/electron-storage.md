@@ -1,5 +1,11 @@
 # Electron storage settings
 
+> **Historical context:** this page was written while the Electron and Tauri apps
+> coexisted. Mentions of Tauri helpers, pages, tests and regression results describe
+> that migration period; the Tauri shell has since been removed and the shared code
+> now lives in `electron/src/shared/`. Existing Tauri installs: see the
+> [migration guide](electron-migration.md).
+
 Settings > Storage reads the existing cached disk report, shows volume use/free space, model cache, application data, engine environments and temporary files, and marks incomplete scans explicitly. Largest models and data subtotals expand inline. Warning formatting and byte formatting are shared with Tauri.
 
 Open folder uses Electron's native reveal bridge, with the existing backend reveal route for browser development. Model and log links open their existing management views. Temporary-file cleanup requires explicit confirmation with the running-job warning. A partial deletion reports failure instead of claiming all files were cleared, and refreshes usage. Opening the page never deletes anything.
