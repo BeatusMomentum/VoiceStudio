@@ -67,6 +67,8 @@ For anything new: prefer what's already pinned in `pyproject.toml` / `electron/p
 **Keep main green (hard rule, owner-set 2026-06-16):** A merge must **never break `main`'s CI**. Before a change lands, verify the *full* active CI matrix and `deploy/Dockerfile`, not only the checks you happened to run. Dependency / lockfile / config changes must be validated against all maintained consumers. The lockfile is the repo-root `bun.lock`; any workspace package change requires regenerating it and confirming `bun install --frozen-lockfile` passes. Re-check CodeQL/Security on code changes and the Electron native helper on Rust changes. Do not use the archived Tauri build as a gate.
 
 Other conventions not yet established. Will populate as patterns emerge during development.
+**Attribution and identity (hard rule, owner-set 2026-10-02):** commits, PR descriptions, and issue/PR comments carry only the submitter's own git identity. AI agents are never credited: no agent `Co-authored-by:` trailer, no "Generated with …" line, no session links, no agent author/committer. Never put names or emails other than the configured git identity into commits or comments (no personal emails, no placeholder identities). Human co-authors are fine. Enforced on PRs by `scripts/check_commit_identities.py` (the `commit-identity` check).
+
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

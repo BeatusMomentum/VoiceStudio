@@ -154,7 +154,7 @@ metadata and the backend fallback mirror it.
 - Pronunciation dictionary entries in Japanese, Chinese and Thai apply inside a sentence, not only to a line that is the key alone (#2392) — thanks @kevin9327!
 
 ### CI
-- Pull requests fail when a commit uses a leaked personal email or a placeholder identity such as an unconfigured hostname address (#2556)
+- Pull requests fail when a commit uses a leaked personal email, a placeholder identity, or an AI agent identity, or when a commit or the description credits an AI agent (#2556)
 - GitHub Actions are pinned to exact commits and kept current by Dependabot (#2556)
 
 ## [0.5.6] — 2026-09-23

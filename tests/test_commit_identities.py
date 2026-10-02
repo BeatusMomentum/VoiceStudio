@@ -152,6 +152,7 @@ def test_shipped_hash_list_is_digests_only():
 def test_workflow_runs_on_untrusted_safe_pull_request():
     wf = yaml.load(WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     assert set(wf["on"]) == {"pull_request"}
+    assert "edited" in wf["on"]["pull_request"]["types"]  # description edits are rechecked
     assert wf["permissions"] == {"contents": "read"}
     (job,) = wf["jobs"].values()
     checkout, run = job["steps"]
@@ -160,3 +161,67 @@ def test_workflow_runs_on_untrusted_safe_pull_request():
     assert "${{" not in run["run"]
     assert run["env"]["BASE_REF"] == "${{ github.base_ref }}"
     assert "scripts/check_commit_identities.py" in run["run"] and "origin/${BASE_REF}..HEAD" in run["run"]
+    assert '--event "$GITHUB_EVENT_PATH"' in run["run"]
+
+
+# ── AI agents ───────────────────────────────────────────────────────────
+# Built at runtime so this file never contains a literal agent address.
+AGENT_EMAIL = "noreply" + "@" + "anthropic.com"
+HUMAN = "Dana <4242+dana@users.noreply.github.com>"
+
+
+@pytest.mark.parametrize(
+    "message,expected",
+    [
+        (f"feat: x\n\nCo-authored-by: Claude <{AGENT_EMAIL}>", "Co-authored-by trailer email: AI agent identity"),
+        ("feat: x\n\nCo-authored-by: Claude Opus 5.5 <x@example.com>", "Co-authored-by trailer name: AI agent identity"),
+        ("feat: x\n\nCo-authored-by: Cursor Agent <cursoragent@cursor.com>", "Co-authored-by trailer name: AI agent identity"),
+        ("feat: x\n\nCo-authored-by: Copilot <198982749+Copilot@users.noreply.github.com>", "AI agent identity"),
+        ("feat: x\n\n\U0001f916 Generated with [Some Agent](https://example.com)", "message: AI agent attribution"),
+        ("feat: x\n\nGenerated with Codex", "message: AI agent attribution"),
+        ("feat: x\n\nClaude-Session: abc123", "message: AI agent attribution"),
+    ],
+)
+def test_ai_agent_attribution_in_commits_is_blocked(repo, message, expected):
+    _, commit, check = repo
+    sha = commit(message)
+    result = check(*_only(sha))
+    assert result.returncode == 1 and expected in result.stdout
+
+
+def test_ai_agent_as_author_is_blocked(repo):
+    _, commit, check = repo
+    sha = commit("feat: x", author=("Agent", AGENT_EMAIL))
+    result = check(*_only(sha))
+    assert result.returncode == 1 and "author email: AI agent identity" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        f"feat: pair work\n\nCo-authored-by: {HUMAN}",
+        "feat: x\n\nCo-authored-by: Claude Monet <monet@example.com>",  # a person called Claude
+        "fix: audio generated with the default model sounded clipped",
+    ],
+)
+def test_people_and_ordinary_prose_pass(repo, message):
+    _, commit, check = repo
+    sha = commit(message)
+    assert check(*_only(sha)).returncode == 0
+
+
+def test_bot_authors_that_are_not_agents_pass(repo):
+    _, commit, check = repo
+    sha = commit("chore(deps): bump", author=("dependabot[bot]", "49699333+dependabot[bot]@users.noreply.github.com"))
+    assert check(*_only(sha)).returncode == 0
+
+
+def test_pull_request_description_attribution_is_blocked(repo, tmp_path):
+    _, commit, check = repo
+    sha = commit("feat: clean")
+    event = tmp_path / "event.json"
+    event.write_text('{"pull_request": {"body": "Adds X.\\n\\nGenerated with Claude"}}')
+    result = check(*_only(sha), "--event", str(event))
+    assert result.returncode == 1 and "PR  description: AI agent attribution" in result.stdout
+    event.write_text('{"pull_request": {"body": null}}')
+    assert check(*_only(sha), "--event", str(event)).returncode == 0

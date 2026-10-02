@@ -1,6 +1,7 @@
 # Commit identity gate — fails a PR when any of its commits carries a blocked
 # author/committer/trailer identity (hashed personal emails, placeholder and
-# hostname-style tool identities). The blocked emails are stored only as
+# hostname-style tool identities, AI agents) or when a commit message or the
+# PR description carries AI agent attribution. The blocked emails are stored only as
 # SHA-256 digests in scripts/blocked_identity_hashes.txt; the job output names
 # the commit and the kind of match, never the address.
 #
@@ -11,6 +12,7 @@ name: commit-identity
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -33,4 +35,4 @@ jobs:
       - name: Check PR commit identities
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: python3 scripts/check_commit_identities.py --range "origin/${BASE_REF}..HEAD"
+        run: python3 scripts/check_commit_identities.py --range "origin/${BASE_REF}..HEAD" --event "$GITHUB_EVENT_PATH"

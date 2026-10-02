@@ -244,7 +244,8 @@ Commit with a real identity (your GitHub noreply address works). The
 `commit-identity` PR check (`scripts/check_commit_identities.py`) fails when a
 PR commit's author, committer, or `Co-authored-by:`/`Signed-off-by:` email is
 a placeholder (`test@local`, `you@example.com`, `mergetest`, hostname-style
-`*.local`) or on the hashed block list; fix it with
+`*.local`), an AI agent, or on the hashed block list, or when a commit message
+or the PR description credits an AI agent; fix it with
 `git rebase --exec 'git commit --amend --no-edit --reset-author' origin/main`.
 
 ---
@@ -297,6 +298,12 @@ in the title or body.
 Plenty of contributions here are built with Claude Code, Cursor, and similar
 agents — welcome, with the same quality bar as hand-written PRs (real bug,
 correct fix, regression test; see the quality gates below).
+
+You submit agent-assisted work as your own, under your own git identity. Don't
+credit agents in commits or the PR description: no `Co-authored-by:` trailer
+for an AI agent, no "Generated with …" line, no session links. The
+`commit-identity` check fails PRs that carry them. Co-authors who are people
+are welcome.
 
 One practical tip: this codebase is large, and re-explaining it to your agent
 every session burns context and tokens fast. A persistent memory layer fixes
@@ -351,8 +358,9 @@ co-author sign the [Contributor License Agreement](CLA-1.0.md) once. You keep
 your copyright. The agreement lets Yupcha Softwares Private Limited, the
 company that maintains VoiceStudio, ship your work in both the AGPL-3.0 app and
 commercial builds, and commits to keeping it available under an open-source
-licence. AI tools listed as co-authors don't sign; the person submitting the
-work does.
+licence. AI agents can't be co-authors (see
+[Contributing with AI agents](#contributing-with-ai-agents)); the person
+submitting the work signs for it.
 
 The **CLA** check comments on your pull request when someone still needs to
 sign. To sign, post this as a new comment, on its own line:
