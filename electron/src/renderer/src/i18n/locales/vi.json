@@ -604,7 +604,7 @@
     "history_reuse": "Tái sử dụng tập lệnh",
     "characters_one": "Ký tự {{count}}",
     "cancel_generation": "Hủy tạo",
-    "duration_seconds": "{{seconds}}",
+    "duration_seconds": "{{seconds}} giây",
     "download_failed": "Không thể lưu tệp: {{message}}",
     "history_clear_confirm": "Xóa mọi cảnh quay khỏi lịch sử? Các tập tin âm thanh cũng bị xóa.",
     "edit_voice": "Chỉnh sửa giọng",

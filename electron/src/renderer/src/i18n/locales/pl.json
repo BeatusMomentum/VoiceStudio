@@ -602,7 +602,7 @@
     "history_reuse": "Użyj skryptu ponownie",
     "characters_one": "Znak {{count}}",
     "cancel_generation": "Anuluj generowanie",
-    "duration_seconds": "{{seconds}}",
+    "duration_seconds": "{{seconds}} s",
     "download_failed": "Nie można zapisać pliku: {{message}}",
     "no_language_match": "Żaden język nie pasuje do „{{query}}”.",
     "delete_profile_failed": "Nie udało się usunąć głosu: {{message}}",

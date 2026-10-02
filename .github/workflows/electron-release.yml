@@ -222,6 +222,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Dispatch docker.yml after publishing: GITHUB_TOKEN releases fire no `release` event.
+      actions: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG: ${{ inputs.release_tag || github.ref_name }}
@@ -268,3 +270,10 @@ jobs:
       - name: Publish only when explicitly requested
         if: github.event_name == 'workflow_dispatch' && inputs.publish == true
         run: gh release edit "$TAG" --draft=false --latest
+      # docker.yml publishes release images on `release: published`, which a
+      # GITHUB_TOKEN publish cannot trigger; dispatch its release backfill path.
+      - name: Publish release container images
+        if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+        run: |
+          gh workflow run docker.yml --ref main \
+            -f backfill_release=true -f release_ref="$TAG" -f promote_stable=true

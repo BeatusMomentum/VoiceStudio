@@ -11,11 +11,15 @@ import { packageNativeHelper } from './native-helper-build.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { version } = JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf-8'));
+// Stable is the only Electron update feed: there is no `preview` release to
+// point at. Packaging rehearsals from main are stamped stable too; they are
+// review artifacts and are never published.
 const updateChannel =
   process.env.VOICESTUDIO_UPDATE_CHANNEL || `electron-stable-${process.platform}-${process.arch}`;
-const updateUrl = updateChannel.startsWith('electron-preview-')
-  ? 'https://github.com/debpalash/VoiceStudio/releases/download/preview'
-  : 'https://github.com/debpalash/VoiceStudio/releases/latest/download';
+if (!/^electron-stable-(?:win32|darwin|linux)-(?:x64|arm64)$/.test(updateChannel)) {
+  throw new Error(`Unsupported Electron update channel: ${updateChannel}`);
+}
+const updateUrl = 'https://github.com/debpalash/VoiceStudio/releases/latest/download';
 
 const defaultRustTarget =
   {

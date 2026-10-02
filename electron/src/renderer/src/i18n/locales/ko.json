@@ -602,7 +602,7 @@
     "history_reuse": "스크립트 재사용",
     "characters_one": "{{count}} 문자",
     "cancel_generation": "생성 취소",
-    "duration_seconds": "{{seconds}}",
+    "duration_seconds": "{{seconds}}초",
     "download_failed": "파일을 저장할 수 없습니다: {{message}}",
     "history_clear_failed": "기록을 지울 수 없습니다: {{message}}",
     "history_star_failed": "테이크를 업데이트할 수 없습니다: {{message}}",

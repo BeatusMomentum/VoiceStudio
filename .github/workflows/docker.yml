@@ -1,18 +1,23 @@
 # Publish Docker images to GitHub Container Registry (GHCR).
 #
 # Triggers:
-#   - push of a tag matching `v*` (e.g. `v0.3.0`) → :0.3.0, :0.3, :latest, :sha-
-#   - push to main branch                          → :main, :sha- (rolling "edge" build)
-#   - workflow_dispatch                            → :sha- only (ad-hoc test build)
+#   - GitHub Release published (`v*` tag, e.g. `v0.3.0`) → :0.3.0, :0.3, :stable, :sha-
+#     (never :latest; a tag push alone publishes nothing, so release images wait
+#     until the reviewed Electron draft release is published)
+#   - push to main branch                          → :latest, :main, :sha- (rolling preview)
+#   - workflow_dispatch                            → :sha- only (ad-hoc test build), or
+#     with backfill_release=true the release tags for an existing `vX.Y.Z` tag.
+#     Releases published by electron-release.yml (GITHUB_TOKEN, which cannot
+#     fire `release` events) dispatch that backfill path automatically.
 #
 # Tag ↔ image mapping (versioning hard rule, owner-set 2026-06-11:
 # :latest IS the preview channel; stable users pin :stable or a version tag)
-#   :latest   — rolling preview: latest commit on main (always last release + 1 dev)
+#   :latest   — rolling preview: latest commit on main (never a release build)
 #   :main     — alias of the same rolling main build (kept for back-compat)
-#   :stable   — most recent versioned release (set on every v* tag push)
+#   :stable   — most recent versioned release (set when a non-prerelease is published)
 #   :0.3.6    — exact version from the git tag
 #   :0.3      — major.minor floating tag (updated on every patch within the minor)
-#   :sha-xxxx — specific commit SHA; produced by workflow_dispatch
+#   :sha-xxxx — specific commit SHA; produced by every build
 #
 # ROCm/AMD GPU variant (#1165) — same semantics, `-rocm` suffixed, built by the
 # build-and-push-rocm job from the same Dockerfile via the BASE_IMAGE build-arg:
@@ -31,7 +36,7 @@
 # deploy/dockerhub-overview.md (source of truth for the hub.docker.com page).
 #
 # NOTE: the Docker image is the headless web-server build of VoiceStudio (FastAPI
-# backend + pre-built React frontend served over HTTP).  The Tauri desktop
+# backend + pre-built React frontend served over HTTP).  The desktop
 # auto-updater and its update-channel toggle are desktop-only features; they do
 # NOT apply to the Docker image.
 
@@ -39,8 +44,9 @@ name: Docker (GHCR)
 
 on:
   push:
-    tags: ['v*']
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       backfill_release:
@@ -72,6 +78,8 @@ env:
 
 jobs:
   build-and-push:
+    # Only version releases publish images; other release tags are ignored.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -140,14 +148,15 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Tag strategy (`:sha-<short>` is emitted on every trigger):
-      #   v0.3.6 tag push   → :0.3.6, :0.3, :stable, :sha-
-      #   main branch push  → :latest, :main, :sha-
-      #   workflow_dispatch → :sha- only
+      #   v0.3.6 release published → :0.3.6, :0.3, :stable, :sha-
+      #   main branch push         → :latest, :main, :sha-
+      #   workflow_dispatch        → :sha- only (backfill retags below)
       #
-      # All mutable-tag rules stay gated on `github.event_name == 'push'` so a
-      # manual workflow_dispatch can only ever produce a throwaway `:sha-` tag
-      # (the stale-:latest fix from #249/#251). :stable excludes prerelease
-      # tags (those contain a `-`) so a prerelease can't clobber it.
+      # Every mutable-tag rule is gated on its event, so a manual
+      # workflow_dispatch can only ever produce a throwaway `:sha-` tag (the
+      # stale-:latest fix from #249/#251). latest=false stops metadata-action's
+      # `auto` default from adding :latest to release builds; :latest is the
+      # main preview channel only. :stable excludes prereleases.
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
@@ -159,10 +168,12 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
             ${{ env.REGISTRY }}/${{ env.LEGACY_IMAGE_NAME }}
             ${{ steps.dockerhub.outputs.enabled == 'true' && env.DOCKERHUB_IMAGE || '' }}
+          flavor: |
+            latest=false
           tags: |
-            type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
-            type=raw,value=stable,enable=${{ github.event_name == 'push' && github.ref_type == 'tag' && !contains(github.ref, '-') }}
+            type=semver,pattern={{version}},enable=${{ github.event_name == 'release' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'release' }}
+            type=raw,value=stable,enable=${{ github.event_name == 'release' && !github.event.release.prerelease && !contains(github.ref, '-') }}
             type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
             type=raw,value=main,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
             type=raw,value=sha-${{ steps.source.outputs.short_sha }}
@@ -238,6 +249,8 @@ jobs:
   # build step — so it gets a full runner disk to itself: the ROCm base alone
   # is ~10 GB compressed / ~25 GB unpacked.
   build-and-push-rocm:
+    # Only version releases publish images; other release tags are ignored.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -311,14 +324,14 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.LEGACY_IMAGE_NAME }}
             ${{ steps.dockerhub.outputs.enabled == 'true' && env.DOCKERHUB_IMAGE || '' }}
           # latest=false is load-bearing: metadata-action's default (`auto`)
-          # would add a bare un-suffixed `:latest` on release-tag pushes,
+          # would add a bare un-suffixed `:latest` on release builds,
           # clobbering the CUDA preview channel with a ROCm image.
           flavor: |
             latest=false
           tags: |
-            type=semver,pattern={{version}},suffix=-rocm,enable=${{ github.event_name == 'push' }}
-            type=semver,pattern={{major}}.{{minor}},suffix=-rocm,enable=${{ github.event_name == 'push' }}
-            type=raw,value=stable-rocm,enable=${{ github.event_name == 'push' && github.ref_type == 'tag' && !contains(github.ref, '-') }}
+            type=semver,pattern={{version}},suffix=-rocm,enable=${{ github.event_name == 'release' }}
+            type=semver,pattern={{major}}.{{minor}},suffix=-rocm,enable=${{ github.event_name == 'release' }}
+            type=raw,value=stable-rocm,enable=${{ github.event_name == 'release' && !github.event.release.prerelease && !contains(github.ref, '-') }}
             type=raw,value=rocm,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
             type=raw,value=sha-${{ steps.source.outputs.short_sha }}-rocm
 

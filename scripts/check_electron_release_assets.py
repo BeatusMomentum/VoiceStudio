@@ -57,14 +57,14 @@ def _asset_map(release: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def verify_release(
     release: dict[str, Any], manifest_dir: Path, *, channel: str, version: str
 ) -> list[str]:
-    if channel not in {"stable", "preview"}:
+    # Stable is the only Electron update feed; there is no `preview` release.
+    if channel != "stable":
         raise ReleaseContractError(f"unsupported channel: {channel}")
-    version_pattern = r"\d+\.\d+\.\d+-\d+" if channel == "preview" else r"\d+\.\d+\.\d+"
-    if re.fullmatch(version_pattern, version) is None:
+    if re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
         raise ReleaseContractError(f"{channel} version has the wrong shape: {version}")
-    if bool(release.get("isPrerelease")) != (channel == "preview"):
+    if release.get("isPrerelease"):
         raise ReleaseContractError(f"{channel} prerelease flag does not match the channel")
-    expected_tag = "preview" if channel == "preview" else f"v{version}"
+    expected_tag = f"v{version}"
     if release.get("tagName") != expected_tag:
         raise ReleaseContractError(f"{channel} release tag does not match {expected_tag}")
 
@@ -131,7 +131,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--release-json", type=Path, required=True)
     parser.add_argument("--manifest-dir", type=Path, required=True)
-    parser.add_argument("--channel", choices=("stable", "preview"), required=True)
+    parser.add_argument("--channel", choices=("stable",), required=True)
     parser.add_argument("--version", required=True)
     args = parser.parse_args()
     release = json.loads(args.release_json.read_text(encoding="utf-8"))

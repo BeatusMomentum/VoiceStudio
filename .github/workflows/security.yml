@@ -1,14 +1,15 @@
 # Security scanning — runs on every PR, on push to main, and weekly.
 #
 # Complements the CodeRabbit + Greptile app reviews (which fire on PR creation)
-# with deterministic, gating checks:
-#   • gitleaks   — secret scanning. HARD FAIL: a leaked credential blocks merge.
+# with deterministic checks:
+#   • gitleaks   — secret scanning. HARD FAIL: a leaked credential fails CI
+#                  (not a required check; treat a red run as a merge blocker).
 #   • CodeQL     — Python + JS/TS SAST. Results land in the Security tab.
 #   • bandit     — Python SAST (SARIF → Security tab). Reporting, non-gating.
 #   • pip-audit  — Python dependency advisories. Reporting, non-gating.
 #   • bun audit  — Electron dependency advisories. Reporting, non-gating.
 #
-# Only the secret scan gates the PR. Dependency advisories and bandit findings
+# Only the secret scan fails the run. Dependency advisories and bandit findings
 # are surfaced as signal (Security tab / job log) rather than blocking every PR
 # on a transitive upstream advisory — consistent with the "no ceremony,
 # continuous-to-main" cadence.
@@ -177,17 +178,16 @@ jobs:
           bash scripts/uv-sync-retry.sh
           uv run --with pip-audit pip-audit
 
-      # Pin a floor: `bun audit` was added in bun 1.2.x, so guarantee it exists.
+      # Same bun as package.json packageManager (tests/test_bun_toolchain_pins.py).
       - name: Setup Bun
-        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: "1.2"
+          bun-version: '1.4.2'
 
-      # `bun audit` reports advisories against the Electron lockfile. Non-gating
-      # for the same reason; also tolerant of older bun without the subcommand.
+      # `bun audit` reports advisories against the root workspace lockfile
+      # (bun.lock, which covers Electron). Non-gating for the same reason.
       - name: bun audit (Electron)
         continue-on-error: true
-        working-directory: electron
         run: |
           bun install --frozen-lockfile
           bun audit

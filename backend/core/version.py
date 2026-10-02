@@ -6,8 +6,7 @@ FastAPI/API version and exported-bundle metadata never drift to a stale literal
 "0.3.5" because the *frozen* backend couldn't read its own metadata.
 
 Resolution order:
-  1. installed package metadata — correct in any ``uv sync``'d env and, thanks
-     to ``copy_metadata('omnivoice')`` in ``backend.spec``, in the frozen build;
+  1. installed package metadata — correct in any ``uv sync``'d env;
   2. ``pyproject.toml`` walked up from this file — correct for a raw source
      checkout that was never installed;
   3. ``_FALLBACK_VERSION`` — a last resort, kept in lockstep with the maintained
