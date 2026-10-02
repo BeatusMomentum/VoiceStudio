@@ -78,9 +78,24 @@ def test_maintainer_and_bots_are_exempt_by_id():
     assert cla.evaluate(MAINTAINER, False, actors, set()).passed
 
 
-def test_noreply_email_maps_to_account_id():
-    result = cla.evaluate(OPENER, False, [actor(email="2002+carol@users.noreply.github.com")], {1001})
+def test_co_author_trailer_noreply_email_maps_to_account_id():
+    actors = cla.co_authors("fix: x\n\nCo-authored-by: Carol <2002+carol@users.noreply.github.com>")
+    result = cla.evaluate(OPENER, False, actors, {1001})
     assert result.unsigned == [cla.Person("carol", 2002)]
+
+
+def test_unlinked_commit_author_noreply_email_is_not_trusted():
+    # GitHub links real no-reply addresses itself; an unlinked one may name
+    # someone else's account, so it must be reviewed rather than mapped.
+    result = cla.evaluate(OPENER, False, [actor(name="Carol", email="2002+carol@users.noreply.github.com")],
+                          {1001, 2002})
+    assert not result.passed and result.unknown == ["Carol <2002+carol@users.noreply.github.com>"]
+
+
+@pytest.mark.parametrize("email", ["someone@openai.com", "someone@anthropic.com", "dev@cursor.com"])
+def test_people_with_work_emails_at_ai_companies_still_sign(email):
+    assert cla.evaluate(OPENER, False, [actor(email=email)], {1001}).unknown == [f"Someone <{email}>"]
+    assert cla.evaluate(OPENER, False, [actor("pat", 2020, email=email)], {1001}).unsigned == [cla.Person("pat", 2020)]
 
 
 def test_ai_tool_co_authors_are_skipped_but_people_are_not():
@@ -128,8 +143,9 @@ def test_comment_renders_untrusted_identities_as_inert_code():
 class FakeGitHub:
     repo = "debpalash/VoiceStudio"
 
-    def __init__(self, comments, actors, store=None, pr=None, others=None):
+    def __init__(self, comments, actors, store=None, pr=None, others=None, other_commits=None):
         self.comments, self.actors = comments, actors
+        self.other_commits = other_commits or {}  # PR number -> one actor per commit
         self.pr, self.others = pr or {}, others or {}
         self.files = {} if store is None else {cla.SIGNATURE_PATH: store}
         self.branch = store is not None
@@ -144,9 +160,12 @@ class FakeGitHub:
         return self.comments
 
     def graphql(self, query, variables):
-        nodes = [{"commit": {"authors": {"nodes": [
-            {"name": a["name"], "email": a["email"],
-             "user": {"login": a["login"], "databaseId": a["id"]} if a["id"] else None}]}}} for a in self.actors]
+        commits = self.actors if variables["number"] == 7 else self.other_commits.get(variables["number"], [])
+        nodes = [{"commit": {"oid": "f" * 40, "authors": {
+            "pageInfo": {"hasNextPage": bool(a.get("more"))},
+            "nodes": [{"name": a["name"], "email": a["email"],
+                       "user": {"login": a["login"], "databaseId": a["id"]} if a["id"] else None}]}}}
+            for a in commits]
         return {"repository": {"pullRequest": {"commits": {
             "pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": nodes}}}}
 
@@ -234,7 +253,7 @@ def test_stored_signature_records_a_hash_of_the_comment():
 
 
 @pytest.mark.parametrize("email", [
-    "cline@openai.com", "codex@openai.com", "175728472+Copilot@users.noreply.github.com",
+    "noreply@openai.com", "codex@openai.com", "175728472+Copilot@users.noreply.github.com",
     "cursoragent@cursor.com", "41898282+github-actions[bot]@users.noreply.github.com",
 ])
 def test_agent_identities_never_need_to_sign(email):
@@ -285,10 +304,68 @@ def test_unlabelled_issues_record_nothing():
 def test_superseding_pr_waits_for_the_original_authors():
     others = {12: {"login": "frank", "id": 6006, "type": "User"},
               13: {"login": "dependabot[bot]", "id": 49699333, "type": "Bot"}}
+    commits = {12: [actor("frank", 6006), actor("gina", 7007), actor(name="hal", email="hal@example.com")],
+               13: [actor(email="49699333+dependabot[bot]@users.noreply.github.com")]}
     gh = FakeGitHub([], [actor("alice", 1001)], store=cla.empty_store(),
-                    pr={"body": "Supersedes #12 and #13"}, others=others)
+                    pr={"body": "Supersedes #12 and #13"}, others=others, other_commits=commits)
     result = cla.run(gh, "pull_request_target", {"pull_request": {"number": 7}})
-    assert result.unsigned == [cla.Person("alice", 1001), cla.Person("frank", 6006)]
+    assert result.unsigned == [cla.Person("alice", 1001), cla.Person("frank", 6006), cla.Person("gina", 7007)]
+    assert result.unknown == ["hal <hal@example.com>"]
+
+
+def test_superseded_pr_with_too_many_commits_fails_closed(monkeypatch):
+    monkeypatch.setattr(cla, "MAX_COMMITS", 2)
+    gh = FakeGitHub([], [actor("alice", 1001)], store={"version": "1.0", "signatures": [{"id": 1001}]},
+                    pr={"body": "Supersedes #12"}, others={12: {"login": "alice", "id": 1001, "type": "User"}},
+                    other_commits={12: [actor("alice", 1001)] * 2})
+    result = cla.run(gh, "pull_request_target", {"pull_request": {"number": 7}})
+    assert not result.passed and not result.unsigned
+    assert len(result.unknown) == 1 and result.unknown[0].startswith("#12 has more than 2 commits")
+
+
+def test_commit_with_more_authors_than_read_fails_closed():
+    signed = {"version": "1.0", "signatures": [{"id": 1001}]}
+    gh = FakeGitHub([], [{**actor("alice", 1001), "more": True}], store=signed)
+    result = cla.run(gh, "pull_request_target", {"pull_request": {"number": 7}})
+    assert not result.passed and result.unknown == [
+        f"commit fffffff has more than {cla.MAX_AUTHORS} authors; a maintainer must review it by hand"]
+    assert gh.statuses[-1]["state"] == "failure"
+    assert f"authors(first: {cla.MAX_AUTHORS})" in cla.COMMITS_QUERY and "hasNextPage" in cla.COMMITS_QUERY
+
+
+def _implicitly_concatenated_elements(source: str) -> list[int]:
+    """Line numbers of list/tuple/set elements made of adjacent string literals."""
+    import ast
+    import io
+    import tokenize
+
+    starts = {"STRING", "FSTRING_START", "TSTRING_START"}
+    found, lines = [], source.splitlines(keepends=True)
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            for element in node.elts:
+                if isinstance(element, (ast.Constant, ast.JoinedStr)) and isinstance(getattr(element, "value", ""), str):
+                    segment = ast.get_source_segment(source, element) or ""
+                    before = "".join(lines[: element.lineno - 1]) + lines[element.lineno - 1].encode()[: element.col_offset].decode()
+                    if before.rstrip().endswith("("):
+                        continue  # parenthesized, so the join is deliberate
+                    tokens = tokenize.generate_tokens(io.StringIO(segment).readline)
+                    if sum(tokenize.tok_name[t.type] in starts for t in tokens) > 1:
+                        found.append(element.lineno)
+    return found
+
+
+def test_detector_flags_implicit_concatenation_in_lists():
+    assert _implicitly_concatenated_elements('x = ["a" "b", "c"]\n') == [1]
+    assert _implicitly_concatenated_elements('x = ["a", ("b" "c")]\ny = ("a" "b")\n') == []
+
+
+@pytest.mark.parametrize("path", [_SCRIPT, _SCRIPT.parents[2] / "scripts" / "cla_audit.py",
+                                  _SCRIPT.parents[2] / "scripts" / "check_commit_identities.py"])
+def test_no_implicit_string_concatenation_in_lists(path):
+    # Adjacent literals in a list read like a missing comma (CodeQL
+    # py/implicit-string-concatenation-in-list): join them in parentheses.
+    assert _implicitly_concatenated_elements(path.read_text(encoding="utf-8")) == []
 
 
 def test_maintainer_override_label_passes_without_checking():

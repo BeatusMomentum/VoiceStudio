@@ -31,6 +31,10 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 
+# cla.yml checks out only .github/scripts, so shared code lives beside this file.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from agent_identities import AGENT_EMAILS
+
 CLA_VERSION = "1.0"
 SIGN_PHRASE = f"I have read the VoiceStudio CLA {CLA_VERSION} and I hereby sign it."
 DOCUMENT_PATH = f".github/CLA-{CLA_VERSION}.md"
@@ -43,6 +47,7 @@ SIGNING_LABEL = "cla"
 OVERRIDE_LABEL = "cla-override"
 COMMENT_MARKER = "<!-- voicestudio-cla -->"
 MAX_COMMITS = 250
+MAX_AUTHORS = 20  # authors (author plus co-authors) read per commit
 
 # GitHub account IDs exempt from signing. IDs cannot be claimed by anyone else.
 MAINTAINER_IDS = {4178343}  # debpalash
@@ -55,9 +60,7 @@ BOT_IDS = {
 # GitHub App bots also commit as "<id>+<name>[bot]@users.noreply.github.com";
 # a person cannot hold such a login, and the authenticated opener still signs.
 TOOL_EMAILS = re.compile(
-    r"^(noreply@anthropic\.com|cursoragent@cursor\.com|[^@]+@openai\.com|noreply@coderabbit\.ai"
-    r"|codex@users\.noreply\.github\.com|\d+\+copilot@users\.noreply\.github\.com"
-    r"|\d+\+[^@]*\[bot\]@users\.noreply\.github\.com)$",
+    rf"{AGENT_EMAILS.pattern}|^\d+\+[^@]*\[bot\]@users\.noreply\.github\.com$",
     re.I,
 )
 # A pull request that says it supersedes others must also be signed by their authors.
@@ -121,7 +124,9 @@ def evaluate(opener: Person, opener_is_bot: bool, actors: list[dict], signed_ids
     """Decide who still has to sign.
 
     `actors` holds one entry per commit author or co-author:
-    {"name", "email", "login" or None, "id" or None}.
+    {"name", "email", "login" or None, "id" or None}, plus "trailer": True for
+    co-authors parsed from a commit message, or {"unknown": text} for anything
+    that must be reviewed by hand.
     """
     result = Evaluation()
     seen: set[int] = set()
@@ -136,16 +141,23 @@ def evaluate(opener: Person, opener_is_bot: bool, actors: list[dict], signed_ids
     if not opener_is_bot:
         require(opener)
     for actor in actors:
+        if actor.get("unknown"):
+            if actor["unknown"] not in result.unknown:
+                result.unknown.append(actor["unknown"])
+            continue
         email = (actor.get("email") or "").strip()
         if TOOL_EMAILS.match(email):
             continue
         if actor.get("id"):
             require(Person(actor["login"], int(actor["id"])))
             continue
-        if match := NOREPLY.match(email):
-            if match.group(1):
-                require(Person(match.group(2), int(match.group(1))))
-                continue
+        # A commit author counts only through the account GitHub linked to it.
+        # An unlinked no-reply address may name someone else's account, so it
+        # stays unknown. Co-author trailers are self-declared either way (the
+        # opener answers for them), so their no-reply account ID is taken as given.
+        if actor.get("trailer") and (match := NOREPLY.match(email)) and match.group(1):
+            require(Person(match.group(2), int(match.group(1))))
+            continue
         if opener_is_bot and "[bot]" in email:
             continue
         identity = f"{actor.get('name') or '?'} <{email or 'no email'}>"
@@ -155,7 +167,8 @@ def evaluate(opener: Person, opener_is_bot: bool, actors: list[dict], signed_ids
 
 
 def co_authors(message: str) -> list[dict]:
-    return [{"name": n, "email": e, "login": None, "id": None} for n, e in CO_AUTHOR.findall(message or "")]
+    return [{"name": n, "email": e, "login": None, "id": None, "trailer": True}
+            for n, e in CO_AUTHOR.findall(message or "")]
 
 
 def add_signatures(store: dict, new: list[dict]) -> bool:
@@ -178,22 +191,25 @@ def _safe(text: str) -> str:
 def render_comment(evaluation: Evaluation, doc_url: str) -> str:
     if evaluation.passed:
         return f"{COMMENT_MARKER}\nAll contributors on this pull request have signed the VoiceStudio CLA. Thank you!"
-    lines = [
-        COMMENT_MARKER,
+    intro = (
         "Thank you for contributing to VoiceStudio. Before this pull request can merge, everyone who "
         f"contributed to it must sign the [Contributor License Agreement {CLA_VERSION}]({doc_url}) once. "
         "You keep your copyright; the agreement lets Yupcha Softwares Private Limited, the company that "
-        "maintains VoiceStudio, ship your work in both the AGPL-3.0 app and commercial builds.",
-    ]
+        "maintains VoiceStudio, ship your work in both the AGPL-3.0 app and commercial builds."
+    )
+    lines = [COMMENT_MARKER, intro]
     if evaluation.unsigned:
         lines += ["", "**Still to sign:** " + ", ".join(f"@{p.login}" for p in evaluation.unsigned), "",
                   "To sign, post this as a new comment on its own line:", "", "```text", SIGN_PHRASE, "```"]
     if evaluation.unknown:
         lines += ["", "**Commits we cannot link to a GitHub account:**", ""]
         lines += [f"- {_safe(identity)}" for identity in evaluation.unknown]
-        lines += ["", "Add that email to your GitHub account (Settings → Emails), or rewrite the commits with "
-                  "an email that is on it (`git commit --amend --reset-author`, or an interactive rebase), "
-                  "then push. Each push re-runs this check."]
+        fix = (
+            "Add that email to your GitHub account (Settings → Emails), or rewrite the commits with "
+            "an email that is on it (`git commit --amend --reset-author`, or an interactive rebase), "
+            "then push. Each push re-runs this check."
+        )
+        lines += ["", fix]
     lines += ["", "Comment `recheck` to run the check again."]
     return "\n".join(lines)
 
@@ -257,15 +273,22 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
     pullRequest(number: $number) {
       commits(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
-        nodes { commit { authors(first: 20) { nodes { name email user { login databaseId } } } } }
+        nodes { commit { oid authors(first: MAX_AUTHORS) {
+          pageInfo { hasNextPage }
+          nodes { name email user { login databaseId } }
+        } } }
       }
     }
   }
 }
-"""
+""".replace("MAX_AUTHORS", str(MAX_AUTHORS))
 
 
 def pr_actors(gh: GitHub, number: int) -> tuple[list[dict], int]:
+    """Commit authors and co-authors of a pull request, and how many commits were read.
+
+    Stops after MAX_COMMITS commits; the caller fails the check when it does.
+    """
     owner, name = gh.repo.split("/")
     actors: list[dict] = []
     count, after = 0, None
@@ -274,10 +297,15 @@ def pr_actors(gh: GitHub, number: int) -> tuple[list[dict], int]:
         commits = data["repository"]["pullRequest"]["commits"]
         for node in commits["nodes"]:
             count += 1
-            for author in node["commit"]["authors"]["nodes"]:
+            authors = node["commit"]["authors"]
+            for author in authors["nodes"]:
                 user = author.get("user") or {}
                 actors.append({"name": author.get("name"), "email": author.get("email"),
                                "login": user.get("login"), "id": user.get("databaseId")})
+            if (authors.get("pageInfo") or {}).get("hasNextPage"):
+                # Unread co-authors could include someone who has not signed.
+                actors.append({"unknown": f"commit {(node['commit'].get('oid') or '?')[:7]} has more than "
+                                          f"{MAX_AUTHORS} authors; a maintainer must review it by hand"})
         if not commits["pageInfo"]["hasNextPage"] or count >= MAX_COMMITS:
             return actors, count
         after = commits["pageInfo"]["endCursor"]
@@ -380,11 +408,21 @@ def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://git
         return Evaluation()
 
     actors, count = pr_actors(gh, number)
+    overflow = [number] if count >= MAX_COMMITS else []
+    # A superseded pull request's opener, commit authors and co-authors sign too.
     for ref in superseded_numbers(pr.get("body")):
+        if ref == number:
+            continue
         status, other, _ = gh.request("GET", f"/repos/{gh.repo}/pulls/{ref}")
-        if status == 200 and (other.get("user") or {}).get("type") == "User":
+        if status != 200:
+            continue  # an issue or a missing number, not a pull request
+        if (other.get("user") or {}).get("type") == "User":
             actors.append({"name": other["user"]["login"], "email": "",
                            "login": other["user"]["login"], "id": other["user"]["id"]})
+        more, more_count = pr_actors(gh, ref)
+        actors += more
+        if more_count >= MAX_COMMITS:
+            overflow.append(ref)
     store, _ = load_store(gh)
     signed_ids = {int(s["id"]) for s in store["signatures"]}
     evaluation = evaluate(opener, opener_is_bot, actors, signed_ids)
@@ -401,8 +439,9 @@ def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://git
         save_signatures(gh, new, number)
         evaluation = evaluate(opener, opener_is_bot, actors, signed_ids | {s["id"] for s in new})
 
-    if count >= MAX_COMMITS:
-        evaluation.unknown.append(f"more than {MAX_COMMITS} commits; a maintainer can review them and apply `{OVERRIDE_LABEL}`")
+    for ref in overflow:
+        evaluation.unknown.append(f"#{ref} has more than {MAX_COMMITS} commits; a maintainer can review them "
+                                  f"and apply `{OVERRIDE_LABEL}`")
     description = ("All contributors have signed the CLA" if evaluation.passed
                    else f"{len(evaluation.unsigned) + len(evaluation.unknown)} contributor(s) still need to sign")
     gh.request("POST", f"/repos/{gh.repo}/statuses/{pr['head']['sha']}", {

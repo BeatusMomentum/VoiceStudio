@@ -66,6 +66,15 @@ def test_workflow_comment_filter_admits_the_sign_phrase_and_recheck():
     assert "recheck" in needles
 
 
+def test_pull_request_changes_that_affect_the_result_rerun_the_check():
+    workflow = _load(_CLA_WORKFLOW)
+    types = set(workflow["on"]["pull_request_target"]["types"])
+    # New commits, (un)applying `cla-override`, and editing `Supersedes #N`
+    # all change who must sign, so each must refresh the CLA status.
+    assert {"opened", "synchronize", "reopened", "labeled", "unlabeled", "edited"} <= types
+    assert workflow["jobs"]["cla"]["if"].startswith("github.event_name == 'pull_request_target' ||")
+
+
 def test_published_agreements_are_never_edited():
     for path, expected in _PUBLISHED_AGREEMENTS.items():
         text = (_REPO / path).read_text(encoding="utf-8").replace("\r\n", "\n")

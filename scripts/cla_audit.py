@@ -11,10 +11,13 @@ with the signature store that .github/scripts/cla_check.py writes to the
     GH_TOKEN=... python scripts/cla_audit.py --json out.json
 
 People are matched by GitHub account ID. An author is mapped by their GitHub
-no-reply address, else by the account linked to the commit email. Commits by AI
-agents or unlinked emails are credited to the author of the pull request that
-merged them, because that person submitted the work. Without a token the GitHub
-API rate limit runs out quickly; unresolved authors are then listed by email.
+no-reply address, else by the account GitHub linked to a commit that email
+authored. Commits by AI agents or placeholder identities are credited to the
+author of the pull request that merged them, because that person submitted the
+work. People whose email is not linked to an account keep their own row, keyed
+by email and noting who submitted their work, so a signed submitter never hides
+them. Without a token the GitHub API rate limit runs out quickly; unresolved
+authors are then listed by email. Needs full history (not a shallow clone).
 Blame follows moves within a file only, so code copied between files is
 credited to whoever moved it, and squash commits that fold in other people's
 pull requests are listed separately for manual review.
@@ -51,12 +54,14 @@ PLACEHOLDER = re.compile(r"^(test@local|you@example\.com|)$|\.local$", re.I)
 
 def is_agent(email: str) -> bool:
     return bool(cla.TOOL_EMAILS.match(email) or PLACEHOLDER.search(email))
+
+
 FOLDS_IN = re.compile(r"\bsupersed", re.I)
 NOTES = {
     "lookup-failed": "GitHub lookup failed; set GH_TOKEN and rerun",
-    "name": "matched by display name; confirm",
+    "unlinked": "email not linked to a GitHub account",
     "unresolved": "no linked account or pull request; resolve by hand",
-    "submitted": "submitted from an unlinked or agent identity; confirm the work is theirs",
+    "submitted": "submitted from an agent or placeholder identity; confirm the work is theirs",
 }
 
 
@@ -73,6 +78,13 @@ def github(path: str) -> object:
         request.add_header("Authorization", f"Bearer {token}")
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.load(response)
+
+
+def require_full_history() -> None:
+    """Blame on a shallow clone credits all older lines to the oldest fetched commit."""
+    if git("rev-parse", "--is-shallow-repository").strip() == "true":
+        raise SystemExit("This clone is shallow, so blame would credit truncated history to the wrong people. "
+                         "Run `git fetch --unshallow` and rerun.")
 
 
 def blame(path: str) -> collections.Counter:
@@ -101,16 +113,37 @@ def commit_messages(commits: set[str]) -> dict[str, str]:
     return messages
 
 
-def account_for(email: str, commit: str) -> tuple[str | None, int | None, str]:
-    """GitHub account for an author email: (login, id, noreply|api|unlinked|lookup-failed)."""
+def authored_commits() -> dict[str, str]:
+    """The newest commit each author email authored, for account lookups."""
+    commits: dict[str, str] = {}
+    for line in git("log", "--format=%H %ae").splitlines():
+        sha, _, email = line.partition(" ")
+        commits.setdefault(email.strip().lower(), sha)
+    return commits
+
+
+def account_for(email: str, commit: str | None) -> tuple[str | None, int | None, str]:
+    """GitHub account for an author email.
+
+    `commit` must be one the email authored; a co-author found only in
+    trailers has none. Returns (login, id, source) with source one of noreply,
+    api, agent, unlinked, unresolved or lookup-failed.
+    """
     if is_agent(email):
-        return None, None, "unlinked"
+        return None, None, "agent"
     if (match := cla.NOREPLY.match(email)) and match.group(1):
         return match.group(2), int(match.group(1)), "noreply"
+    if not commit:
+        return None, None, "unresolved"
     try:
-        author = github(f"commits/{commit}").get("author") or {}
+        payload = github(f"commits/{commit}")
     except (OSError, ValueError, urllib.error.HTTPError):
         return None, None, "lookup-failed"
+    # The API's account belongs to the commit's author; accept it only for that email.
+    commit_email = (((payload.get("commit") or {}).get("author") or {}).get("email") or "").strip().lower()
+    if commit_email != email:
+        return None, None, "unresolved"
+    author = payload.get("author") or {}
     return (author["login"], author["id"], "api") if author.get("id") else (None, None, "unlinked")
 
 
@@ -143,21 +176,8 @@ def signed_ids(allow_missing: bool) -> set[int]:
     return {int(s["id"]) for s in json.loads(result.stdout)["signatures"]}
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--json", type=Path, help="also write the full report as JSON")
-    parser.add_argument("--no-signatures", action="store_true", help="report everyone as unsigned")
-    args = parser.parse_args()
-    signed = signed_ids(args.no_signatures)
-
-    files = [f for f in git("ls-files").splitlines() if f and not BINARY.search(f)]
-    blamed: collections.Counter = collections.Counter()
-    with ThreadPoolExecutor(16) as pool:
-        for counts in pool.map(blame, files):
-            blamed.update(counts)
-    messages = commit_messages({c for _, _, c, _ in blamed})
-
-    # Credit each line to the commit author and to every person co-author.
+def credit_lines(blamed: collections.Counter, messages: dict[str, str]) -> collections.Counter:
+    """Credit each blamed line to the commit author and to every person co-author."""
     credits: collections.Counter = collections.Counter()  # (email, name, commit, path) -> lines
     for (email, name, commit, path), n in blamed.items():
         credits[(email, name, commit, path)] += n
@@ -166,27 +186,28 @@ def main() -> None:
         for co_email, co_name in co_emails.items():
             if not cla.TOOL_EMAILS.match(co_email) and co_email != email:
                 credits[(co_email, co_name, commit, path)] += n
+    return credits
 
-    first_commit: dict[str, str] = {}
-    for email, _, commit, _ in credits:
-        first_commit.setdefault(email, commit)
-    with ThreadPoolExecutor(4) as pool:
-        accounts = dict(zip(first_commit, pool.map(lambda e: account_for(e, first_commit[e]), first_commit)))
-    per_commit = sorted({c for e, _, c, _ in credits if accounts[e][2] == "unlinked"})
-    with ThreadPoolExecutor(4) as pool:
-        submitters = dict(zip(per_commit, pool.map(pr_author_for, per_commit)))
 
-    names = names_to_logins()
+def attribute(credits: collections.Counter, accounts: dict, submitters: dict, names: dict,
+              messages: dict[str, str]) -> tuple[dict[str, dict], collections.Counter]:
+    """Group credited lines by person: (people keyed by account ID or email, folded commits)."""
     people: dict[str, dict] = collections.defaultdict(
         lambda: {"lines": 0, "files": collections.Counter(), "emails": set(), "notes": set(), "login": None, "id": None}
     )
     folded: collections.Counter = collections.Counter()
     for (email, name, commit, path), n in credits.items():
         login, account_id, source = accounts[email]
-        if source == "unlinked":
-            login, account_id, source = submitters[commit]
+        notes = set()
+        if source == "agent":
+            # The person who opened the pull request submitted the agent's work.
+            login, account_id, source = submitters.get(commit) or (None, None, "unresolved")
+        elif source == "unlinked":
+            # Never merged into the submitter: they may have signed while this author has not.
+            submitter = (submitters.get(commit) or (None,))[0]
+            notes.add(f"submitted by @{submitter} in a PR" if submitter else NOTES["unresolved"])
         if not account_id and (guess := names.get((name or "").strip().lower())):
-            (login, account_id), source = guess, "name"
+            notes.add(f"same display name as @{guess[0]}; confirm")  # a hint only, never a match
         if account_id in cla.MAINTAINER_IDS and source in ("noreply", "api"):
             if FOLDS_IN.search(messages.get(commit, "")):
                 folded[commit] += n
@@ -200,8 +221,39 @@ def main() -> None:
         person["emails"].add(email)
         person["login"] = person["login"] or login
         person["id"] = account_id
+        person["notes"] |= notes
         if source in NOTES:
-            person["notes"].add(source)
+            person["notes"].add(NOTES[source])
+    return people, folded
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--json", type=Path, help="also write the full report as JSON")
+    parser.add_argument("--no-signatures", action="store_true", help="report everyone as unsigned")
+    args = parser.parse_args()
+    require_full_history()
+    signed = signed_ids(args.no_signatures)
+
+    files = [f for f in git("ls-files").splitlines() if f and not BINARY.search(f)]
+    blamed: collections.Counter = collections.Counter()
+    with ThreadPoolExecutor(16) as pool:
+        for counts in pool.map(blame, files):
+            blamed.update(counts)
+    messages = commit_messages({c for _, _, c, _ in blamed})
+
+    credits = credit_lines(blamed, messages)
+
+    # Look each email up through a commit it authored, never one it only co-authored.
+    authored = authored_commits()
+    emails = {email for email, _, _, _ in credits}
+    with ThreadPoolExecutor(4) as pool:
+        accounts = dict(zip(emails, pool.map(lambda e: account_for(e, authored.get(e)), emails)))
+    per_commit = sorted({c for e, _, c, _ in credits if accounts[e][2] in ("agent", "unlinked")})
+    with ThreadPoolExecutor(4) as pool:
+        submitters = dict(zip(per_commit, pool.map(pr_author_for, per_commit)))
+
+    people, folded = attribute(credits, accounts, submitters, names_to_logins(), messages)
 
     unsigned = sorted(
         ((key, p) for key, p in people.items() if p["id"] not in signed),
@@ -212,7 +264,7 @@ def main() -> None:
     for key, p in unsigned:
         label = f"@{p['login']}" if p["login"] else f"`{key}`"
         if p["notes"]:
-            label += " (" + "; ".join(NOTES[n] for n in sorted(p["notes"])) + ")"
+            label += " (" + "; ".join(sorted(p["notes"])) + ")"
         top = ", ".join(f"`{f}` ({n})" for f, n in p["files"].most_common(3))
         print(f"| {label} | {p['lines']} | {top} |")
     if folded:
