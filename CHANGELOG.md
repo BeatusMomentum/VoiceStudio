@@ -54,6 +54,7 @@ metadata and the backend fallback mirror it.
 - Pull requests ask their opener and every commit author and co-author to sign a one-time Contributor License Agreement by comment; the contributing guide explains how (#2556)
 
 ### Changed
+- Remove the unused Remotion player integration and dependency while keeping the existing media playback providers (#2587)
 - Audio quality and Voice controls open as compact popovers from the Synthesize box on Clone and Voice Design (#2419)
 - The Synthesize button shows its keyboard shortcut as key chips inside the button (#2419)
 - The language menu stays within the window instead of clipping at the edges (#2419)
