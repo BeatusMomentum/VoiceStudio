@@ -336,11 +336,7 @@
   },
   "player": {
     "generated_audio": "生成的音频",
-    "now_playing": "正在播放",
     "seek": "跳转",
-    "stop": "停止",
-    "streaming_preview": "流式预览",
-    "untitled": "未命名",
     "fullscreen": "全屏",
     "mute": "静音",
     "unmute": "取消静音",
