@@ -831,7 +831,6 @@
     "channel_stable": "穩定版",
     "channel_preview": "預覽版",
     "channel_set": "更新通道已設定為 {{channel}}",
-    "channel_preview_hint": "預覽版追蹤最新的 main 組建——功能較新，但測試較少。若穩定版較新，則回退至穩定版。",
     "self_check": "執行自我檢查",
     "self_check_failed": "自我檢查失敗：{{message}}",
     "self_check_ok": "正常",

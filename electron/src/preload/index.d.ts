@@ -87,7 +87,6 @@ export interface BackendConnection {
   authenticated: boolean;
 }
 
-export type UpdateChannel = 'stable' | 'preview';
 export type UpdateStatus =
   | 'unsupported'
   | 'idle'
@@ -100,7 +99,6 @@ export interface UpdateState {
   status: UpdateStatus;
   currentVersion: string;
   availableVersion?: string;
-  channel: UpdateChannel;
   notes?: string | null;
   progress: number;
   transferredBytes?: number;
@@ -317,8 +315,7 @@ export interface VoiceStudioBridge {
     download(): Promise<UpdateState>;
     dismiss(): Promise<UpdateState>;
     install(): Promise<void>;
-    setChannel(channel: UpdateChannel): Promise<UpdateState>;
-    listReleases(channel: UpdateChannel): Promise<UpdateReleaseInfo[]>;
+    listReleases(): Promise<UpdateReleaseInfo[]>;
     onState(cb: (state: UpdateState) => void): () => void;
   };
   maintenance: {

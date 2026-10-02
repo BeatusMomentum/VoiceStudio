@@ -831,7 +831,6 @@
     "channel_stable": "Stabilny",
     "channel_preview": "Podgląd",
     "channel_set": "Kanał aktualizacji ustawiony na {{channel}}",
-    "channel_preview_hint": "Podgląd śledzi najnowszą kompilację main — nowsze funkcje, mniej testów. Wraca do stabilnej, jeśli stabilne wydanie jest nowsze.",
     "self_check": "Uruchom autodiagnostykę",
     "self_check_failed": "Autodiagnostyka nie powiodła się: {{message}}",
     "self_check_ok": "OK",

@@ -831,7 +831,6 @@
     "channel_stable": "Stabiel",
     "channel_preview": "Voorbeeld",
     "channel_set": "Updatekanaal ingesteld op {{channel}}",
-    "channel_preview_hint": "Voorbeeld volgt de nieuwste main-build — nieuwere functies, minder getest. Valt terug op stabiel als er een nieuwere stabiele release is.",
     "self_check": "Zelfcontrole uitvoeren",
     "self_check_failed": "Zelfcontrole mislukt: {{message}}",
     "self_check_ok": "OK",
