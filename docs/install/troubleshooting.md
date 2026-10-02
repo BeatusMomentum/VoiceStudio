@@ -125,7 +125,7 @@ retry.
 
 <a id="pkg_resources-missing"></a>
 
-**Symptom:** the splash screen shows `ModuleNotFoundError: No module named
+**Symptom:** the setup screen shows `ModuleNotFoundError: No module named
 'pkg_resources'` during WhisperX import, and the app never advances past the
 "Setting up models" step.
 
@@ -300,28 +300,26 @@ itself does not grant access.
 
 **Symptom:** "VoiceStudio.app is damaged and can't be opened."
 
-**Cause:** the app is not yet notarised (signing is wired in `release.yml` and
-activates once the maintainer adds the Apple cert secrets) — until then macOS
-quarantines every download.
+**Cause:** Gatekeeper cannot verify the app's Apple Developer identity — the
+build is unsigned or ad-hoc signed (local `bun run dist` packages, or a release
+published without notarization; signing and notarization run in
+`electron-release.yml` when the Apple credentials are configured).
 
 **Fix:** see [macos.md#gatekeeper-quarantine](macos.md#gatekeeper-quarantine).
 
-## 4. AppImage white screen / EGL errors (Fedora 44, Ubuntu 24.04+, 26.04)
+## 4. Linux: blank window or GPU errors
 
-**Symptom:** the AppImage window opens fully white. No UI ever appears. On
-newer distros (Ubuntu 24.04 and later, incl. 26.04) the terminal often shows
-`Could not create default EGL display: EGL_BAD_PARAMETER`.
+**Symptom:** the Linux app window opens blank, or the terminal shows GPU
+process errors.
 
-**Cause:** WebKitGTK rendering regressions — the DMA-BUF renderer on modern
-WebKitGTK (2.48+), or the 2.44 / 2.46 compositing mode.
+**Cause:** the Electron app renders with Chromium; some GPU driver and
+compositor combinations fail to initialise hardware acceleration. (The
+`WEBKIT_*` variables from older versions of this entry applied only to the
+archived Tauri app, which rendered with WebKitGTK.)
 
-**Fix:** try `WEBKIT_DISABLE_DMABUF_RENDERER=1` first (modern WebKitGTK / the
-EGL error), then `WEBKIT_DISABLE_COMPOSITING_MODE=1` — full walkthrough incl.
-the software-rendering last resort:
+**Fix:** launch once with `--disable-gpu` (and on Wayland, optionally
+`--ozone-platform=x11`) — see
 [linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404](linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404).
-
-**Linked issues:** [#62](https://github.com/debpalash/VoiceStudio/issues/62),
-[#961](https://github.com/debpalash/VoiceStudio/issues/961)
 
 ## 5. Windows Triton / torch.compile OOM
 
@@ -1002,63 +1000,23 @@ because the backend could not start, you get:
 The reason is also **retained** across a Retry or an automatic respawn, so a
 later attempt can't erase the diagnosis of the first one.
 
-**From source (`bun desktop`)?** If the app builds but the window never comes
-up, the shell now prints the exit code and where to look (the cargo/tauri
-output above it, plus `omnivoice.log` and `backend_err.log` in your VoiceStudio
-data folder) instead of exiting silently.
-
-If Cargo stops before the window is built with `Package gdk-3.0 was not found`,
-`pango.pc` missing, `libsoup-3.0` missing, or `javascriptcoregtk-4.1` missing,
-the Ubuntu/Debian WebKitGTK development packages are absent. Install the full
-package block in the [Linux source-build guide](linux.md#building-from-source),
-then rerun `source "$HOME/.cargo/env"` and `bun desktop`. Do not set a custom
-`PKG_CONFIG_PATH` unless the libraries were deliberately installed outside the
-system package manager.
+**From source (`bun run dev`)?** Run `bun run setup:api` first so the
+backend's Python environment exists. If the window never comes up, read the
+terminal output plus `omnivoice.log` and `backend_err.log` in your VoiceStudio
+data folder. If a packaging build (`bun run dist`) stops while compiling the
+Rust native helper with a missing `pkg-config` library, install the package
+block in the [Linux source-build guide](linux.md#building-from-source).
 
 **Still stuck?** Open the details, copy the output, and file it with **Report**
 — that output is the thing that makes the failure diagnosable.
 
-## 15. Stuck at "preparing" forever after a crash / BSOD (Windows)
+## 15. Archived Tauri app: stuck at "preparing" after a crash (Windows)
 
-**Symptom:** after an unclean shutdown (Windows BSOD, forced power-off), every
-launch sits on the "preparing" splash indefinitely — even though the backend is
-actually healthy (its log shows models loaded, and
-`http://127.0.0.1:3900/health` answers `{"status":"ok"}` in a browser). The
-WebView log contains:
-
-```
-IPC custom protocol failed, Tauri will now use the postMessage interface instead
-TypeError: Failed to fetch
-```
-
-**Cause:** the crash corrupted cache directories inside the WebView2 profile at
-`%LOCALAPPDATA%\com.debpalash.omnivoice-studio\EBWebView`. Both the IPC custom
-protocol *and* its postMessage fallback break, so the splash never hears the
-"ready" signal from the app shell (issue #879).
-
-**Fix:** current builds handle this automatically — if the splash gets no IPC
-signal within ~10 s it checks the backend over plain HTTP and proceeds on its
-own; if the backend isn't up either, after ~45 s a recovery panel appears with
-**Repair and restart** (Windows), which clears cache-only directories and
-relaunches. It deliberately preserves `Default\Local Storage` and
-`Default\IndexedDB`, where browser-owned settings and long-form projects live.
-
-On older builds (≤ 0.3.8), or if the automatic repair fails, do it manually:
-quit VoiceStudio, delete only the cache directories below, then start the app
-again. Do not delete the whole `EBWebView` profile; doing so also deletes
-browser-owned projects and settings.
-
-<!-- validate: skip -->
-```powershell
-$voiceStudioWebView = "$env:LOCALAPPDATA\com.debpalash.omnivoice-studio\EBWebView"
-@(
-  "Default\Cache", "Default\Code Cache", "Default\GPUCache", "Default\DawnCache",
-  "Default\Service Worker\CacheStorage", "Default\Service Worker\ScriptCache",
-  "GPUCache", "DawnCache", "ShaderCache", "GrShaderCache", "GraphiteDawnCache"
-) | ForEach-Object {
-  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $voiceStudioWebView $_)
-}
-```
+This entry covered a corrupted WebView2 profile in the archived Tauri app
+(`IPC custom protocol failed, Tauri will now use the postMessage interface
+instead`, issue #879). The Electron app does not use WebView2. Install Electron
+with the [migration guide](../electron-migration.md); if the Electron app hangs
+at startup, see [14d](#14d-cant-reach-the-local-voicestudio-backend-when-the-backend-never-started).
 
 ## 16. macOS: microphone permission never prompts, VoiceStudio never appears in System Settings
 
@@ -1067,26 +1025,23 @@ System Settings → Privacy & Security → Microphone and enable VoiceStudio" �
 but VoiceStudio never appears in that list, so there's nothing to enable.
 `NSMicrophoneUsageDescription` is present in the app's `Info.plist`, and
 resetting the permission (`tccutil reset Microphone
-com.debpalash.omnivoice-studio`) followed by a relaunch changes nothing — no
+com.voicestudio.desktop`) followed by a relaunch changes nothing — no
 system prompt ever appears.
 
 **Cause:** the app bundle was missing the Hardened Runtime *entitlement* for
-microphone access. An earlier revision of this section blamed an upstream
-Tauri/WebKit limitation — that was wrong (a community contributor,
-[@MahdiHedhli](https://github.com/MahdiHedhli), read the sources more
-carefully and found the real gap). wry's `WKUIDelegate` already grants the
-WebKit-layer media-capture request; but Tauri's macOS bundler enables
-Hardened Runtime by default, and Hardened Runtime blocks microphone hardware
-access unless `com.apple.security.device.audio-input` is present in the
-signed binary's entitlements — regardless of `Info.plist`'s
-`NSMicrophoneUsageDescription` (that only supplies the prompt *text*).
-Without the entitlement, macOS's TCC layer never registers a request, which
-is exactly why the app never appears in the System Settings list.
+microphone access. Hardened Runtime blocks microphone hardware access unless
+`com.apple.security.device.audio-input` is present in the signed binary's
+entitlements — regardless of `Info.plist`'s `NSMicrophoneUsageDescription`
+(that only supplies the prompt *text*). Without the entitlement, macOS's TCC
+layer never registers a request, which is exactly why the app never appears in
+the System Settings list. (Diagnosed in the archived Tauri app by
+[@MahdiHedhli](https://github.com/MahdiHedhli).)
 
-**Fix:** ships in the release after v0.3.12 (the bundle now carries
-`src-tauri/entitlements.plist` — [#1016](https://github.com/debpalash/VoiceStudio/pull/1016),
-contributed by the same person who diagnosed it). Update and live recording
-works, with a normal macOS permission prompt on first use.
+**Fix:** fixed since the release after v0.3.12
+([#1016](https://github.com/debpalash/VoiceStudio/pull/1016)); the Electron app
+signs with the same entitlement (`electron/build/entitlements.mac.plist`).
+Update and live recording works, with a normal macOS permission prompt on
+first use.
 
 **Workaround on older builds (≤ v0.3.12):** record your voice sample in any
 other app (Voice Memos, QuickTime, etc.) and upload the resulting file in
@@ -1120,51 +1075,19 @@ install `.pth` embeds that path in UTF-8, which is rarely a valid byte
 sequence in the active ANSI code page (`gbk`, `shift_jis`, etc.), and the
 interpreter can never start (#1783).
 
-**Fix:** current builds resolve the managed environment through Windows' 8.3
-short filename for any path containing non-ASCII bytes (the same trick
-already used for the HuggingFace cache — see
-[`backend/core/config.py`](../../backend/core/config.py)) whenever there is
-no usable environment yet, or an existing one shows exactly this crash — so
-a first-time install, and an install already broken by this bug, both land
-at an ASCII-safe path automatically with no user action needed. The old
-broken environment (if any) is left in place, not deleted, in case manual
-recovery is ever needed. An existing environment that already works — ASCII
-path or not — is never touched or relocated.
+**Fix:** keep the app environment on an ASCII-only path. On the first-run
+setup screen, press **Change…** beside **App environment** and pick a folder
+such as `C:\VoiceStudio` before setup starts. An environment that cannot start
+fails VoiceStudio's runtime check, so setup opens again: choose an ASCII-only
+App environment location there. The broken environment is left in place for
+manual removal.
 
-**Prevention, on a brand new install:** on the first-run setup screen (before
-clicking through it), the **Change…** button on the "App environment" row
-(or "Portable folder" in portable mode) lets you pick an ASCII-only path up
-front — nothing below is needed if you do this before setup completes.
-
-If it still happens — most likely because Windows' 8.3 short filenames are
-off on the system drive, or the affected folder already existed before this
-fix shipped — the app names this cause specifically rather than the generic
-"backend never reported ready." By the time this message can appear, setup
-has already been confirmed (it's only reached after the first-run screen
-hands off to the installer), so the error screen you're actually looking at
-offers only **Retry** and **Clean & Retry** — neither changes where the
-environment is stored, so both fail identically, and the first-run picker
-above is no longer reachable either. The right fix depends on which install
-mode you're in:
-
-- **Standard (non-portable) install:** quit VoiceStudio, open (creating it
-  if it doesn't exist) `%LOCALAPPDATA%\com.debpalash.omnivoice-studio\config.json`
-  in a text editor, add `"env_dir": "C:/VoiceStudio/env"` (any path using
-  only English letters/numbers — forward slashes are fine on Windows), save,
-  and relaunch.
-- **Portable install:** the `env_dir` config key above does **not** apply —
-  portable mode resolves its own environment folder from the portable
-  location and never consults it. Quit VoiceStudio, then either move the
-  whole VoiceStudio folder (the app plus its `OmniVoiceStudio-Data` folder)
-  to an ASCII-only path and run it from there, or create a `portable.path`
-  text file beside the app containing one line — an absolute ASCII-only path
-  for the data folder (e.g. `C:\VoiceStudio\Data`) — and relaunch.
+The archived Tauri app's automatic 8.3 short-path relocation and its
+`env_dir` / `portable.path` overrides do not apply to the Electron app.
 
 Re-enabling 8.3 short filenames (`fsutil 8dot3name`) is deliberately **not**
-recommended here: the setting is per-volume and only affects directories
-created *after* it's changed, so toggling it does nothing for a folder that
-already exists — it would not actually fix this without also recreating the
-folder, which the ASCII-path options above already do more reliably.
+recommended: the setting is per-volume and only affects directories created
+*after* it's changed, so it does nothing for a folder that already exists.
 
 **Linked issue:** [#1783](https://github.com/debpalash/VoiceStudio/issues/1783) (auto-captured from [#1771](https://github.com/debpalash/VoiceStudio/issues/1771))
 
