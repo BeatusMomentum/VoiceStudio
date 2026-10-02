@@ -29,6 +29,7 @@
     "src/renderer/env.d.ts",
     "src/shared/utils/languageRejection.ts",
     "src/shared/utils/generationFailureMessage.ts",
+    "src/shared/utils/generateBudget.ts",
     "src/shared/utils/coalescedJsonStorage.ts",
     "src/shared/utils/indexedDbLongformStore.ts",
     "src/shared/utils/cookieExport.ts",
