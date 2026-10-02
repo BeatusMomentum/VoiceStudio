@@ -134,5 +134,9 @@ def test_ps1_targets_electron_folders_and_its_uninstaller():
     assert "runtime-location.json" in text and "$location.owned -eq $true" in text
     assert "(Join-Path $root 'project') -PathType Container" in text
     assert "'Uninstall VoiceStudio.exe'" in text
+    # Only an uninstaller in the install folders runs; an elevated run never
+    # executes a per-user (user-writable) one.
+    assert "$machineRoots -contains $parent" in text
+    assert "-not $isElevated -and $parent -eq $userRoot" in text
     # The legacy Tauri cleanup stays.
     assert "$legacyIdentifier = 'com.debpalash.omnivoice-studio'" in text

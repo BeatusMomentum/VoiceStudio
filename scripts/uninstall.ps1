@@ -50,12 +50,32 @@ if ($RemoveApp) {
   )
   $entries = @(Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -match 'VoiceStudio|OmniVoice' })
+  # Only run an uninstaller from where the installer puts it. Per-user installs
+  # (HKCU, %LOCALAPPDATA%\Programs) are writable by the user, so an elevated run
+  # never executes one: that would hand admin rights to a user-writable file.
+  $isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator)
+  $machineRoots = @([Environment]::GetEnvironmentVariable('ProgramFiles'),
+    [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')) | Where-Object { $_ }
+  $userRoot = Join-Path ([Environment]::GetEnvironmentVariable('LOCALAPPDATA')) 'Programs'
   foreach ($entry in $entries) {
     if ([string]$entry.UninstallString -match '^"([^"]+\.exe)"(?:\s+(/currentuser|/allusers))?\s*$' -and
         (Split-Path $Matches[1] -Leaf) -eq 'Uninstall VoiceStudio.exe' -and
         (Test-Path -LiteralPath $Matches[1] -PathType Leaf)) {
-      $nsisUninstaller = $Matches[1]
-      $nsisScope = $Matches[2]
+      $candidate = [System.IO.Path]::GetFullPath($Matches[1])
+      $scope = $Matches[2]
+      $parent = Split-Path (Split-Path $candidate -Parent) -Parent
+      $trusted = if ($entry.PSPath -like '*HKEY_CURRENT_USER*') {
+        -not $isElevated -and $parent -eq $userRoot
+      } else {
+        $machineRoots -contains $parent
+      }
+      if (-not $trusted) {
+        Write-Host "Skipped an uninstaller outside the install folders: $candidate"
+        continue
+      }
+      $nsisUninstaller = $candidate
+      $nsisScope = $scope
       break
     }
   }
