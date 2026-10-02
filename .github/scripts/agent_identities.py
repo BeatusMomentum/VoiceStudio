@@ -38,7 +38,7 @@ AGENT_TRAILER_NAMES = re.compile(
 # Author and committer names that can only be an agent. People are called
 # Claude or Jules, so a bare first name is not enough here.
 AGENT_AUTHOR_NAMES = re.compile(
-    r"^((claude code|claude (opus|sonnet|haiku|fable|instant|\d)\S*( .*)?|cursor agent|cursoragent"
+    r"^((claude code( .*)?|claude (opus|sonnet|haiku|fable|instant|\d)\S*( .*)?|cursor agent|cursoragent"
     r"|(github )?copilot|(openai )?codex|chatgpt|devin ai|google jules|openhands( agent)?)(\[bot\])?"
     rf"|({_LOGINS})\[bot\])$",
     re.IGNORECASE,

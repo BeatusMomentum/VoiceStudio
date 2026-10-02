@@ -249,8 +249,10 @@ Commit with a real identity (your GitHub noreply address works). The
 PR commit's author, committer, or `Co-authored-by:`/`Signed-off-by:` email is
 a placeholder (`test@local`, `you@example.com`, `mergetest`, hostname-style
 `*.local`), an AI agent, or on the hashed block list, or when a commit message
-or the PR description credits an AI agent; fix it with
-`git rebase --exec 'git commit --amend --no-edit --reset-author' origin/main`.
+or the PR description credits an AI agent. Fix an identity with
+`git rebase --exec 'git commit --amend --no-edit --reset-author' origin/main`;
+fix agent credit by rewording the commit messages (`git rebase -i`, then
+`reword`) and editing the PR description.
 
 ---
 
@@ -304,7 +306,8 @@ correct fix, regression test; see the quality gates below).
 
 You submit agent-assisted work as your own, under your own git identity. Don't
 credit agents in commits or the PR description: no `Co-authored-by:` trailer
-for an AI agent, no "Generated with …" line, no session links. The
+for an AI agent, no "Generated with …" line, no agent session or share links
+(claude.ai, chatgpt.com) and no `Claude-Session:` trailer. The
 `commit-identity` check fails PRs that carry them. Co-authors who are people
 are welcome.
 

@@ -82,7 +82,9 @@ def _missing_version_comments(text: str, refs: list[str]) -> list[str]:
     """
     bad = []
     for u, count in collections.Counter(refs).items():
-        lines = re.findall(rf"""uses:[ \t]*(["']?){re.escape(u)}\1([^\n]*)""", text)
+        lines = re.findall(
+            rf"""^[ \t]*(?:-[ \t]+)?uses:[ \t]*(["']?){re.escape(u)}\1([^\n]*)""", text, re.MULTILINE
+        )
         if len(lines) < count or any(not re.match(r"\s+#\s*\S", rest) for _, rest in lines):
             bad.append(u)
     return bad

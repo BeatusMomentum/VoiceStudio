@@ -122,7 +122,7 @@ def _main_ruleset() -> dict:
     return next(b for b in blocks if b.get("name") == "main")
 
 
-def test_main_ruleset_requires_pull_requests_and_the_cla_status():
+def test_main_ruleset_requires_pull_requests_identities_and_the_cla_status():
     rules = {rule["type"]: rule.get("parameters", {}) for rule in _main_ruleset()["rules"]}
     # Required checks alone accept a direct push whose commit already passed.
     assert rules["pull_request"] == {
@@ -132,6 +132,9 @@ def test_main_ruleset_requires_pull_requests_and_the_cla_status():
     }
     contexts = {c["context"] for c in rules["required_status_checks"]["required_status_checks"]}
     assert cla.STATUS_CONTEXT in contexts
+    # Without the identity gate, agent identities that skip the CLA go unblocked.
+    identity_job = next(iter(_load(_WORKFLOWS / "commit-identity.yml")["jobs"].values()))["name"]
+    assert identity_job in contexts
     assert {"deletion", "non_fast_forward"} <= set(rules)
 
 
