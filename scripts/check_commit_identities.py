@@ -65,10 +65,10 @@ AI_ATTRIBUTION_KIND = "AI agent attribution"
 _AGENTS = (
     r"(claude|cursor|copilot|codex|chatgpt|openai|gemini|devin|jules|aider|cline|windsurf|coderabbit|greptile"
     r"|sourcery|tabnine|codeium|amazon q|kiro|qodo|openhands|sweep)\b"
-    # A generic "AI"/"LLM" credits a tool unless a person's role follows, so
-    # "Written by an LLM engineer" still credits a person.
-    r"|(an? )?(ai|llm)\b(?![ \t-]+(engineers?|researchers?|developers?|scientists?|experts?|specialists?"
-    r"|teams?|labs?|compan(y|ies)|startups?|groups?|ethicists?|practitioners?)\b)"
+    # A generic "AI"/"LLM" credits a tool only when it ends the phrase or a tool
+    # word follows, so a person ("an AI consultant", "the LLM team") never trips it.
+    r"|(an? )?(ai|llm)\b(?=[ \t-]*(assist\w*|models?|tools?|agents?|chat\w*|help|coding|code"
+    r"|pair[ \t-]?programm\w*)\b|[ \t]*([.,;:!?)]|$))"
 )
 AI_ATTRIBUTION = re.compile(
     rf"^[ \t>*_-]*(generated|written|created|authored)[ \t]+(with|by|using)[ \t]+\[?({_AGENTS})"
