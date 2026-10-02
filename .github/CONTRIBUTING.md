@@ -249,9 +249,11 @@ Commit with a real identity (your GitHub noreply address works). The
 PR commit's author, committer, or `Co-authored-by:`/`Signed-off-by:` email is
 a placeholder (`test@local`, `you@example.com`, `mergetest`, hostname-style
 `*.local`), an AI agent, or on the hashed block list, or when a commit message
-or the PR description credits an AI agent. Fix an identity with
-`git rebase --exec 'git commit --amend --no-edit --reset-author' origin/main`;
-fix agent credit by rewording the commit messages (`git rebase -i`, then
+or the PR description credits an AI agent. Fix an identity on the listed
+commits only: `git rebase -i origin/main`, mark each listed commit `edit`, and
+at each stop run `git commit --amend --no-edit --reset-author` and
+`git rebase --continue` (a blanket `--exec` would also take over other
+people's commits); fix agent credit by rewording the commit messages (`git rebase -i`, then
 `reword`) and editing the PR description.
 
 ---

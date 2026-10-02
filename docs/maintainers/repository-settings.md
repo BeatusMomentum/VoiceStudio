@@ -14,6 +14,9 @@ is merged:
    review): `gh label create cla` and `gh label create cla-override`.
 2. Open the public signing issue, label it `cla`, and pin it.
 3. Comment `recheck` on each open pull request, so it gets a `CLA` status.
+   Pull requests opened before `commit-identity.yml` existed also need a
+   `Commit identities` run: merge current `main` into them (the merge
+   protocol asks for that anyway), or close and reopen them.
 4. Then apply the `main` ruleset below. A required check that never reported
    blocks the merge with "Expected — waiting for status".
 5. Apply the `cla-signatures` ruleset once the first signature creates the
