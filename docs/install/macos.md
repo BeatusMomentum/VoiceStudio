@@ -5,7 +5,8 @@ is no longer maintained; if you still run it, follow the
 [migration guide](../electron-migration.md).
 
 > [!IMPORTANT]
-> **Intel Macs: app UI only.** PyTorch stopped shipping Intel-Mac (macOS
+> **Intel Macs are not supported** for the local backend (app UI only).
+> PyTorch stopped shipping Intel-Mac (macOS
 > x86_64) wheels after 2.2.x and VoiceStudio's dependencies need a newer torch,
 > so a local Python backend cannot install on an Intel Mac — from the DMG *or*
 > from source ([#889](https://github.com/debpalash/VoiceStudio/issues/889)).
