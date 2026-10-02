@@ -604,7 +604,7 @@
     "history_reuse": "ใช้สคริปต์ซ้ำ",
     "characters_one": "อักขระ {{count}}",
     "cancel_generation": "ยกเลิกการสร้าง",
-    "duration_seconds": "{{seconds}}",
+    "duration_seconds": "{{seconds}} วินาที",
     "download_failed": "ไม่สามารถบันทึกไฟล์: {{message}}",
     "no_profiles": "ยังไม่มีเสียงที่บันทึกไว้ อัปโหลดหรือบันทึกข้อมูลอ้างอิง จากนั้นบันทึกเป็นโปรไฟล์",
     "edit_voice": "แก้ไขเสียง",
