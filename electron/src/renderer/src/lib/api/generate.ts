@@ -3,7 +3,11 @@ import { generationFailureMessage } from '@shared/utils/generationFailureMessage
 import i18next from 'i18next';
 import { languageRejectionMessage } from '@shared/utils/languageRejection.ts';
 import { ApiError, apiFetch, isAbortError } from './client';
-import { reportedGenerateBudget } from './generate-budget';
+import {
+  generateBudgetPending,
+  generateBudgetSettled,
+  reportedGenerateBudget,
+} from './generate-budget';
 import type { CloneGenerateInput, GenerateResult } from './types';
 import { beginAppActivity } from '@/lib/app-activity';
 import { createStreamingPreview } from '@/lib/audio/streaming-preview';
@@ -402,7 +406,10 @@ export async function generateClone(
   const forwardAbort = (): void => controller.abort();
   if (opts.signal?.aborted) controller.abort();
   else opts.signal?.addEventListener('abort', forwardAbort, { once: true });
-  // Outlasts the backend's own budget so its descriptive error always wins.
+  // Outlasts the backend's own budget so its descriptive error always wins. A
+  // budget read still in flight (just after connecting) is awaited briefly so
+  // an operator-raised timeout is not missed.
+  if (generateBudgetPending()) await generateBudgetSettled(2_000);
   const backstop = setTimeout(
     forwardAbort,
     generateAbortMs(input.text.length, reportedGenerateBudget()),

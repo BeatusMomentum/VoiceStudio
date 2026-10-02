@@ -117,6 +117,7 @@ GET /gallery/categories
 GET /gallery/voices
 GET /gallery/voices/{voice_id}
 GET /gallery/voices/{voice_id}/preview
+GET /generate/budget
 GET /glossary/{project_id}
 GET /health
 GET /history
