@@ -125,7 +125,7 @@ VoiceStudio/
 │   ├── media/, screenshot-*.png, preview.png, logo.*
 │   └── languages.md, training.md, data_preparation.md, evaluation.md, voice-design.md
 │
-├── examples/                    ⟵ runnable demos + sample inputs (agentic/, speech-platform/)
+├── examples/                    ⟵ runnable demos + sample inputs (agentic/, config/)
 │
 ├── notebooks/                   ⟵ OmniVoice_Studio_Colab.ipynb
 │

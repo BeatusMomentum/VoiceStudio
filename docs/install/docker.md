@@ -73,18 +73,18 @@ master key.
 ## Pull and run (CPU)
 
 ```bash
-docker pull ghcr.io/debpalash/voicestudio:latest
+docker pull ghcr.io/debpalash/voicestudio:stable
 
 docker run -d --name omnivoice \
   -p 127.0.0.1:3900:3900 \
   -e OMNIVOICE_API_KEY="$OMNIVOICE_API_KEY" \
   -v omnivoice-data:/app/omnivoice_data \
-  ghcr.io/debpalash/voicestudio:latest
+  ghcr.io/debpalash/voicestudio:stable
 ```
 
 > **Docker Hub mirror:** the same images are published to
 > `palashdeb/omnivoice-studio` on Docker Hub with identical tags — swap the
-> image for `palashdeb/omnivoice-studio:latest` if you prefer Docker Hub.
+> image for `palashdeb/omnivoice-studio:stable` if you prefer Docker Hub.
 > Tag semantics (`:latest` = rolling main preview, `:stable`/`:X.Y.Z` =
 > releases) are the same on both registries.
 
@@ -98,7 +98,7 @@ docker run -d --name omnivoice --gpus all \
   -p 127.0.0.1:3900:3900 \
   -e OMNIVOICE_API_KEY="$OMNIVOICE_API_KEY" \
   -v omnivoice-data:/app/omnivoice_data \
-  ghcr.io/debpalash/voicestudio:latest
+  ghcr.io/debpalash/voicestudio:stable
 ```
 
 GPU mode requires the
@@ -363,7 +363,7 @@ prebuilt image via `docker run -e` (the older `VITE_OMNIVOICE_API` is inlined at
 docker run -e OMNIVOICE_API_KEY="$OMNIVOICE_API_KEY" \
   -e OMNIVOICE_PUBLIC_API_BASE=https://api.your-host.example \
   -p 0.0.0.0:3900:3900 \
-  ghcr.io/debpalash/voicestudio:latest
+  ghcr.io/debpalash/voicestudio:stable
 ```
 
 > `OMNIVOICE_PUBLIC_API_BASE` must be a plain `http(s)://…` URL; anything else

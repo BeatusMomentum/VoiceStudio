@@ -352,6 +352,8 @@ hard rules from the first prompt.
     on in Settings (`backend/services/gallery.py`).
   - **Packaged-app update checks** against GitHub Releases; downloads wait for
     the user (`electron/src/main/updater.ts`).
+  - **yt-dlp updates** from PyPI, only when the user clicks update
+    (`backend/services/media_tools.py`).
   - Bug reports as prefilled GitHub Issue URLs opened in the user's browser.
   - PostHog analytics only after a yes at the first-run consent prompt
     (`backend/core/analytics.py`, allowlisted content-free metadata).

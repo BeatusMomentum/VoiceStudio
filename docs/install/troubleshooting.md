@@ -1075,7 +1075,10 @@ install `.pth` embeds that path in UTF-8, which is rarely a valid byte
 sequence in the active ANSI code page (`gbk`, `shift_jis`, etc.), and the
 interpreter can never start (#1783).
 
-**Fix:** keep the app environment on an ASCII-only path. On the first-run
+**Fix:** VoiceStudio now rewrites those `.pth` entries to ASCII-only paths after
+each runtime install and before each launch, so existing environments recover
+on the next start. If the backend still cannot start, keep the app
+environment on an ASCII-only path. On the first-run
 setup screen, press **Change…** beside **App environment** and pick a folder
 such as `C:\VoiceStudio` before setup starts. An environment that cannot start
 fails VoiceStudio's runtime check, so setup opens again: choose an ASCII-only
