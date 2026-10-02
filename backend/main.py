@@ -1953,7 +1953,7 @@ if __name__ == "__main__":
         "--health-check",
         action="store_true",
         help="Boot the server, poll /health, exit 0 on success / 1 on timeout. "
-             "Used by the release-time installer smoke step in .github/workflows/release.yml.",
+             "A self-contained smoke test for an installed or packaged backend.",
     )
     parser.add_argument(
         "--diagnose",
@@ -2033,9 +2033,9 @@ if __name__ == "__main__":
     # SECURITY: default to loopback (127.0.0.1) so the API isn't reachable
     # from the LAN out of the box. VoiceStudio ships no authentication; binding
     # to 0.0.0.0 by default would expose every router on this process to any
-    # host on the user's network. Docker images that need to publish the port
-    # set OMNIVOICE_BIND_HOST=0.0.0.0 explicitly (see deploy/docker-compose.yml)
-    # — the host-side port mapping is what enforces 127.0.0.1-only there.
+    # host on the user's network. The Docker image never reaches this block:
+    # its uvicorn ENTRYPOINT binds 0.0.0.0 itself (deploy/Dockerfile), and the
+    # host-side `127.0.0.1:` port mapping is what keeps it loopback-only there.
     _bind_host = os.environ.get("OMNIVOICE_BIND_HOST", "127.0.0.1")
 
     def _port_taken(host: str, port: int) -> "OSError | None":
