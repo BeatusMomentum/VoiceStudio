@@ -21,10 +21,11 @@ a network, you must also offer those users the complete corresponding source
 code of your modified version under these same AGPL-3.0 terms. See the full
 text in [`LICENSE`](LICENSE).
 
-A **commercial license is available** for organizations that want to embed
-VoiceStudio in a closed-source or proprietary product or service without
-the AGPL-3.0 copyleft obligations. Pricing tiers are coming soon; for inquiries
-contact `hi@voicestudio.sh`.
+Commercial use under the AGPL-3.0 is free. What is paid is a **commercial
+license** for organizations that want to embed VoiceStudio in a closed-source or
+proprietary product or service without the AGPL-3.0 copyleft obligations, and
+the VoiceStudio Pro features. See the plans at <https://voicestudio.sh/pro>; for
+other inquiries contact `hi@voicestudio.sh`.
 
 Contributors license their contributions to Yupcha Softwares Private Limited,
 the company that maintains VoiceStudio, under the
