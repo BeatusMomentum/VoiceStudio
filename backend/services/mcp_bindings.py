@@ -91,24 +91,15 @@ def touch_last_seen(client_id: str) -> None:
         pass
 
 
-def _global_default_profile() -> Optional[str]:
-    """The fallback voice when a client has no binding. Reads the same
-    pref the Settings 'default playback voice' would set; None if unset."""
-    try:
-        from core import prefs
-        return prefs.get("mcp_default_profile_id") or None
-    except Exception:
-        return None
-
-
 def resolve_voice(client_id: Optional[str], explicit_profile_id: Optional[str]) -> dict:
     """Resolve which voice an MCP speak call should use.
 
     Precedence (Spec 2): explicit tool arg → the client's binding →
-    the global default → nothing (caller decides / errors with a hint).
+    nothing (the backend then uses its default voice). A "global default"
+    tier read a preference nothing ever wrote, so it was removed.
 
     Returns ``{profile_id, default_engine, source}`` where ``source`` is one
-    of ``explicit`` | ``binding`` | ``global`` | ``none`` for diagnostics.
+    of ``explicit`` | ``binding`` | ``none`` for diagnostics.
     """
     if explicit_profile_id:
         return {"profile_id": explicit_profile_id, "default_engine": None, "source": "explicit"}
@@ -120,7 +111,4 @@ def resolve_voice(client_id: Optional[str], explicit_profile_id: Optional[str]) 
                 "default_engine": binding.get("default_engine"),
                 "source": "binding",
             }
-    g = _global_default_profile()
-    if g:
-        return {"profile_id": g, "default_engine": None, "source": "global"}
     return {"profile_id": None, "default_engine": None, "source": "none"}

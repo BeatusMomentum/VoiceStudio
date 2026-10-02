@@ -77,16 +77,18 @@ def test_resolution_precedence(db):
     r = db.resolve_voice("cursor", None)
     assert r["profile_id"] == "bound-voice" and r["source"] == "binding"
 
-    # Unknown client, no global default → none.
+    # Unknown client → none.
     r = db.resolve_voice("unknown", None)
     assert r["source"] == "none" and r["profile_id"] is None
 
 
-def test_resolution_global_default(db, monkeypatch):
+def test_resolution_ignores_the_never_written_global_default_pref(db, monkeypatch):
+    """No Settings surface ever wrote mcp_default_profile_id, so honoring a
+    stale or hand-edited value would pick a voice no UI shows."""
     from core import prefs
     monkeypatch.setattr(prefs, "get", lambda k, default=None: "global-voice" if k == "mcp_default_profile_id" else default)
     r = db.resolve_voice("no-binding-client", None)
-    assert r == {"profile_id": "global-voice", "default_engine": None, "source": "global"}
+    assert r == {"profile_id": None, "default_engine": None, "source": "none"}
 
 
 def test_touch_last_seen_is_best_effort(db):
