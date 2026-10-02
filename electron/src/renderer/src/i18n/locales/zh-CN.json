@@ -1977,11 +1977,7 @@
     "save_bundle": "保存诊断包",
     "bundle_saved": "诊断包已保存：{{filename}}",
     "title": "关于",
-    "diagnostics": "系统预检",
-    "update_channel": "更新通道",
-    "channel_stable": "稳定版",
-    "channel_preview": "预览版",
-    "channel_preview_hint": "预览版跟踪最新的 main 构建——功能更新，但测试较少。若稳定版更新，则回退到稳定版。"
+    "diagnostics": "系统预检"
   },
   "privacy": {
     "translator_online": "翻译引擎在线：{{provider}}",
@@ -1998,7 +1994,6 @@
     "check_now": "立即查看",
     "releases": "发布",
     "current": "当前",
-    "prerelease": "预览",
     "loading": "正在加载版本...",
     "none": "未找到任何版本",
     "load_error": "无法加载版本（离线？）",

@@ -1979,11 +1979,7 @@
     "save_bundle": "Guardar paquete de diagnóstico",
     "bundle_saved": "Paquete de diagnóstico guardado: {{filename}}",
     "title": "Acerca de",
-    "diagnostics": "verificación previa del sistema",
-    "update_channel": "Canal de actualización",
-    "channel_stable": "Estable",
-    "channel_preview": "Vista previa",
-    "channel_preview_hint": "La vista previa sigue la última compilación de main: funciones más nuevas, menos probadas. Vuelve a estable si hay una versión estable más reciente."
+    "diagnostics": "verificación previa del sistema"
   },
   "privacy": {
     "translator_online": "El traductor está en línea: {{provider}}",
@@ -2000,7 +1996,6 @@
     "check_now": "Compruébalo ahora",
     "releases": "Lanzamientos",
     "current": "actual",
-    "prerelease": "vista previa",
     "loading": "Cargando lanzamientos…",
     "none": "No se encontraron lanzamientos",
     "load_error": "No se pudieron cargar las versiones (¿sin conexión?)",

@@ -7,6 +7,8 @@ and keep :latest on the rolling main build in both GPU flavors.
 """
 from __future__ import annotations
 
+import re
+
 from pathlib import Path
 
 import yaml
@@ -76,3 +78,10 @@ def test_token_published_releases_still_publish_images():
     assert "gh workflow run docker.yml" in runs
     assert "backfill_release=true" in runs
     assert "promote_stable=true" in runs
+    # Every -f key must be a real docker.yml dispatch input, or the run fails at publish time.
+    command = runs[runs.index("gh workflow run docker.yml"):]
+    command = command[: command.find("\n", command.find("promote_stable"))]
+    keys = set(re.findall(r"-f\s+([A-Za-z_]+)=", command))
+    on = _load(_DOCKER)["on"]
+    inputs = set((on.get("workflow_dispatch") or {}).get("inputs") or {})
+    assert {"backfill_release", "release_ref", "promote_stable"} <= keys <= inputs, (keys, inputs)

@@ -99,7 +99,7 @@ docker run -d --name omnivoice \
   -p 127.0.0.1:3900:3900 \
   -e OMNIVOICE_API_KEY="$OMNIVOICE_API_KEY" \
   -v omnivoice-data:/app/omnivoice_data \
-  palashdeb/omnivoice-studio:rocm
+  palashdeb/omnivoice-studio:stable-rocm
 ```
 
 Podman users: same two `--device` flags (Quadlet: `AddDevice=/dev/kfd` +

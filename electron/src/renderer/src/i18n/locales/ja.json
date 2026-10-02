@@ -1977,11 +1977,7 @@
     "save_bundle": "診断バンドルを保存",
     "bundle_saved": "診断バンドルを保存しました: {{filename}}",
     "title": "情報",
-    "diagnostics": "システムプリフライト",
-    "update_channel": "アップデートチャンネル",
-    "channel_stable": "安定版",
-    "channel_preview": "プレビュー",
-    "channel_preview_hint": "プレビューは最新の main ビルドを追跡します。新機能をいち早く利用できますが、テストは少なめです。安定版が先行している場合は安定版にフォールバックします。"
+    "diagnostics": "システムプリフライト"
   },
   "privacy": {
     "translator_online": "翻訳者はオンラインです: {{provider}}",
@@ -1998,7 +1994,6 @@
     "check_now": "今すぐチェック",
     "releases": "リリース",
     "current": "現在",
-    "prerelease": "プレビュー",
     "loading": "リリースを読み込み中…",
     "none": "リリースが見つかりませんでした",
     "load_error": "リリースをロードできませんでした (オフライン?)",

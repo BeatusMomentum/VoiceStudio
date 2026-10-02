@@ -1977,11 +1977,7 @@
     "save_bundle": "Diagnosepakket opslaan",
     "bundle_saved": "Diagnosepakket opgeslagen: {{filename}}",
     "title": "Over",
-    "diagnostics": "Systeem preflight",
-    "update_channel": "Updatekanaal",
-    "channel_stable": "Stabiel",
-    "channel_preview": "Voorbeeld",
-    "channel_preview_hint": "Voorbeeld volgt de nieuwste main-build — nieuwere functies, minder getest. Valt terug op stabiel als er een nieuwere stabiele release is."
+    "diagnostics": "Systeem preflight"
   },
   "privacy": {
     "translator_online": "Vertaler is online: {{provider}}",
@@ -1998,7 +1994,6 @@
     "check_now": "Controleer nu",
     "releases": "Releases",
     "current": "actueel",
-    "prerelease": "voorbeeld",
     "loading": "Releases laden…",
     "none": "Geen releases gevonden",
     "load_error": "Kan releases niet laden (offline?)",

@@ -1977,11 +1977,7 @@
     "save_bundle": "Spara diagnostikpaket",
     "bundle_saved": "Diagnostikpaket sparat: {{filename}}",
     "title": "Om",
-    "diagnostics": "System preflight",
-    "update_channel": "Uppdateringskanal",
-    "channel_stable": "Stabil",
-    "channel_preview": "Förhandsvisning",
-    "channel_preview_hint": "Förhandsvisning följer det senaste main-bygget – nyare funktioner, mindre testade. Återgår till stabil om en stabil version ligger före."
+    "diagnostics": "System preflight"
   },
   "privacy": {
     "translator_online": "Översättaren är online: {{provider}}",
@@ -1998,7 +1994,6 @@
     "check_now": "Kolla nu",
     "releases": "Utgåvor",
     "current": "nuvarande",
-    "prerelease": "förhandsgranskning",
     "loading": "Läser in utgåvor...",
     "none": "Inga utgåvor hittades",
     "load_error": "Det gick inte att läsa in utgåvor (offline?)",

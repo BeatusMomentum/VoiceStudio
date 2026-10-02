@@ -213,6 +213,9 @@ def _parser() -> argparse.ArgumentParser:
         "--engine-url",
         default=_default_engine_url(),
     )
+    # Accepted and ignored so hooks written for the retired control server get
+    # the explanation instead of an argparse error.
+    parser.add_argument("--control-url", help=argparse.SUPPRESS)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("capabilities", help="print the backend's speech capabilities")
     for command in RETIRED_CONTROL_COMMANDS:

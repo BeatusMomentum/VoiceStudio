@@ -1985,11 +1985,7 @@
     "save_bundle": "حفظ حزمة التشخيص",
     "bundle_saved": "تم حفظ حزمة التشخيص: {{filename}}",
     "title": "حول",
-    "diagnostics": "الاختبار المبدئي للنظام",
-    "update_channel": "قناة التحديث",
-    "channel_stable": "مستقر",
-    "channel_preview": "معاينة",
-    "channel_preview_hint": "تتابع المعاينة أحدث إصدار من main — ميزات أحدث وأقل اختبارًا. تعود إلى المستقر إذا كان هناك إصدار مستقر أحدث."
+    "diagnostics": "الاختبار المبدئي للنظام"
   },
   "privacy": {
     "translator_online": "المترجم متصل: {{provider}}",
@@ -2006,7 +2002,6 @@
     "check_now": "تحقق الآن",
     "releases": "الإصدارات",
     "current": "الحالي",
-    "prerelease": "معاينة",
     "loading": "جارٍ تحميل الإصدارات…",
     "none": "لم يتم العثور على أي إصدارات",
     "load_error": "تعذر تحميل الإصدارات (غير متصل؟)",

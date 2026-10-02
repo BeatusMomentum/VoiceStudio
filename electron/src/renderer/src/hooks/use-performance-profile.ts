@@ -96,7 +96,8 @@ export function usePerformanceProfile() {
       });
       const target = state.targets.tts;
       if (
-        state.tts_tiered_engines?.includes(state.selections.tts.engine) &&
+        // Backends before 0.5.7 don't report the list; they tier only OmniVoice.
+        (state.tts_tiered_engines ?? ['omnivoice', 'omnivoice-subprocess']).includes(state.selections.tts.engine) &&
         typeof target.steps === 'number' &&
         typeof target.postprocess === 'boolean'
       ) {

@@ -2080,11 +2080,7 @@
     "save_bundle": "Save diagnostic bundle",
     "bundle_saved": "Diagnostic bundle saved: {{filename}}",
     "title": "About",
-    "diagnostics": "System preflight",
-    "update_channel": "Update channel",
-    "channel_stable": "Stable",
-    "channel_preview": "Preview",
-    "channel_preview_hint": "Preview tracks the latest main build — newer features, less tested. Falls back to stable if a stable release is ahead."
+    "diagnostics": "System preflight"
   },
   "privacy": {
     "translator_online": "Translator is online: {{provider}}",
@@ -2101,7 +2097,6 @@
     "check_now": "Check now",
     "releases": "Releases",
     "current": "current",
-    "prerelease": "preview",
     "loading": "Loading releases…",
     "none": "No releases found",
     "load_error": "Couldn't load releases (offline?)",

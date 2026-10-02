@@ -1979,11 +1979,7 @@
     "save_bundle": "Enregistrer le paquet de diagnostic",
     "bundle_saved": "Paquet de diagnostic enregistré : {{filename}}",
     "title": "À propos",
-    "diagnostics": "Contrôle en amont du système",
-    "update_channel": "Canal de mise à jour",
-    "channel_stable": "Stable",
-    "channel_preview": "Aperçu",
-    "channel_preview_hint": "L'aperçu suit la dernière version de main : fonctionnalités plus récentes, moins testées. Revient à la version stable si une version stable est plus avancée."
+    "diagnostics": "Contrôle en amont du système"
   },
   "privacy": {
     "translator_online": "Le traducteur est en ligne : {{provider}}",
@@ -2000,7 +1996,6 @@
     "check_now": "Vérifiez maintenant",
     "releases": "Versions",
     "current": "actuelle",
-    "prerelease": "aperçu",
     "loading": "Chargement des versions…",
     "none": "Aucune version trouvée",
     "load_error": "Impossible de charger les versions (hors ligne ?)",

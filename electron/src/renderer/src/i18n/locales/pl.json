@@ -1981,11 +1981,7 @@
     "save_bundle": "Zapisz pakiet diagnostyczny",
     "bundle_saved": "Pakiet diagnostyczny zapisany: {{filename}}",
     "title": "O programie",
-    "diagnostics": "Wstępna inspekcja systemu",
-    "update_channel": "Kanał aktualizacji",
-    "channel_stable": "Stabilny",
-    "channel_preview": "Podgląd",
-    "channel_preview_hint": "Podgląd śledzi najnowszą kompilację main — nowsze funkcje, mniej testów. Wraca do stabilnej, jeśli stabilne wydanie jest nowsze."
+    "diagnostics": "Wstępna inspekcja systemu"
   },
   "privacy": {
     "translator_online": "Tłumacz jest online: {{provider}}",
@@ -2002,7 +1998,6 @@
     "check_now": "Sprawdź teraz",
     "releases": "Wydania",
     "current": "aktualna",
-    "prerelease": "podgląd",
     "loading": "Ładowanie wersji…",
     "none": "Nie znaleziono żadnych wydań",
     "load_error": "Nie można wczytać wersji (offline?)",

@@ -52,7 +52,6 @@ VoiceStudio/
 │   ├── schemas/                 pydantic request/response shapes
 │   ├── migrations/versions/     alembic revisions — every schema change goes through here
 │   ├── plugins/                 plugin drop-in point (see services/plugin_sdk.py)
-│   ├── hooks/                   pyinstaller runtime hooks
 │   ├── config/models.yaml       model catalogue
 │   └── tests/                   the isolated pytest session — see "Where tests live"
 │
@@ -216,8 +215,7 @@ VoiceStudio/
 │   ├── omnivoice-model/     ← was omnivoice/
 │   └── tts-adapters/        ← new; the pluggable TTS interface from ROADMAP phase 3
 ├── config/
-│   ├── docker/
-│   └── pyinstaller/
+│   └── docker/
 ├── tests/
 └── docs/
 ```

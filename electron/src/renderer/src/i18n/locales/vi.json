@@ -1977,11 +1977,7 @@
     "save_bundle": "Lưu gói chẩn đoán",
     "bundle_saved": "Đã lưu gói chẩn đoán: {{filename}}",
     "title": "Giới thiệu",
-    "diagnostics": "Đèn chiếu trước hệ thống",
-    "update_channel": "Kênh cập nhật",
-    "channel_stable": "Ổn định",
-    "channel_preview": "Xem trước",
-    "channel_preview_hint": "Bản xem trước theo dõi bản dựng main mới nhất — tính năng mới hơn, ít được kiểm thử hơn. Quay lại bản ổn định nếu có bản phát hành ổn định mới hơn."
+    "diagnostics": "Đèn chiếu trước hệ thống"
   },
   "privacy": {
     "translator_online": "Người dịch đang trực tuyến: {{provider}}",
@@ -1998,7 +1994,6 @@
     "check_now": "Kiểm tra ngay",
     "releases": "Bản phát hành",
     "current": "hiện tại",
-    "prerelease": "xem trước",
     "loading": "Đang tải bản phát hành…",
     "none": "Không tìm thấy bản phát hành nào",
     "load_error": "Không thể tải bản phát hành (ngoại tuyến?)",
