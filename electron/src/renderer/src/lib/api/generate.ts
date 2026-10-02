@@ -1,3 +1,4 @@
+import { generateAbortMs } from '@shared/utils/generateBudget';
 import { generationFailureMessage } from '@shared/utils/generationFailureMessage.ts';
 import i18next from 'i18next';
 import { languageRejectionMessage } from '@shared/utils/languageRejection.ts';
@@ -13,13 +14,6 @@ export const CLONE_MAX_SECONDS = 15;
  * windows (omnivoice/utils/audio.py CLONE_REF_MAX_WINDOWS) — rejected outright.
  */
 export const REF_HARD_MAX_SECONDS = 75;
-/**
- * Client-side abort backstop. The first /generate may cold-load the model;
- * the backend bounds that itself and returns a descriptive error, so this sits
- * just above its load timeout to make sure the UI never spins forever if the
- * backend goes silent.
- */
-export const GENERATE_ABORT_MS = 21 * 60 * 1000;
 
 // ── Instruct whitelist ─────────────────────────────────────────────────────
 // The engine validator (omnivoice/models/omnivoice.py::_resolve_instruct)
@@ -407,7 +401,8 @@ export async function generateClone(
   const forwardAbort = (): void => controller.abort();
   if (opts.signal?.aborted) controller.abort();
   else opts.signal?.addEventListener('abort', forwardAbort, { once: true });
-  const backstop = setTimeout(forwardAbort, GENERATE_ABORT_MS);
+  // Outlasts the backend's own budget so its descriptive error always wins.
+  const backstop = setTimeout(forwardAbort, generateAbortMs(input.text.length));
   const finishActivity = beginAppActivity('synthesis');
   try {
     const res = await apiFetch('/generate', {

@@ -38,7 +38,17 @@ _GENERATE_TIMEOUT_S = float(os.environ.get("OMNIVOICE_GENERATE_TIMEOUT_S", "300.
 _CPU_GENERATE_TIMEOUT_S = float(
     os.environ.get("OMNIVOICE_CPU_GENERATE_TIMEOUT_S", "600.0")
 )
-_MODEL_LOAD_EXTRA_S = float(os.environ.get("OMNIVOICE_MODEL_LOAD_TIMEOUT_S", "1800.0"))
+def _progress_extension_cap_s(env=os.environ) -> float:
+    """Mirror of model_manager.progress_extension_cap_s (deprecated alias:
+    OMNIVOICE_MODEL_LOAD_TIMEOUT_S)."""
+    return float(
+        env.get("OMNIVOICE_PROGRESS_EXTENSION_CAP_S")
+        or env.get("OMNIVOICE_MODEL_LOAD_TIMEOUT_S")
+        or "1800.0"
+    )
+
+
+_MODEL_LOAD_EXTRA_S = _progress_extension_cap_s()
 _HEARTBEAT_GRACE_S = float(os.environ.get("OMNIVOICE_MODEL_LOAD_HEARTBEAT_GRACE_S", "30.0"))
 
 # Free character allowance before the execution budget starts scaling, and the
