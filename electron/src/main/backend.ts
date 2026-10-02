@@ -9,6 +9,7 @@ import {
   stageRuntimeSources,
   type RuntimeRegion,
 } from './runtime-project';
+import { asciiSafePthFiles } from './pth-ascii';
 import { CrashJournal } from './crash-journal';
 import { availableBackendPort } from './backend-port';
 import { legacyStorageEnv } from './legacy-storage';
@@ -353,6 +354,8 @@ export async function resolveSpawnPlan(
   if (override) return { argv: override, cwd: root };
   if (app.isPackaged) {
     const project = packagedProject ?? join(defaultRuntimeRoot(), 'project');
+    // Heals runtimes installed before #1783 was fixed without a repair run.
+    await asciiSafePthFiles(join(project, '.venv')).catch(() => []);
     return {
       argv: [runtimePython(project), '-m', ...UVICORN_ARGS, '--port', String(port)],
       cwd: project,
