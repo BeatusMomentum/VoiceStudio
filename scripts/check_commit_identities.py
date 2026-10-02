@@ -62,7 +62,10 @@ AI_ATTRIBUTION_KIND = "AI agent attribution"
 # Agents that commit or get credited as co-authors (agent_identities.py). GitHub
 # App bots such as dependabot[bot] are not agents and stay allowed, and so do
 # people with a work address at an AI company.
-_AGENTS = r"(claude|cursor|copilot|codex|chatgpt|openai|gemini|devin|jules|aider|cline|windsurf|an? ai\b|ai\b)"
+_AGENTS = (
+    r"(claude|cursor|copilot|codex|chatgpt|openai|gemini|devin|jules|aider|cline|windsurf|coderabbit|greptile"
+    r"|sourcery|tabnine|codeium|amazon q|kiro|qodo|openhands|sweep|an? ai\b|ai\b|an? llm\b|llm\b)"
+)
 AI_ATTRIBUTION = re.compile(
     rf"^[ \t>*_-]*(generated|written|created|authored)[ \t]+(with|by|using)[ \t]+\[?{_AGENTS}"
     r"|🤖[ \t]*(generated|written|created|authored)\b|^[ \t]*claude-session[ \t]*:"

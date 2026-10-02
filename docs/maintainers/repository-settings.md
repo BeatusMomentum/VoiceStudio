@@ -24,7 +24,8 @@ the description: the check then asks their authors to sign too.
 
 ## Ruleset: `main`
 
-Requires a pull request, the backend/frontend test job and the CLA check, and
+Requires a pull request, the backend/frontend test job, the commit-identity
+check and the CLA check, and
 blocks force-push and deletion. Without the pull request rule, a direct push
 whose commit already carries passing checks would be accepted. The rule needs
 no approving review, because `@debpalash` is the only maintainer and GitHub
@@ -33,6 +34,8 @@ does not let authors approve their own pull requests.
 The `context` values must match the check names shown on a pull request:
 
 - `Tests (backend + frontend)`: the `name:` of the `test` job in `.github/workflows/ci.yml`.
+- `Commit identities`: the `name:` of the job in `.github/workflows/commit-identity.yml`.
+  Without it, agent and placeholder identities are reported but not blocked.
 - `CLA`: the commit status that `.github/scripts/cla_check.py` sets on the
   pull request's head commit. Require this status, not the `cla` job: the job
   succeeds whenever the checker runs, and comment-triggered runs are not
@@ -72,6 +75,7 @@ gh api --method POST repos/debpalash/VoiceStudio/rulesets --input - <<'JSON'
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "Tests (backend + frontend)", "integration_id": 15368 },
+          { "context": "Commit identities", "integration_id": 15368 },
           { "context": "CLA" }
         ]
       }

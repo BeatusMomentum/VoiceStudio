@@ -35,4 +35,18 @@ jobs:
       - name: Check PR commit identities
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: python3 scripts/check_commit_identities.py --range "origin/${BASE_REF}..HEAD" --event "$GITHUB_EVENT_PATH"
+        # Run the base branch's checker and lists, so a pull request cannot
+        # edit the gate it is judged by. Its commits are only read as data.
+        run: |
+          policy="$RUNNER_TEMP/policy"
+          mkdir -p "$policy"
+          files="scripts/check_commit_identities.py scripts/blocked_identity_hashes.txt .github/scripts/agent_identities.py"
+          if git cat-file -e "origin/${BASE_REF}:scripts/check_commit_identities.py" 2>/dev/null; then
+            git archive "origin/${BASE_REF}" $files | tar -x -C "$policy"
+          else
+            # Only the pull request that introduces the gate reaches this branch.
+            tar -c $files | tar -x -C "$policy"
+          fi
+          python3 "$policy/scripts/check_commit_identities.py" \
+            --hash-file "$policy/scripts/blocked_identity_hashes.txt" \
+            --range "origin/${BASE_REF}..HEAD" --event "$GITHUB_EVENT_PATH"

@@ -159,8 +159,15 @@ def test_workflow_runs_on_untrusted_safe_pull_request():
     assert checkout["with"] == {"fetch-depth": "0", "persist-credentials": "false"}
     assert "${{" not in run["run"]
     assert run["env"]["BASE_REF"] == "${{ github.base_ref }}"
-    assert "scripts/check_commit_identities.py" in run["run"] and "origin/${BASE_REF}..HEAD" in run["run"]
-    assert '--event "$GITHUB_EVENT_PATH"' in run["run"]
+    assert "origin/${BASE_REF}..HEAD" in run["run"] and '--event "$GITHUB_EVENT_PATH"' in run["run"]
+    # The gate runs the base branch's checker and lists, never the PR's copy.
+    assert 'git archive "origin/${BASE_REF}"' in run["run"]
+    assert 'python3 "$policy/scripts/check_commit_identities.py"' in run["run"]
+    assert '--hash-file "$policy/' in run["run"]
+    assert "python3 scripts/" not in run["run"]
+    archived = re.search(r'files="([^"]+)"', run["run"]).group(1).split()
+    assert {"scripts/check_commit_identities.py", "scripts/blocked_identity_hashes.txt",
+            ".github/scripts/agent_identities.py"} == set(archived)
 
 
 # ── AI agents ───────────────────────────────────────────────────────────
