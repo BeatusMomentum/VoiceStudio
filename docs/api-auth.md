@@ -91,7 +91,7 @@ the operator's port mapping controls access in that mode.
 
 The API key is the backend's durable root credential for a GPU box, Docker
 container, or reverse-proxied host. Direct API clients may send it on each
-request. The first-party browser/Tauri UI instead exchanges it once for a
+request. The first-party browser/Electron UI instead exchanges it once for a
 short-lived administrator session and never stores the master. Set it on the
 **backend** process:
 
@@ -167,7 +167,8 @@ The bundled UI uses a narrower protocol:
 
 1. `POST /api/auth/session` receives the master in an `Authorization` header
    exactly once and selects `{"transport":"cookie"}` for exact same-origin
-   browsers or `{"transport":"bearer"}` for Tauri/cross-origin clients.
+   browsers or `{"transport":"bearer"}` for cross-origin clients (including
+   the Electron app's remote-backend connections).
 2. Cookie transport returns `204` and sets `ov_session` as HttpOnly,
    SameSite=Strict, path `/`, with an eight-hour maximum lifetime. Bearer
    transport returns an opaque `ovs_admin_session_…` value which the UI keeps
@@ -298,10 +299,10 @@ Managed sidecar installation remains true-loopback-only even with an API key.
 Its installer fetches mutable source and creates an editable environment, so it
 must be run directly on that machine until the source supply chain is pinned.
 
-Host paths are never selected through HTTP. The native Tauri process validates
-model-cache and export destinations plus custom FFmpeg/FFprobe binaries, writes
-a private one-shot capability, and only that opaque authorization reaches the
-backend. `/export` therefore accepts an `authorization` token, never a
+Host paths are never selected through HTTP. The Electron main process validates
+model-cache and export destinations (chosen in a native save/open dialog) plus
+custom FFmpeg/FFprobe binaries, writes a private one-shot capability, and only
+that opaque authorization reaches the backend. `/export` therefore accepts an `authorization` token, never a
 `destination_path`; revealing an arbitrary exported path runs in the native
 process, while the HTTP fallback is limited to the server-owned data root.
 `/system/set-env` does not accept executable-path keys at all. Server mode and
@@ -319,9 +320,10 @@ credential at all**, because the API-key middleware waved it through as
 
 Everything above gates *authentication*. A **browser** frontend served from a
 different origin than the backend hits a separate wall first: CORS. The
-backend's allow-list defaults to loopback + Tauri origins only
-(`http://localhost:<ui-port>`, `http://127.0.0.1:<ui-port>`,
-`tauri://localhost`, `http://tauri.localhost`), so opening a dev/source UI via
+backend's allow-list defaults to loopback + desktop origins only
+(`http://localhost:<ui-port>`, `http://127.0.0.1:<ui-port>`, Electron's
+`app://voicestudio`, and the archived Tauri app's `tauri://localhost` /
+`http://tauri.localhost`), so opening a dev/source UI via
 a LAN IP (e.g. `http://192.168.1.159:3901` talking to `…:3900`) blocks every
 request with *"Missing Header: Access-Control-Allow-Origin"* — regardless of
 `OMNIVOICE_SERVER_MODE` or `OMNIVOICE_TRUSTED_NETWORKS`, neither of which
@@ -330,13 +332,14 @@ touches CORS (#1348).
 Add the exact origin the browser shows in its address bar:
 
 ```bash
-export OMNIVOICE_ALLOWED_ORIGINS="http://192.168.1.159:3901,http://localhost:3901,http://127.0.0.1:3901,tauri://localhost,http://tauri.localhost"
+export OMNIVOICE_ALLOWED_ORIGINS="http://192.168.1.159:3901,http://localhost:3901,http://127.0.0.1:3901,app://voicestudio"
 ```
 
 Each entry must be a bare origin — `scheme://host:port`, exactly what the
 browser sends in its `Origin` header — with no path and no trailing slash
 (`http://192.168.1.159:3901/` would never match). The variable **replaces**
-the default list, so restate the loopback/Tauri origins alongside your own. (The in-app LAN share and Tailscale flows in
+the default list, so restate the loopback and `app://voicestudio` origins
+alongside your own (add the Tauri origins only for an archived Tauri client). (The in-app LAN share and Tailscale flows in
 [docs/sharing.md](sharing.md) don't need this — they serve UI and API from the
 same origin.) If you only moved the Vite dev server's port, set
 `OMNIVOICE_UI_PORT` instead and the default list follows it.
