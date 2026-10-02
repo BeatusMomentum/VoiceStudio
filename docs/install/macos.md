@@ -173,25 +173,6 @@ Full details: [docs/setup/huggingface-token.md](../setup/huggingface-token.md).
 
 Hit a wall? See [docs/install/troubleshooting.md](troubleshooting.md).
 
-The in-app error UI (the React error boundary that fires on backend errors)
-includes an **"Open docs for this error"** button — that button deeplinks
-back into this docs tree at the right section for the error class.
-
-## Hugging Face token (optional but recommended)
-
-The default install works without a token, but diarization (the
-`pyannote/speaker-diarization-3.1` model) is gated and the larger
-voice-design engines also download faster with a token attached.
-
-- Open **Settings → API Keys** in the app.
-- Or set the env var `export HF_TOKEN=hf_…` in `~/.zshrc`.
-
-Full details: [docs/setup/huggingface-token.md](../setup/huggingface-token.md).
-
-## Troubleshooting
-
-Hit a wall? See [docs/install/troubleshooting.md](troubleshooting.md).
-
 The in-app error UI includes an **"Open docs for this error"** button that
 deeplinks back into this docs tree at the right section for the error class.
 
