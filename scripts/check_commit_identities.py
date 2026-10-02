@@ -64,10 +64,13 @@ AI_ATTRIBUTION_KIND = "AI agent attribution"
 # people with a work address at an AI company.
 _AGENTS = (
     r"(claude|cursor|copilot|codex|chatgpt|openai|gemini|devin|jules|aider|cline|windsurf|coderabbit|greptile"
-    r"|sourcery|tabnine|codeium|amazon q|kiro|qodo|openhands|sweep|an? ai\b|ai\b|an? llm\b|llm\b)"
+    r"|sourcery|tabnine|codeium|amazon q|kiro|qodo|openhands|sweep)\b"
+    # A generic "AI"/"LLM" credits a tool only when the line ends there, so
+    # "Written by an LLM engineer" still credits a person.
+    r"|(an? )?(ai|llm)( (model|agent|assistant|tool))?[ \t]*[.!)\]]?[ \t]*$"
 )
 AI_ATTRIBUTION = re.compile(
-    rf"^[ \t>*_-]*(generated|written|created|authored)[ \t]+(with|by|using)[ \t]+\[?{_AGENTS}"
+    rf"^[ \t>*_-]*(generated|written|created|authored)[ \t]+(with|by|using)[ \t]+\[?({_AGENTS})"
     r"|🤖[ \t]*(generated|written|created|authored)\b|^[ \t]*claude-session[ \t]*:"
     # Agent session and share links.
     r"|\bclaude\.ai/(c|chat|share|code|new)\b|\bclaude\.com/(claude-)?code\b"
@@ -217,8 +220,10 @@ def main(argv: list[str] | None = None) -> int:
     for short, field, kind in violations:
         print(f"  {short}  {field}: {kind}")
     print(
-        "Set an allowed identity (e.g. your GitHub noreply address), then rewrite and force-push:\n"
-        "  git rebase --exec 'git commit --amend --no-edit --reset-author' origin/<base>\n"
+        "Set an allowed identity (e.g. your GitHub noreply address), then rewrite only the\n"
+        "commits listed above and force-push: `git rebase -i origin/<base>`, mark each listed\n"
+        "commit `edit`, and at each stop run `git commit --amend --no-edit --reset-author`\n"
+        "and `git rebase --continue`. Other people's commits keep their authors.\n"
         "Remove blocked Co-authored-by/Signed-off-by trailers and AI agent attribution lines\n"
         "with `git rebase -i` (reword) and from the pull request description. Commits carry\n"
         "only your own git identity: no AI agent co-authors or 'Generated with ...' lines."
