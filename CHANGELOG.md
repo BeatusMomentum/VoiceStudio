@@ -54,6 +54,8 @@ metadata and the backend fallback mirror it.
 - Pull requests ask their opener and every commit author and co-author to sign a one-time Contributor License Agreement by comment; the contributing guide explains how (#2556)
 
 ### Changed
+- Remove unsupported automatic MIT licence claims from bundled demo metadata and generation scripts (#2587)
+
 - Correct historical OmniVoice commercial-licence claims and require separate code, model and tokenizer licence review for engine acceptance (#2587)
 
 - Include the application licence notice and T3 Code MIT notice in desktop installers (#2587)
