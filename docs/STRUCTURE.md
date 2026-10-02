@@ -26,7 +26,6 @@ VoiceStudio/
 ├── .gitmodules                  ⟵ omnivoice-gallery submodule
 ├── .python-version
 ├── .dockerignore                ⟵ Docker build context filter
-├── backend.spec                 ⟵ pyinstaller spec (stays at root by pyinstaller convention)
 ├── alembic.ini                  ⟵ DB migration config (stays at root by alembic convention)
 │
 ├── .gitignore                   ⟵ a repo-local .env stays ignored, but user config is NOT
@@ -227,7 +226,6 @@ VoiceStudio/
 - `pyproject.toml` `[tool.hatch.build.targets.{sdist,wheel}]` paths
 - `package.json` workspaces and scripts
 - `turbo.json`, `Dockerfile`, `docker-compose.yml` paths
-- `backend.spec` (`['backend/main.py']`, `pathex=['.']`)
 - Electron Builder, native-helper, updater and packaged-smoke paths
 - every import that reads `from backend.main import …` (tests, scripts)
 - the root `package.json` as the version source of truth and its mirrors
