@@ -1,14 +1,15 @@
 # Security scanning — runs on every PR, on push to main, and weekly.
 #
 # Complements the CodeRabbit + Greptile app reviews (which fire on PR creation)
-# with deterministic, gating checks:
-#   • gitleaks   — secret scanning. HARD FAIL: a leaked credential blocks merge.
+# with deterministic checks:
+#   • gitleaks   — secret scanning. HARD FAIL: a leaked credential fails CI
+#                  (not a required check; treat a red run as a merge blocker).
 #   • CodeQL     — Python + JS/TS SAST. Results land in the Security tab.
 #   • bandit     — Python SAST (SARIF → Security tab). Reporting, non-gating.
 #   • pip-audit  — Python dependency advisories. Reporting, non-gating.
 #   • bun audit  — Electron dependency advisories. Reporting, non-gating.
 #
-# Only the secret scan gates the PR. Dependency advisories and bandit findings
+# Only the secret scan fails the run. Dependency advisories and bandit findings
 # are surfaced as signal (Security tab / job log) rather than blocking every PR
 # on a transitive upstream advisory — consistent with the "no ceremony,
 # continuous-to-main" cadence.
