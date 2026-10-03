@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} comprobación(es) fallaron — consulta las pistas de arriba.",
     "save_bundle": "Guardar paquete de diagnóstico",
     "bundle_saved": "Paquete de diagnóstico guardado: {{filename}}",
-    "bundle_failed": "No se pudo crear el paquete de diagnóstico: {{message}}"
+    "bundle_failed": "No se pudo crear el paquete de diagnóstico: {{message}}",
+    "model_credits": "Créditos de modelos",
+    "model_credits_hint": "Créditos de los modelos compatibles. Los modelos y componentes tienen condiciones propias; estos créditos no conceden derechos de uso comercial.",
+    "model_terms": "Condiciones del modelo",
+    "model_related_sources": "Fuentes relacionadas:"
   },
   "privacy": {
     "desc": "Todo se ejecuta en <1>esta máquina</1>. Su audio, video y transcripciones nunca salen de su computadora a menos que utilice explícitamente un traductor en línea (Google, DeepL, etc.) o acceda a HuggingFace.",

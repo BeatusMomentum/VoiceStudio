@@ -1977,7 +1977,11 @@
     "save_bundle": "儲存診斷套件",
     "bundle_saved": "診斷套件已儲存：{{filename}}",
     "title": "關於軟體",
-    "diagnostics": "系統預檢"
+    "diagnostics": "系統預檢",
+    "model_credits": "模型致謝",
+    "model_credits_hint": "支援模型的來源與作者。模型和元件分別適用各自的條款；這些致謝不授予商業使用權。",
+    "model_terms": "模型條款",
+    "model_related_sources": "相關來源："
   },
   "privacy": {
     "translator_online": "譯者在線：{{provider}}",

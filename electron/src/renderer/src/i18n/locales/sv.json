@@ -1977,7 +1977,11 @@
     "save_bundle": "Spara diagnostikpaket",
     "bundle_saved": "Diagnostikpaket sparat: {{filename}}",
     "title": "Om",
-    "diagnostics": "System preflight"
+    "diagnostics": "System preflight",
+    "model_credits": "Modellernas upphovspersoner",
+    "model_credits_hint": "Upphovsuppgifter för modeller som stöds. Modeller och komponenter har separata villkor; dessa uppgifter ger inga rättigheter till kommersiell användning.",
+    "model_terms": "Modellvillkor",
+    "model_related_sources": "Relaterade källor:"
   },
   "privacy": {
     "translator_online": "Översättaren är online: {{provider}}",

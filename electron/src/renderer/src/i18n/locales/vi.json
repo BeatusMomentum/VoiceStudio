@@ -1977,7 +1977,11 @@
     "save_bundle": "Lưu gói chẩn đoán",
     "bundle_saved": "Đã lưu gói chẩn đoán: {{filename}}",
     "title": "Giới thiệu",
-    "diagnostics": "Đèn chiếu trước hệ thống"
+    "diagnostics": "Đèn chiếu trước hệ thống",
+    "model_credits": "Ghi công mô hình",
+    "model_credits_hint": "Ghi công các mô hình được hỗ trợ. Mô hình và thành phần có điều khoản riêng; phần ghi công này không cấp quyền sử dụng thương mại.",
+    "model_terms": "Điều khoản mô hình",
+    "model_related_sources": "Nguồn liên quan:"
   },
   "privacy": {
     "translator_online": "Người dịch đang trực tuyến: {{provider}}",

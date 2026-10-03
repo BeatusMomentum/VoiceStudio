@@ -1015,7 +1015,11 @@
     "self_check_attention": "{{count}} 项检查未通过 — 请查看上方提示。",
     "save_bundle": "保存诊断包",
     "bundle_saved": "诊断包已保存：{{filename}}",
-    "bundle_failed": "无法生成诊断包：{{message}}"
+    "bundle_failed": "无法生成诊断包：{{message}}",
+    "model_credits": "模型致谢",
+    "model_credits_hint": "受支持模型的来源与作者。模型和组件分别适用各自的条款；这些致谢不授予商业使用权。",
+    "model_terms": "模型条款",
+    "model_related_sources": "相关来源："
   },
   "privacy": {
     "desc": "所有数据都在<1>本机</1>运行。您的音频、视频和转录内容不会离开您的电脑，除非您显式使用在线翻译器（Google、DeepL 等）或推送到 HuggingFace。",

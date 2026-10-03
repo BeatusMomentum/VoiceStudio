@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} kiểm tra thất bại — xem gợi ý ở trên.",
     "save_bundle": "Lưu gói chẩn đoán",
     "bundle_saved": "Đã lưu gói chẩn đoán: {{filename}}",
-    "bundle_failed": "Không thể tạo gói chẩn đoán: {{message}}"
+    "bundle_failed": "Không thể tạo gói chẩn đoán: {{message}}",
+    "model_credits": "Ghi công mô hình",
+    "model_credits_hint": "Ghi công các mô hình được hỗ trợ. Mô hình và thành phần có điều khoản riêng; phần ghi công này không cấp quyền sử dụng thương mại.",
+    "model_terms": "Điều khoản mô hình",
+    "model_related_sources": "Nguồn liên quan:"
   },
   "privacy": {
     "desc": "Mọi thứ đều chạy trên <1>máy này</1>. Âm thanh, video và bản ghi của bạn không bao giờ rời khỏi máy tính của bạn trừ khi bạn sử dụng một cách rõ ràng một trình dịch trực tuyến (Google, DeepL, v.v.) hoặc đẩy tới HuggingFace.",

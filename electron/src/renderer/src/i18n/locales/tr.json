@@ -1977,7 +1977,11 @@
     "save_bundle": "Tanılama paketini kaydet",
     "bundle_saved": "Tanılama paketi kaydedildi: {{filename}}",
     "title": "Hakkında",
-    "diagnostics": "Sistem ön kontrolü"
+    "diagnostics": "Sistem ön kontrolü",
+    "model_credits": "Model katkıları",
+    "model_credits_hint": "Desteklenen modellerin katkı bilgileri. Model ve bileşen koşulları ayrı ayrı geçerlidir; bu bilgiler ticari kullanım hakkı vermez.",
+    "model_terms": "Model koşulları",
+    "model_related_sources": "İlgili kaynaklar:"
   },
   "privacy": {
     "translator_online": "Çevirmen çevrimiçi: {{provider}}",

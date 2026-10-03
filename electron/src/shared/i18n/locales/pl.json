@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} test(y) zakończone niepowodzeniem — zobacz wskazówki powyżej.",
     "save_bundle": "Zapisz pakiet diagnostyczny",
     "bundle_saved": "Pakiet diagnostyczny zapisany: {{filename}}",
-    "bundle_failed": "Nie udało się utworzyć pakietu diagnostycznego: {{message}}"
+    "bundle_failed": "Nie udało się utworzyć pakietu diagnostycznego: {{message}}",
+    "model_credits": "Autorzy modeli",
+    "model_credits_hint": "Informacje o autorach obsługiwanych modeli. Modele i komponenty podlegają odrębnym warunkom; te informacje nie przyznają praw do użytku komercyjnego.",
+    "model_terms": "Warunki modelu",
+    "model_related_sources": "Powiązane źródła:"
   },
   "privacy": {
     "desc": "Wszystko działa na <1>tej maszynie</1>. Twoje nagrania audio, wideo i transkrypcje nigdy nie opuszczają Twojego komputera, chyba że wyraźnie skorzystasz z tłumacza online (Google, DeepL itp.) lub przekażesz je do HuggingFace.",

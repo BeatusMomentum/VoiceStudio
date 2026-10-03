@@ -1977,7 +1977,11 @@
     "save_bundle": "진단 번들 저장",
     "bundle_saved": "진단 번들 저장됨: {{filename}}",
     "title": "정보",
-    "diagnostics": "시스템 프리플라이트"
+    "diagnostics": "시스템 프리플라이트",
+    "model_credits": "모델 크레딧",
+    "model_credits_hint": "지원 모델의 크레딧입니다. 모델과 구성 요소에는 각각 별도의 약관이 적용되며, 이 크레딧은 상업적 이용 권한을 부여하지 않습니다.",
+    "model_terms": "모델 이용 약관",
+    "model_related_sources": "관련 출처:"
   },
   "privacy": {
     "translator_online": "번역가가 온라인 상태입니다: {{provider}}",

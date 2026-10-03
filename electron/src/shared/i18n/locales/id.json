@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} pemeriksaan gagal — lihat petunjuk di atas.",
     "save_bundle": "Simpan bundel diagnostik",
     "bundle_saved": "Bundel diagnostik tersimpan: {{filename}}",
-    "bundle_failed": "Tidak dapat membuat bundel diagnostik: {{message}}"
+    "bundle_failed": "Tidak dapat membuat bundel diagnostik: {{message}}",
+    "model_credits": "Kredit model",
+    "model_credits_hint": "Kredit untuk model yang didukung. Ketentuan model dan komponen berlaku secara terpisah; kredit ini tidak memberikan hak penggunaan komersial.",
+    "model_terms": "Ketentuan model",
+    "model_related_sources": "Sumber terkait:"
   },
   "privacy": {
     "desc": "Semuanya berjalan di <1>mesin ini</1>. Audio, video, dan transkrip Anda tidak pernah keluar dari komputer kecuali Anda secara eksplisit menggunakan penerjemah online (Google, DeepL, dll.) atau mendorong ke HuggingFace.",

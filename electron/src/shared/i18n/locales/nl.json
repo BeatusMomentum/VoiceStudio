@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} controle(s) mislukt — zie de hints hierboven.",
     "save_bundle": "Diagnosepakket opslaan",
     "bundle_saved": "Diagnosepakket opgeslagen: {{filename}}",
-    "bundle_failed": "Kon het diagnosepakket niet maken: {{message}}"
+    "bundle_failed": "Kon het diagnosepakket niet maken: {{message}}",
+    "model_credits": "Modelvermeldingen",
+    "model_credits_hint": "Vermeldingen voor ondersteunde modellen. Voor modellen en componenten gelden afzonderlijke voorwaarden; deze vermeldingen verlenen geen commerciële gebruiksrechten.",
+    "model_terms": "Modelvoorwaarden",
+    "model_related_sources": "Gerelateerde bronnen:"
   },
   "privacy": {
     "desc": "Alles draait op <1>deze machine</1>. Uw audio, video en transcripties verlaten uw computer nooit, tenzij u expliciet een online vertaler (Google, DeepL, enz.) gebruikt of naar HuggingFace pusht.",

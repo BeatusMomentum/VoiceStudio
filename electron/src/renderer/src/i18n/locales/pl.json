@@ -1981,7 +1981,11 @@
     "save_bundle": "Zapisz pakiet diagnostyczny",
     "bundle_saved": "Pakiet diagnostyczny zapisany: {{filename}}",
     "title": "O programie",
-    "diagnostics": "Wstępna inspekcja systemu"
+    "diagnostics": "Wstępna inspekcja systemu",
+    "model_credits": "Autorzy modeli",
+    "model_credits_hint": "Informacje o autorach obsługiwanych modeli. Modele i komponenty podlegają odrębnym warunkom; te informacje nie przyznają praw do użytku komercyjnego.",
+    "model_terms": "Warunki modelu",
+    "model_related_sources": "Powiązane źródła:"
   },
   "privacy": {
     "translator_online": "Tłumacz jest online: {{provider}}",

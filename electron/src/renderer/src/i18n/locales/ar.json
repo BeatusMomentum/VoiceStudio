@@ -1985,7 +1985,11 @@
     "save_bundle": "حفظ حزمة التشخيص",
     "bundle_saved": "تم حفظ حزمة التشخيص: {{filename}}",
     "title": "حول",
-    "diagnostics": "الاختبار المبدئي للنظام"
+    "diagnostics": "الاختبار المبدئي للنظام",
+    "model_credits": "إسناد النماذج",
+    "model_credits_hint": "إسناد النماذج المدعومة. تُطبّق شروط النماذج والمكوّنات بشكل منفصل؛ ولا يمنح هذا الإسناد حقوق الاستخدام التجاري.",
+    "model_terms": "شروط النموذج",
+    "model_related_sources": "مصادر ذات صلة:"
   },
   "privacy": {
     "translator_online": "المترجم متصل: {{provider}}",

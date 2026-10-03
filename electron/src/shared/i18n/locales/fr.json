@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} vérification(s) en échec — voir les indications ci-dessus.",
     "save_bundle": "Enregistrer le paquet de diagnostic",
     "bundle_saved": "Paquet de diagnostic enregistré : {{filename}}",
-    "bundle_failed": "Impossible de créer le paquet de diagnostic : {{message}}"
+    "bundle_failed": "Impossible de créer le paquet de diagnostic : {{message}}",
+    "model_credits": "Crédits des modèles",
+    "model_credits_hint": "Crédits des modèles pris en charge. Les modèles et composants ont leurs propres conditions ; ces crédits ne confèrent aucun droit d’utilisation commerciale.",
+    "model_terms": "Conditions du modèle",
+    "model_related_sources": "Sources associées :"
   },
   "privacy": {
     "desc": "Tout fonctionne sur <1>cette machine</1>. Votre audio, vidéo et transcriptions ne quittent jamais votre ordinateur, sauf si vous utilisez explicitement un traducteur en ligne (Google, DeepL, etc.) ou si vous poussez vers HuggingFace.",

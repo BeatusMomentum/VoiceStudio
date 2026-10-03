@@ -1977,7 +1977,11 @@
     "save_bundle": "Diagnosepaket speichern",
     "bundle_saved": "Diagnosepaket gespeichert: {{filename}}",
     "title": "Über",
-    "diagnostics": "System-Preflight"
+    "diagnostics": "System-Preflight",
+    "model_credits": "Modellnachweise",
+    "model_credits_hint": "Nachweise für unterstützte Modelle. Für Modelle und Komponenten gelten eigene Bedingungen; diese Nachweise gewähren keine kommerziellen Nutzungsrechte.",
+    "model_terms": "Modellbedingungen",
+    "model_related_sources": "Verwandte Quellen:"
   },
   "privacy": {
     "translator_online": "Übersetzer ist online: {{provider}}",

@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} 項檢查未通過 — 請參閱上方提示。",
     "save_bundle": "儲存診斷套件",
     "bundle_saved": "診斷套件已儲存：{{filename}}",
-    "bundle_failed": "無法建立診斷套件：{{message}}"
+    "bundle_failed": "無法建立診斷套件：{{message}}",
+    "model_credits": "模型致謝",
+    "model_credits_hint": "支援模型的來源與作者。模型和元件分別適用各自的條款；這些致謝不授予商業使用權。",
+    "model_terms": "模型條款",
+    "model_related_sources": "相關來源："
   },
   "privacy": {
     "desc": "一切都在<1>這台機器</1>上運作。除非您明確使用線上翻譯器（Google、DeepL 等）或推送到 HuggingFace，否則您的音訊、視訊和文字記錄永遠不會離開您的電腦。",

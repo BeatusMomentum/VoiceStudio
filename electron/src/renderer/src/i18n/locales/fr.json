@@ -1979,7 +1979,11 @@
     "save_bundle": "Enregistrer le paquet de diagnostic",
     "bundle_saved": "Paquet de diagnostic enregistré : {{filename}}",
     "title": "À propos",
-    "diagnostics": "Contrôle en amont du système"
+    "diagnostics": "Contrôle en amont du système",
+    "model_credits": "Crédits des modèles",
+    "model_credits_hint": "Crédits des modèles pris en charge. Les modèles et composants ont leurs propres conditions ; ces crédits ne confèrent aucun droit d’utilisation commerciale.",
+    "model_terms": "Conditions du modèle",
+    "model_related_sources": "Sources associées :"
   },
   "privacy": {
     "translator_online": "Le traducteur est en ligne : {{provider}}",

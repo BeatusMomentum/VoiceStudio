@@ -1979,7 +1979,11 @@
     "save_bundle": "Salvar pacote de diagnóstico",
     "bundle_saved": "Pacote de diagnóstico salvo: {{filename}}",
     "title": "Sobre",
-    "diagnostics": "Comprovação do sistema"
+    "diagnostics": "Comprovação do sistema",
+    "model_credits": "Créditos dos modelos",
+    "model_credits_hint": "Créditos dos modelos compatíveis. Os modelos e componentes têm condições próprias; estes créditos não concedem direitos de uso comercial.",
+    "model_terms": "Termos do modelo",
+    "model_related_sources": "Fontes relacionadas:"
   },
   "privacy": {
     "translator_online": "O tradutor está online: {{provider}}",

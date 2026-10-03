@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} 件のチェックが失敗しました — 上のヒントをご覧ください。",
     "save_bundle": "診断バンドルを保存",
     "bundle_saved": "診断バンドルを保存しました: {{filename}}",
-    "bundle_failed": "診断バンドルを作成できませんでした: {{message}}"
+    "bundle_failed": "診断バンドルを作成できませんでした: {{message}}",
+    "model_credits": "モデルのクレジット",
+    "model_credits_hint": "対応モデルのクレジットです。モデルと各構成要素にはそれぞれの利用条件が適用されます。この表示は商用利用の権利を付与するものではありません。",
+    "model_terms": "モデルの利用条件",
+    "model_related_sources": "関連する出典:"
   },
   "privacy": {
     "desc": "すべては<1>このマシン</1> 上で実行されます。オンライン翻訳者 (Google、DeepL など) を明示的に使用するか、HuggingFace にプッシュしない限り、オーディオ、ビデオ、およびトランスクリプトがコンピューターから流出することはありません。",

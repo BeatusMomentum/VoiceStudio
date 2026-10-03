@@ -1977,7 +1977,11 @@
     "save_bundle": "Diagnosepakket opslaan",
     "bundle_saved": "Diagnosepakket opgeslagen: {{filename}}",
     "title": "Over",
-    "diagnostics": "Systeem preflight"
+    "diagnostics": "Systeem preflight",
+    "model_credits": "Modelvermeldingen",
+    "model_credits_hint": "Vermeldingen voor ondersteunde modellen. Voor modellen en componenten gelden afzonderlijke voorwaarden; deze vermeldingen verlenen geen commerciële gebruiksrechten.",
+    "model_terms": "Modelvoorwaarden",
+    "model_related_sources": "Gerelateerde bronnen:"
   },
   "privacy": {
     "translator_online": "Vertaler is online: {{provider}}",

@@ -55,6 +55,11 @@ weights as CC-BY-NC. Its `audio_tokenizer/LICENSE` contains separate Boson
 Higgs Audio 2 and Meta Llama community terms. A commercial license for
 VoiceStudio-owned code does not replace any of those terms.
 
+The maintained About panel displays selected model credits and required literal
+Higgs Audio and Llama attribution text. See [model credit sources](docs/model-credits.md)
+for evidence and remaining gaps. These visible credits do not establish complete
+notice compliance or permission for a particular use.
+
 Third-party dependencies retain their own licenses. See `bun.lock`, `uv.lock`,
 and `native/desktop-bridge/Cargo.lock` for the resolved set.
 

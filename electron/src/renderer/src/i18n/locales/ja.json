@@ -1977,7 +1977,11 @@
     "save_bundle": "診断バンドルを保存",
     "bundle_saved": "診断バンドルを保存しました: {{filename}}",
     "title": "情報",
-    "diagnostics": "システムプリフライト"
+    "diagnostics": "システムプリフライト",
+    "model_credits": "モデルのクレジット",
+    "model_credits_hint": "対応モデルのクレジットです。モデルと各構成要素にはそれぞれの利用条件が適用されます。この表示は商用利用の権利を付与するものではありません。",
+    "model_terms": "モデルの利用条件",
+    "model_related_sources": "関連する出典:"
   },
   "privacy": {
     "translator_online": "翻訳者はオンラインです: {{provider}}",

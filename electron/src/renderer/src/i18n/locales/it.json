@@ -1979,7 +1979,11 @@
     "save_bundle": "Salva pacchetto diagnostico",
     "bundle_saved": "Pacchetto diagnostico salvato: {{filename}}",
     "title": "Informazioni",
-    "diagnostics": "Verifica preliminare del sistema"
+    "diagnostics": "Verifica preliminare del sistema",
+    "model_credits": "Crediti dei modelli",
+    "model_credits_hint": "Crediti dei modelli supportati. Modelli e componenti hanno condizioni proprie; questi crediti non concedono diritti di utilizzo commerciale.",
+    "model_terms": "Condizioni del modello",
+    "model_related_sources": "Fonti correlate:"
   },
   "privacy": {
     "translator_online": "Il traduttore è online: {{provider}}",

@@ -1977,7 +1977,11 @@
     "save_bundle": "Simpan bundel diagnostik",
     "bundle_saved": "Bundel diagnostik tersimpan: {{filename}}",
     "title": "Tentang",
-    "diagnostics": "Pra-penerbangan sistem"
+    "diagnostics": "Pra-penerbangan sistem",
+    "model_credits": "Kredit model",
+    "model_credits_hint": "Kredit untuk model yang didukung. Ketentuan model dan komponen berlaku secara terpisah; kredit ini tidak memberikan hak penggunaan komersial.",
+    "model_terms": "Ketentuan model",
+    "model_related_sources": "Sumber terkait:"
   },
   "privacy": {
     "translator_online": "Penerjemah sedang online: {{provider}}",

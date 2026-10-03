@@ -1977,7 +1977,11 @@
     "save_bundle": "保存诊断包",
     "bundle_saved": "诊断包已保存：{{filename}}",
     "title": "关于",
-    "diagnostics": "系统预检"
+    "diagnostics": "系统预检",
+    "model_credits": "模型致谢",
+    "model_credits_hint": "受支持模型的来源与作者。模型和组件分别适用各自的条款；这些致谢不授予商业使用权。",
+    "model_terms": "模型条款",
+    "model_related_sources": "相关来源："
   },
   "privacy": {
     "translator_online": "翻译引擎在线：{{provider}}",

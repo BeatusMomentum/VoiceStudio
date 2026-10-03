@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} Prüfung(en) fehlgeschlagen — siehe Hinweise oben.",
     "save_bundle": "Diagnosepaket speichern",
     "bundle_saved": "Diagnosepaket gespeichert: {{filename}}",
-    "bundle_failed": "Diagnosepaket konnte nicht erstellt werden: {{message}}"
+    "bundle_failed": "Diagnosepaket konnte nicht erstellt werden: {{message}}",
+    "model_credits": "Modellnachweise",
+    "model_credits_hint": "Nachweise für unterstützte Modelle. Für Modelle und Komponenten gelten eigene Bedingungen; diese Nachweise gewähren keine kommerziellen Nutzungsrechte.",
+    "model_terms": "Modellbedingungen",
+    "model_related_sources": "Verwandte Quellen:"
   },
   "privacy": {
     "desc": "Alles läuft auf <1>dieser Maschine</1>. Ihre Audio-, Video- und Transkripte verlassen niemals Ihren Computer, es sei denn, Sie verwenden ausdrücklich einen Online-Übersetzer (Google, DeepL usw.) oder pushen an HuggingFace.",

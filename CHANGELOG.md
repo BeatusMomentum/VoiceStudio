@@ -39,6 +39,8 @@ metadata and the backend fallback mirror it.
 
 ### Added
 
+- About credits supported speech models and conversions, with upstream terms and required Higgs Audio and Llama notices (#2587)
+
 - MCP agents can design a voice from a text description and reuse it by `profile_id` (`describe_voice`, `design_voice`) (#2368) — thanks @thelselutopia!
 - Dictation vocabulary hint in Settings → Dictation shortcut: names and jargon that Faster Whisper, MLX Whisper and OpenAI-compatible engines should expect (#2395) — thanks @m061i6!
 - Cheaper Inference is available as an optional LLM provider (#2325) — thanks @aiapienthusiast!

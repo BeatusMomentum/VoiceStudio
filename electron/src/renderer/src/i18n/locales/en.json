@@ -2080,7 +2080,11 @@
     "save_bundle": "Save diagnostic bundle",
     "bundle_saved": "Diagnostic bundle saved: {{filename}}",
     "title": "About",
-    "diagnostics": "System preflight"
+    "diagnostics": "System preflight",
+    "model_credits": "Model credits",
+    "model_credits_hint": "Credits for supported models. Model and component terms apply separately; these credits do not grant commercial rights.",
+    "model_terms": "Model terms",
+    "model_related_sources": "Related sources:"
   },
   "privacy": {
     "translator_online": "Translator is online: {{provider}}",

@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} denetim başarısız — yukarıdaki ipuçlarına bakın.",
     "save_bundle": "Tanılama paketini kaydet",
     "bundle_saved": "Tanılama paketi kaydedildi: {{filename}}",
-    "bundle_failed": "Tanılama paketi oluşturulamadı: {{message}}"
+    "bundle_failed": "Tanılama paketi oluşturulamadı: {{message}}",
+    "model_credits": "Model katkıları",
+    "model_credits_hint": "Desteklenen modellerin katkı bilgileri. Model ve bileşen koşulları ayrı ayrı geçerlidir; bu bilgiler ticari kullanım hakkı vermez.",
+    "model_terms": "Model koşulları",
+    "model_related_sources": "İlgili kaynaklar:"
   },
   "privacy": {
     "desc": "Her şey <1>bu makine</1> üzerinde çalışıyor. Açıkça bir çevrimiçi çevirmen (Google, DeepL vb.) kullanmadığınız veya HuggingFace'e aktarmadığınız sürece ses, video ve transkriptleriniz asla bilgisayarınızdan ayrılmaz.",

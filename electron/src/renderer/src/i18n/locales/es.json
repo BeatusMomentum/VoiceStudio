@@ -1979,7 +1979,11 @@
     "save_bundle": "Guardar paquete de diagnóstico",
     "bundle_saved": "Paquete de diagnóstico guardado: {{filename}}",
     "title": "Acerca de",
-    "diagnostics": "verificación previa del sistema"
+    "diagnostics": "verificación previa del sistema",
+    "model_credits": "Créditos de modelos",
+    "model_credits_hint": "Créditos de los modelos compatibles. Los modelos y componentes tienen condiciones propias; estos créditos no conceden derechos de uso comercial.",
+    "model_terms": "Condiciones del modelo",
+    "model_related_sources": "Fuentes relacionadas:"
   },
   "privacy": {
     "translator_online": "El traductor está en línea: {{provider}}",

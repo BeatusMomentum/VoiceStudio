@@ -833,7 +833,11 @@
     "self_check_attention": "{{count}} kontroll(er) misslyckades — se tipsen ovan.",
     "save_bundle": "Spara diagnostikpaket",
     "bundle_saved": "Diagnostikpaket sparat: {{filename}}",
-    "bundle_failed": "Kunde inte skapa diagnostikpaketet: {{message}}"
+    "bundle_failed": "Kunde inte skapa diagnostikpaketet: {{message}}",
+    "model_credits": "Modellernas upphovspersoner",
+    "model_credits_hint": "Upphovsuppgifter för modeller som stöds. Modeller och komponenter har separata villkor; dessa uppgifter ger inga rättigheter till kommersiell användning.",
+    "model_terms": "Modellvillkor",
+    "model_related_sources": "Relaterade källor:"
   },
   "privacy": {
     "desc": "Allt körs på <1>denna maskin</1>. Ditt ljud, video och transkriptioner lämnar aldrig din dator om du inte uttryckligen använder en onlineöversättare (Google, DeepL, etc.) eller trycker till HuggingFace.",
