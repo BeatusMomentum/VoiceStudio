@@ -64,7 +64,7 @@ metadata and the backend fallback mirror it.
 
 - Remove unsupported automatic MIT licence claims from bundled demo metadata and generation scripts (#2587)
 
-- Correct historical OmniVoice commercial-licence claims and require separate code, model and tokenizer licence review for engine acceptance (#2587)
+- Correct historical OmniVoice commercial-licence claims and require the rights gate as well as technical smoke tests for engine acceptance (#2587)
 
 - Include the application licence notice and T3 Code MIT notice in desktop installers (#2587)
 

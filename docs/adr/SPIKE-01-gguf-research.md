@@ -37,7 +37,7 @@ Both spike URLs are **real, live, and the intended artifacts**. The "VoiceStudio
 
 **Primary recommendations:**
 
-- **SPIKE-01 (OmniVoice-GGUF): GO**, conditional on a Phase 4-internal Apple Silicon `buildmetal.sh` smoke (no published Metal build script visible in `omnivoice.cpp/README.md`; only Vulkan and CPU are documented). The integration shape is `SubprocessBackend` wrapping the `omnivoice-tts` C++ CLI, with quant selected by a `detect_capabilities()` hardware probe.
+- **SPIKE-01 (OmniVoice-GGUF): technical GO**, conditional on a Phase 4-internal Apple Silicon `buildmetal.sh` smoke (no published Metal build script visible in `omnivoice.cpp/README.md`; only Vulkan and CPU are documented). The integration shape is `SubprocessBackend` wrapping the `omnivoice-tts` C++ CLI, with quant selected by a `detect_capabilities()` hardware probe.
 - **SPIKE-02 (omnivoice-singing): GO with reduced scope**, treating it as a **second `from_pretrained` ID against the existing `VoiceStudioBackend`** rather than a new backend class — it is the same `omnivoice` PyPI library, same `transformers` pipeline, same model interface. The dubbing-pipeline "singing mode" toggle (SING-02) and Demucs vocal-stem routing (SING-03) remain real work, but they're pipeline integration, not engine integration. Net: 5 SING-* requirements stay in scope; SING-01's framing simplifies.
 
 **Phase 2 dependency:** Both engines build on the `SubprocessBackend` primitive from Phase 2. Phase 4 cannot finalize PLAN.md until Phase 2 RESEARCH.md exists and confirms the subprocess + venv + `mp.get_context("spawn")` + `HF_HOME` inheritance contract. **Capture this as a planner gate, not as research blocked-on-Phase-2** — research can proceed using `SubprocessBackend` as a stable contract (the ROADMAP and SUMMARY both define it). PLAN.md cannot reference its internals until Phase 2 RESEARCH lands.
@@ -727,7 +727,9 @@ _REGISTRY.update({
 
 ## GO / NO-GO Recommendations
 
-### SPIKE-01 (Serveurperso/OmniVoice-GGUF): **GO** ✓
+### SPIKE-01 (Serveurperso/OmniVoice-GGUF): **TECHNICAL GO**
+
+This establishes technical feasibility only. Free-app acceptance also requires the rights gate in [engine acceptance](../engine-acceptance.md), including owner approval and first-use disclosure for restricted engines.
 
 **Rationale:**
 - Historical model/runtime/lineage review dated 2026-05-18; commercial clearance superseded above.
@@ -789,7 +791,7 @@ VoiceStudio v0.2.7 ships `k2-fsa/OmniVoice` (separate code/weight terms; 0.6B Qw
 
 ## Decision
 
-**GO** — integrate per GGUF-01..06.
+**Technical GO only** — integrate per GGUF-01..06; engine acceptance remains conditional on the rights gate in `docs/engine-acceptance.md`.
 
 ## Consequences
 

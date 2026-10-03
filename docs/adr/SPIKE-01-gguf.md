@@ -8,7 +8,7 @@
 > for separate code, weight, and downstream terms. This engineering decision
 > does not approve the model for Pro.
 
-**Status:** Proposed (research-supported) — Wave 1 build/smoke flips to Accepted in Task 3
+**Status:** Proposed — Wave 1 build/smoke establishes technical feasibility only. Acceptance also requires the rights gate in [engine acceptance](../engine-acceptance.md), including owner approval and first-use disclosure for restricted free-app engines.
 **Date:** 2026-05-18 (updated 2026-05-20 with pinned SHAs)
 **Decision-makers:** [maintainer]
 **Related:** ROADMAP Phase 4; REQUIREMENTS GGUF-01..06; `.planning/phases/04-adaptive-specialty-engines-spike-first/04-RESEARCH.md`
@@ -23,7 +23,7 @@ This decision is whether to integrate the GGUF engine as a hardware-adaptive def
 
 ## Decision
 
-**GO** — integrate per GGUF-01..06.
+**Technical GO only** — integrate per GGUF-01..06. Do not mark the engine Accepted until the rights gate above passes.
 
 The integration shape is `VoiceStudioGGUFBackend(TTSBackend)` wrapping Phase 2's `SubprocessBackend`, which spawns a bundled per-platform `omnivoice-tts` binary built from a pinned `omnivoice.cpp` commit SHA. Quant selection is driven by a `detect_capabilities()` extension of `backend/services/gpu_sandbox.py` mapping `(compute_class) → quant filename` via shippable `quant_map.json`. On hardware where probe + load succeed, GGUF becomes the default cloning engine; on any failure the existing in-process `VoiceStudioBackend` is the fallback.
 

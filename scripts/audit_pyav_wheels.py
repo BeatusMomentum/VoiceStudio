@@ -92,7 +92,7 @@ def main() -> None:
     parser.add_argument('--python-tag', default='cp311')
     args = parser.parse_args()
     args.cache_dir.mkdir(parents=True, exist_ok=True)
-    packages = tomllib.loads(args.lockfile.read_text())['package']
+    packages = tomllib.loads(args.lockfile.read_text(encoding='utf-8'))['package']
     package = next(item for item in packages if item['name'] == 'av')
     tag = f'-{args.python_tag}-{args.python_tag}-'
     wheels = [wheel for wheel in package['wheels'] if tag in wheel['url']]
@@ -110,7 +110,7 @@ def main() -> None:
         'wheels': results,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2) + '\n')
+    args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     for wheel in results:
         print(f"{wheel['wheel']}: {len(wheel['libraries'])} FFmpeg libraries, "
               f"{len(wheel['codec_libraries'])} x264/x265 libraries, "
