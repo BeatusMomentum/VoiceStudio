@@ -149,26 +149,18 @@ def test_shipped_hash_list_is_digests_only():
     assert all(re.fullmatch(r"[0-9a-f]{64}", e) for e in entries)
 
 
-def test_workflow_runs_on_untrusted_safe_pull_request():
+def test_workflow_uses_trusted_target_orchestration_and_privileged_status():
     wf = yaml.load(WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
-    assert set(wf["on"]) == {"pull_request"}
-    assert "edited" in wf["on"]["pull_request"]["types"]  # description edits are rechecked
-    assert wf["permissions"] == {"contents": "read"}
+    assert set(wf["on"]) == {"pull_request_target"}
+    assert "edited" in wf["on"]["pull_request_target"]["types"]
+    assert wf["permissions"] == {"contents": "read", "pull-requests": "read", "statuses": "write"}
     (job,) = wf["jobs"].values()
     checkout, run = job["steps"]
     assert re.fullmatch(r"actions/checkout@[0-9a-f]{40}", checkout["uses"])
     assert checkout["with"] == {"fetch-depth": "0", "persist-credentials": "false"}
-    assert "${{" not in run["run"]
-    assert run["env"]["BASE_REF"] == "${{ github.base_ref }}"
-    assert "origin/${BASE_REF}..HEAD" in run["run"] and '--event "$GITHUB_EVENT_PATH"' in run["run"]
-    # The gate runs the base branch's checker and lists, never the PR's copy.
-    assert 'git archive "origin/${BASE_REF}"' in run["run"]
-    assert 'python3 "$policy/scripts/check_commit_identities.py"' in run["run"]
-    assert '--hash-file "$policy/' in run["run"]
-    assert "python3 scripts/" not in run["run"]
-    archived = re.search(r'files="([^"]+)"', run["run"]).group(1).split()
-    assert {"scripts/check_commit_identities.py", "scripts/blocked_identity_hashes.txt",
-            ".github/scripts/agent_identities.py"} == set(archived)
+    assert run["run"] == "python3 .github/scripts/identity_check.py"
+    assert run["env"] == {"GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"}
+    assert 'tar -c' not in run["run"]  # no bootstrap path through PR-owned policy
 
 
 # ── AI agents ───────────────────────────────────────────────────────────
@@ -280,6 +272,36 @@ def test_people_and_ordinary_prose_pass(repo, message):
     assert check(*_only(sha)).returncode == 0
 
 
+@pytest.mark.parametrize("name", ["Claude", "Jules", "Devin", "Gemini"])
+def test_human_first_names_in_commit_trailers_pass(repo, name):
+    _, commit, check = repo
+    sha = commit(
+        f"feat: pair work\n\nCo-authored-by: {name} <human@example.com>\n"
+        f"Signed-off-by: {name} <human@example.com>"
+    )
+    assert check(*_only(sha)).returncode == 0
+
+
+@pytest.mark.parametrize("name", ["Claude", "Jules", "Devin", "Gemini"])
+def test_ambiguous_trailer_name_with_agent_email_stays_blocked(repo, name):
+    _, commit, check = repo
+    sha = commit(f"feat: x\n\nCo-authored-by: {name} <{AGENT_EMAIL}>")
+    result = check(*_only(sha))
+    assert result.returncode == 1
+    assert "Co-authored-by trailer email: AI agent identity" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "name", ["Claude Code 2", "Google Jules", "Devin AI", "Gemini Code Assist", "claude[bot]"]
+)
+def test_unambiguous_agent_trailers_stay_blocked(repo, name):
+    _, commit, check = repo
+    sha = commit(f"feat: x\n\nCo-authored-by: {name} <tool@example.com>")
+    result = check(*_only(sha))
+    assert result.returncode == 1
+    assert "Co-authored-by trailer name: AI agent identity" in result.stdout
+
+
 def test_bot_authors_that_are_not_agents_pass(repo):
     _, commit, check = repo
     sha = commit("chore(deps): bump", author=("dependabot[bot]", "49699333+dependabot[bot]@users.noreply.github.com"))
@@ -331,3 +353,17 @@ def test_remedy_rewrites_only_the_listed_commits():
     assert "git rebase --exec 'git commit --amend --no-edit --reset-author'" not in text
     contributing = (ROOT / ".github" / "CONTRIBUTING.md").read_text(encoding="utf-8")
     assert "mark each listed commit `edit`" in contributing
+
+
+@pytest.mark.parametrize("name", ["Devin[bot]", "Gemini[bot]", "Jules[bot]"])
+@pytest.mark.parametrize("identity", ["author", "trailer"])
+def test_bot_suffixed_first_names_remain_blocked(repo, name, identity):
+    _, commit, check = repo
+    email = "1001+alice@users.noreply.github.com"
+    if identity == "author":
+        sha = commit("fix: thing", author=(name, email))
+    else:
+        sha = commit(f"fix: thing\n\nCo-authored-by: {name} <{email}>")
+    result = check(*_only(sha))
+    assert result.returncode == 1
+    assert "AI agent identity" in result.stdout

@@ -101,6 +101,11 @@ metadata and the backend fallback mirror it.
 - License notice: commercial use is free under the AGPL; the paid licence is for closed-source use, with Pro plans linked (#2578)
 
 ### Fixed
+- Contributor audits inspect committed files and exclude submodules, while still stopping on failed file attribution (#2556)
+
+- Contributor audits stop on unreadable Git history instead of dropping affected authors (#2556)
+
+- CLA rechecks clear older approvals, reject duplicate PR heads, and block failed status updates (#2556)
 - Keep audiobook chapter boundaries when importing CR-only manuscripts (#2508) — thanks @rudycelekli!
 - Preserve busy sidecars during engine-level unload instead of terminating their active operation (#2507) — thanks @Anuj04432 and @rudycelekli!
 - Exclude downloaded caption comments while preserving spoken metadata words (#2510) — thanks @rudycelekli!
@@ -179,6 +184,10 @@ metadata and the backend fallback mirror it.
 - Release Docker images publish when the GitHub Release is published; `:latest` only ever comes from `main` (#2578)
 - One bun, TypeScript and Playwright version and one lockfile across the workspace; frontend unit tests run in the required check (#2578)
 - Tests keep the review-bot configs, issue-template labels and locale catalogs consistent (#2578)
+
+### CI
+- Trusted base-branch checks reject leaked, placeholder, and AI agent identities while allowing human co-authors with names shared by agents (#2556)
+- GitHub Actions are pinned to exact commits and kept current by Dependabot (#2556)
 
 ## [0.5.6] — 2026-09-23
 

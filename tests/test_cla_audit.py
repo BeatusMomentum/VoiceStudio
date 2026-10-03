@@ -74,3 +74,39 @@ def test_unresolved_co_author_gets_no_pr_or_name_fallback():
                                 {"c1": ("opener", 1001, "submitted")}, {"pat": ("pat", 2020)}, {})
     assert set(people) == {CO} and people[CO]["id"] is None
     assert audit.NOTES["unresolved"] in people[CO]["notes"]
+
+
+def test_failed_blame_cannot_silently_remove_contributors(monkeypatch):
+    import subprocess
+
+    def failed(args, **kwargs):
+        return subprocess.CompletedProcess(args, 128, stdout="", stderr="history object unavailable")
+
+    monkeypatch.setattr(audit.subprocess, "run", failed)
+    with pytest.raises(SystemExit, match="git blame.*failed"):
+        audit.blame("contributed.py")
+
+
+def test_head_file_inventory_excludes_gitlinks_and_uncommitted_files(tmp_path, monkeypatch):
+    import subprocess
+
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(tmp_path), *args], text=True)
+
+    git("init", "-q")
+    git("config", "user.name", "Audit Test")
+    git("config", "user.email", "audit@example.com")
+    unusual = "tab\tand\nnewline.py"
+    (tmp_path / unusual).write_text("retained source\n")
+    (tmp_path / "sample.wav").write_bytes(b"audio")
+    git("add", ".")
+    git("commit", "-qm", "source")
+    source = git("rev-parse", "HEAD").strip()
+    git("update-index", "--add", "--cacheinfo", f"160000,{source},submodule")
+    git("commit", "-qm", "submodule")
+    (tmp_path / "staged.py").write_text("not in HEAD\n")
+    git("add", "staged.py")
+    git("rm", "--cached", "--", unusual)
+    monkeypatch.setattr(audit, "REPO", tmp_path)
+    assert audit.tracked_text_files() == [unusual]
+    assert sum(audit.blame(unusual).values()) == 1
