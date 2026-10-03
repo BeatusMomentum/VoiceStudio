@@ -58,6 +58,7 @@ metadata and the backend fallback mirror it.
 - Pull requests ask their opener and every commit author and co-author to sign a one-time Contributor License Agreement by comment; the contributing guide explains how (#2556)
 
 ### Changed
+- Keep existing recipes, watch folders and remote compute out of Pro benefit lists, and stop describing voice cloning as a paid unlock (#2587)
 - Keep private licensing-service operations out of the public client protocol draft (#2587)
 - Clarify in Pro, export and enterprise text that the application licence does not grant model or generated-output rights, in all 21 languages (#2587)
 
