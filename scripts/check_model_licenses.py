@@ -31,7 +31,8 @@ def source_model_ids(root):
     remain unresolved asset families, not silently cleared wildcard records.
     """
     found = set()
-    for path in (root / "backend").rglob("*.py"):
+    sources = (root / "backend", root / "omnivoice/models")
+    for path in (path for directory in sources for path in directory.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             value = None
@@ -41,13 +42,28 @@ def source_model_ids(root):
                 value = node.value
             elif isinstance(node, (ast.Assign, ast.AnnAssign)):
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                if any(isinstance(target, ast.Name) and re.search(
-                    r"REPO|MODEL", target.id.upper()
+                if any(isinstance(target, ast.Name) and (
+                    re.search(r"REPO|MODEL|CHECKPOINT", target.id.upper())
+                    or target.id == "CURATED_REVISIONS"
                 ) for target in targets):
                     value = node.value
             elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                   and node.func.attr == "from_pretrained" and node.args):
                 value = node.args[0]
+            elif isinstance(node, ast.Call) and len(node.args) >= 2:
+                # Defaults can be assigned to an arbitrary local variable; the
+                # environment access still identifies their configured value.
+                function = node.func
+                is_getenv = (isinstance(function, ast.Attribute)
+                             and isinstance(function.value, ast.Name)
+                             and function.value.id == "os" and function.attr == "getenv")
+                is_environ_get = (isinstance(function, ast.Attribute) and function.attr == "get"
+                                  and isinstance(function.value, ast.Attribute)
+                                  and function.value.attr == "environ"
+                                  and isinstance(function.value.value, ast.Name)
+                                  and function.value.value.id == "os")
+                if is_getenv or is_environ_get:
+                    value = node.args[1]
             if value is not None:
                 for leaf in ast.walk(value):
                     if (isinstance(leaf, ast.Constant) and isinstance(leaf.value, str)

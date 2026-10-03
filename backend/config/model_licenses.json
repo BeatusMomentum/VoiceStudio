@@ -817,6 +817,36 @@
       ],
       "configured_at": "backend/services/tts_backend.py OMNIVOICE_PYTORCH_ASR_MODEL fallback",
       "notes": "Clone-reference ASR fallback outside models.yaml. Model-card licence metadata is recorded; component terms and required notices remain under review."
+    },
+    {
+      "id": "OpenMOSS-Team/MOSS-TTS-Nano",
+      "license": "apache-2.0",
+      "commercial_use": false,
+      "review_status": "unreviewed",
+      "credit": "OpenMOSS-Team/MOSS-TTS-Nano",
+      "source_url": "https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Nano",
+      "evidence_url": "https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Nano/blob/44502f80dbf9743528fa921cc544d662c685ebec/README.md",
+      "revision": "44502f80dbf9743528fa921cc544d662c685ebec",
+      "engines": [
+        "moss-tts-nano"
+      ],
+      "configured_at": "backend/services/tts_backend.py OMNIVOICE_MOSS_TTS_MODEL",
+      "notes": "Licence label is upstream metadata only; governing component terms, author credit and required notices remain under review."
+    },
+    {
+      "id": "eustlb/higgs-audio-v2-tokenizer",
+      "license": "NOASSERTION",
+      "commercial_use": false,
+      "review_status": "unreviewed",
+      "credit": "eustlb/higgs-audio-v2-tokenizer",
+      "source_url": "https://huggingface.co/eustlb/higgs-audio-v2-tokenizer",
+      "evidence_url": "https://huggingface.co/eustlb/higgs-audio-v2-tokenizer/blob/528e871c2a26c4f0f7773b9754e2e1acae20899d/README.md",
+      "revision": "528e871c2a26c4f0f7773b9754e2e1acae20899d",
+      "engines": [
+        "omnivoice"
+      ],
+      "configured_at": "backend/services/hf_revisions.py CURATED_REVISIONS; backend/services/model_manager.py repair",
+      "notes": "Licence label is upstream metadata only; governing component terms, author credit and required notices remain under review."
     }
   ],
   "dynamic_assets": [

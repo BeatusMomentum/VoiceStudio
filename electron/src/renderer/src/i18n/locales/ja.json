@@ -3312,7 +3312,7 @@
     "decrease_users": "ユーザー数を減らす",
     "increase_users": "ユーザー数を増やす",
     "total": "合計",
-    "commercial_title": "商用利用",
+    "commercial_title": "アプリのライセンス",
     "commercial_body": "当社のライセンスは VoiceStudio のコードを対象とします。モデルと生成された出力に関する権利は、選択したモデルとその利用条件によって異なります。",
     "plan_enterprise": "Enterprise",
     "enterprise_price": "要相談",

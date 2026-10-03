@@ -37,6 +37,10 @@ def test_hardcoded_defaults_and_download_calls_need_records(tmp_path):
 DEFAULT_REPO = os.environ.get("CUSTOM_REPO", "example/default")
 PIPELINE_MODEL_ID = "example/pipeline"
 DEFAULT_MODEL = "example/another-default"
+checkpoint = "example/checkpoint"
+weights = os.environ.get("ENGINE_WEIGHTS", "example/env-default")
+weights2 = os.getenv("ENGINE_OTHER", "example/getenv-default")
+CURATED_REVISIONS = {"example/pinned": "0123456789"}
 snapshot_download(repo_id="example/download")
 AutoModel(model="example/keyword")
 AutoModel.from_pretrained("example/pretrained")
@@ -45,11 +49,16 @@ ASR_MODEL = "moonshine/base"
 MANAGED_MODEL_SUBDIR = "pretrained_models/Fun-CosyVoice3-0.5B"
 GH_REPO = "0xShug0/audio.cpp"
 ''', encoding="utf-8")
+    model_source = tmp_path / "omnivoice/models/model.py"
+    model_source.parent.mkdir(parents=True)
+    model_source.write_text('_AUDIO_TOKENIZER_FALLBACK_REPO = "example/tokenizer"', encoding="utf-8")
     module = checker()
     ids = module.source_model_ids(tmp_path)
     assert ids == {"example/default", "example/pipeline", "example/download",
                    "example/pretrained", "example/alias", "example/another-default",
-                   "example/keyword", "UsefulSensors/moonshine-base"}
+                   "example/keyword", "UsefulSensors/moonshine-base", "example/checkpoint",
+                   "example/env-default", "example/getenv-default", "example/pinned",
+                   "example/tokenizer"}
     errors = module.validate(registry(), catalog(), ids)
     assert all(f"Missing model record: {rid}" in errors
                for rid in ids if rid.startswith("example/"))

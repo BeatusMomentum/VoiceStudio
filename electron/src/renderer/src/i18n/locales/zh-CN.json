@@ -3312,7 +3312,7 @@
     "decrease_users": "减少用户数",
     "increase_users": "增加用户数",
     "total": "总计",
-    "commercial_title": "商业使用",
+    "commercial_title": "应用许可",
     "commercial_body": "我们的许可适用于 VoiceStudio 代码。模型和生成内容的相关权利取决于所选模型及其条款。",
     "plan_enterprise": "企业版",
     "enterprise_price": "定制",

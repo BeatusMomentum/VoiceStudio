@@ -60,6 +60,12 @@ Higgs Audio and Llama attribution text. See [model credit sources](docs/model-cr
 for evidence and remaining gaps. These visible credits do not establish complete
 notice compliance or permission for a particular use.
 
+The [model licence records](backend/config/model_licenses.json) distinguish
+inspected non-commercial terms from unreviewed upstream metadata. A false
+commercial-use flag includes unresolved review; it is not a claim that every
+listed model forbids commercial use. No commercial clearance is asserted by
+the initial inventory.
+
 Third-party dependencies retain their own licenses. See `bun.lock`, `uv.lock`,
 and `native/desktop-bridge/Cargo.lock` for the resolved set.
 
