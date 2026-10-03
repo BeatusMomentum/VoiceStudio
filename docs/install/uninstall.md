@@ -86,7 +86,13 @@ nothing is printed; the dry-run never sends anything either way.
 
 It covers the current desktop app and anything a final Tauri-era install
 (`com.debpalash.omnivoice-studio`) left behind. Add `--app` (macOS/Linux) or
-`-RemoveApp` (Windows) to also remove the installed app itself.
+`-RemoveApp` (Windows) to also remove the installed app itself. On Windows,
+run `-Yes -RemoveApp` from a normal PowerShell window, without administrator
+rights. An elevated request stops before removing app data or launching an
+uninstaller; a dry run still lists the plan. If the installed app needs
+administrator approval, its own uninstaller asks for it. Alternatively, remove
+VoiceStudio through **Settings → Apps**, then run `-Yes` without `-RemoveApp`
+to clean up its remaining data.
 
 The script honors your custom locations: if you set `OMNIVOICE_DATA_DIR`,
 `OMNIVOICE_CACHE_DIR`, `HF_HOME`, or `HF_HUB_CACHE` (or picked custom

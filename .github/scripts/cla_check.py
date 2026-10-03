@@ -46,6 +46,7 @@ STATUS_CONTEXT = "CLA"
 SIGNING_LABEL = "cla"
 OVERRIDE_LABEL = "cla-override"
 COMMENT_MARKER = "<!-- voicestudio-cla -->"
+MAX_OPEN_PRS = 1000  # reaching the cap is incomplete evidence, so fail closed
 MAX_COMMITS = 250
 MAX_AUTHORS = 20  # authors (author plus co-authors) read per commit
 
@@ -84,9 +85,11 @@ class Evaluation:
     unsigned: list[Person] = field(default_factory=list)
     unknown: list[str] = field(default_factory=list)  # git identities with no GitHub account
 
+    blockers: list[str] = field(default_factory=list)
+
     @property
     def passed(self) -> bool:
-        return not self.unsigned and not self.unknown
+        return not self.unsigned and not self.unknown and not self.blockers
 
 
 def is_sign_comment(body: str) -> bool:
@@ -215,6 +218,8 @@ def render_comment(evaluation: Evaluation, doc_url: str) -> str:
             "then push. Each push re-runs this check."
         )
         lines += ["", fix]
+    if evaluation.blockers:
+        lines += ["", "**Checks to resolve:**", *[f"- {reason}" for reason in evaluation.blockers]]
     lines += ["", "Comment `recheck` to run the check again."]
     return "\n".join(lines)
 
@@ -398,18 +403,86 @@ def sign_on_issue(gh: GitHub, event: dict) -> int:
     return len(new)
 
 
+def set_status(gh: GitHub, sha: str, state: str, description: str, doc_url: str | None = None,
+               *, context: str = STATUS_CONTEXT) -> None:
+    """Require GitHub to acknowledge each transition of the merge gate."""
+    body = {"state": state, "context": context, "description": description[:140]}
+    if doc_url:
+        body["target_url"] = doc_url
+    status, _, _ = gh.request("POST", f"/repos/{gh.repo}/statuses/{sha}", body)
+    if status != 201:
+        raise RuntimeError(f"Could not write {context} status ({status})")
+
+
+def open_prs_at_head(gh: GitHub, sha: str) -> list[dict]:
+    """A commit status is shared by every PR at a SHA; require a unique owner."""
+    pulls = gh.paginate(f"/repos/{gh.repo}/pulls?state=open", limit=MAX_OPEN_PRS)
+    if len(pulls) >= MAX_OPEN_PRS:
+        raise RuntimeError("Open PR listing reached its safety limit; cannot prove head uniqueness")
+    if any(not isinstance(pr, dict) or not isinstance(pr.get("number"), int)
+           or pr.get("state") != "open" or not (pr.get("head") or {}).get("sha") for pr in pulls):
+        raise RuntimeError("Incomplete open PR listing; cannot prove head uniqueness")
+    return [pr for pr in pulls if pr["head"]["sha"] == sha]
+
+
+def _evaluation_snapshot(pr: dict) -> tuple:
+    return (pr.get("state"), pr["head"]["sha"], pr["base"].get("sha"),
+            pr["user"]["id"], pr["user"].get("type"), pr.get("body") or "",
+            sorted(label.get("name", "") for label in pr.get("labels") or []))
+
+
+def confirm_current_pr(gh: GitHub, pr: dict) -> None:
+    """Do not approve a PR whose eligibility inputs changed during API reads."""
+    latest = gh.get(f"/repos/{gh.repo}/pulls/{pr['number']}")
+    if _evaluation_snapshot(latest) != _evaluation_snapshot(pr):
+        raise RuntimeError("PR metadata changed during CLA evaluation; recheck")
+
+
+def head_blockers(gh: GitHub, pr: dict) -> list[str]:
+    """Refuse even an override when a sibling PR could replace this SHA status."""
+    peers = open_prs_at_head(gh, pr["head"]["sha"])
+    numbers = sorted({peer["number"] for peer in peers})
+    if pr["number"] not in numbers:
+        raise RuntimeError("Pull request changed while checking its head; recheck")
+    if len(numbers) > 1:
+        refs = ", ".join(f"#{number}" for number in numbers)
+        return [f"Open pull requests {refs} share the same head commit. Close duplicates, then recheck the remaining pull request."]
+    return []
+
+
 def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://github.com") -> Evaluation:
-    number = (event.get("pull_request") or event.get("issue") or {}).get("number")
+    event_pr = event.get("pull_request") or {}
+    number = (event_pr or event.get("issue") or {}).get("number")
+    # On PR events the payload supplies the head even if the first API read
+    # fails. Comment events need the PR lookup before its head is available.
+    event_sha = (event_pr.get("head") or {}).get("sha")
+    pending_sha = None
+    if event_sha:
+        set_status(gh, event_sha, "pending", "Checking contributor signatures")
+        pending_sha = event_sha
     pr = gh.get(f"/repos/{gh.repo}/pulls/{number}")
     if pr.get("state") != "open":
-        return Evaluation()
+        # Closing a duplicate must clear the shared SHA's rejection once the
+        # survivor qualifies. Closed comment events use the same safe refresh.
+        peers = open_prs_at_head(gh, pr["head"]["sha"])
+        if not peers:
+            return Evaluation()
+        number = peers[0]["number"]
+        pr = gh.get(f"/repos/{gh.repo}/pulls/{number}")
+    if pr["head"]["sha"] != pending_sha:
+        set_status(gh, pr["head"]["sha"], "pending", "Checking contributor signatures")
     opener = Person(pr["user"]["login"], int(pr["user"]["id"]))
     opener_is_bot = pr["user"].get("type") == "Bot" and opener.id in BOT_IDS
     doc_url = f"{server_url}/{gh.repo}/blob/{pr['base']['repo']['default_branch']}/{DOCUMENT_PATH}"
+    blockers = head_blockers(gh, pr)
+    if blockers:
+        evaluation = Evaluation(blockers=blockers)
+        upsert_comment(gh, number, render_comment(evaluation, doc_url), create=True)
+        set_status(gh, pr["head"]["sha"], "failure", "Close duplicate pull requests sharing this head", doc_url)
+        return evaluation
     if OVERRIDE_LABEL in {label.get("name") for label in pr.get("labels") or []}:
-        gh.request("POST", f"/repos/{gh.repo}/statuses/{pr['head']['sha']}", {
-            "state": "success", "context": STATUS_CONTEXT, "target_url": doc_url,
-            "description": "CLA reviewed by a maintainer"})
+        confirm_current_pr(gh, pr)
+        set_status(gh, pr["head"]["sha"], "success", "CLA reviewed by a maintainer", doc_url)
         return Evaluation()
 
     actors, count = pr_actors(gh, number)
@@ -419,8 +492,10 @@ def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://git
         if ref == number:
             continue
         status, other, _ = gh.request("GET", f"/repos/{gh.repo}/pulls/{ref}")
-        if status != 200:
+        if status == 404:
             continue  # an issue or a missing number, not a pull request
+        if status != 200:
+            raise RuntimeError(f"Could not read superseded PR #{ref} ({status})")
         if (other.get("user") or {}).get("type") == "User":
             actors.append({"name": other["user"]["login"], "email": "",
                            "login": other["user"]["login"], "id": other["user"]["id"]})
@@ -447,12 +522,14 @@ def run(gh: GitHub, event_name: str, event: dict, server_url: str = "https://git
     for ref in overflow:
         evaluation.unknown.append(f"#{ref} has more than {MAX_COMMITS} commits; a maintainer can review them "
                                   f"and apply `{OVERRIDE_LABEL}`")
+    confirm_current_pr(gh, pr)
+    evaluation.blockers.extend(head_blockers(gh, pr))
     description = ("All contributors have signed the CLA" if evaluation.passed
                    else f"{len(evaluation.unsigned) + len(evaluation.unknown)} contributor(s) still need to sign")
-    gh.request("POST", f"/repos/{gh.repo}/statuses/{pr['head']['sha']}", {
-        "state": "success" if evaluation.passed else "failure", "context": STATUS_CONTEXT,
-        "description": description[:140], "target_url": doc_url})
+    if evaluation.blockers:
+        description = "Close duplicate pull requests sharing this head"
     upsert_comment(gh, number, render_comment(evaluation, doc_url), create=not evaluation.passed)
+    set_status(gh, pr["head"]["sha"], "success" if evaluation.passed else "failure", description, doc_url)
     return evaluation
 
 
