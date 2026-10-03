@@ -39,6 +39,8 @@ metadata and the backend fallback mirror it.
 
 ### Added
 
+- Track model licence evidence and unresolved commercial-use reviews, with CI coverage for catalogue dependencies and backend repository defaults (#2587)
+
 - About credits supported speech models and conversions, with upstream terms and required Higgs Audio and Llama notices (#2587)
 
 - MCP agents can design a voice from a text description and reuse it by `profile_id` (`describe_voice`, `design_voice`) (#2368) — thanks @thelselutopia!
