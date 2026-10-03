@@ -14,6 +14,8 @@
 
   Without -RemoveApp it never deletes the app itself (uninstall that via
   Settings > Apps), and never touches anything outside the paths it lists.
+  Applying -RemoveApp requires a non-administrator PowerShell window; an
+  elevated request stops before deleting data or invoking any uninstaller.
   Mirrors backend/core/config.py and electron/src/main/backend.ts.
 
 .EXAMPLE
@@ -43,6 +45,14 @@ $nsisUninstaller = $null
 $nsisScope = $null
 $msiProduct = $null
 if ($RemoveApp) {
+  # Refuse before registry lookup, analytics, or data cleanup. Checking a file's
+  # ACL cannot make an arbitrary registered executable safe to run elevated:
+  # another user may replace a writable ancestor between inspection and launch.
+  $isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator)
+  if ($Yes -and $isElevated) {
+    throw 'App removal must run without administrator rights. No files were removed. Open a normal PowerShell window and rerun with -Yes -RemoveApp, or uninstall VoiceStudio through Settings > Apps first, then run -Yes without -RemoveApp to clean up its data.'
+  }
   $uninstallKeys = @(
     'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
     'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
@@ -50,41 +60,15 @@ if ($RemoveApp) {
   )
   $entries = @(Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -match 'VoiceStudio|OmniVoice' })
-  # Run the uninstaller the registry entry names, wherever the user installed
-  # it. An elevated run must not hand admin rights to a file another user can
-  # replace, so it skips per-user (HKCU) entries and any uninstaller whose file
-  # or folder a non-admin can modify. Without elevation the uninstaller asks
-  # for consent itself.
-  $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
-  $isElevated = ([Security.Principal.WindowsPrincipal]$currentIdentity).IsInRole(
-    [Security.Principal.WindowsBuiltInRole]::Administrator)
-  # SYSTEM, Administrators, TrustedInstaller, and the elevated user running this.
-  $adminSids = @('S-1-5-18', 'S-1-5-32-544',
-    'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464', $currentIdentity.User.Value)
-  # Write, delete, re-permission, or take ownership, including generic write/all.
-  $modifyMask = [int]([Security.AccessControl.FileSystemRights]'Write, Delete, DeleteSubdirectoriesAndFiles, ChangePermissions, TakeOwnership') -bor 0x50000000
-  function Test-AdminOnlyWritable([string]$path) {
-    $acl = Get-Acl -LiteralPath $path
-    if ($adminSids -notcontains $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value) { return $false }
-    foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
-      if ($rule.AccessControlType -ne 'Allow') { continue }
-      if ($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) { continue }
-      if (([int]$rule.FileSystemRights -band $modifyMask) -eq 0) { continue }
-      if ($adminSids -notcontains $rule.IdentityReference.Value) { return $false }
-    }
-    return $true
-  }
+  # The actual removal path is unelevated. A registered uninstaller that needs
+  # administrator privileges requests its own consent; this script never lends
+  # an elevated token to a registry-selected executable.
   foreach ($entry in $entries) {
     if ([string]$entry.UninstallString -match '^"([^"]+\.exe)"(?:\s+(/currentuser|/allusers))?\s*$' -and
         (Split-Path $Matches[1] -Leaf) -eq 'Uninstall VoiceStudio.exe' -and
         (Test-Path -LiteralPath $Matches[1] -PathType Leaf)) {
       $candidate = [System.IO.Path]::GetFullPath($Matches[1])
       $scope = $Matches[2]
-      if ($isElevated -and ($entry.PSPath -like '*HKEY_CURRENT_USER*' -or
-          -not (Test-AdminOnlyWritable $candidate) -or -not (Test-AdminOnlyWritable (Split-Path $candidate -Parent)))) {
-        Write-Host "Skipped an uninstaller other users can modify in an elevated run; run this script without admin rights: $candidate"
-        continue
-      }
       $nsisUninstaller = $candidate
       $nsisScope = $scope
       break
