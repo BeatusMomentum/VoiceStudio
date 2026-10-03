@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile, statfs } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { downloadRuntimeInstaller } from './runtime-download';
+import * as pthAscii from './pth-ascii';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   installRuntime,
@@ -75,6 +76,34 @@ afterEach(async () => {
 });
 
 describe('packaged runtime setup', () => {
+  it.each([0, 1])('verifies the runtime when .pth repair attempt %i fails', async (failedAttempt) => {
+    const { bundle, project } = await fixture();
+    let attempt = 0;
+    const heal = vi.spyOn(pthAscii, 'asciiSafePthFiles').mockImplementation(async () => {
+      if (attempt++ === failedAttempt) throw Object.assign(new Error('file locked'), { code: 'EPERM' });
+      return [];
+    });
+    const run = vi.fn(async () => {});
+
+    await installRuntime(bundle, project, 'uv', run, new AbortController().signal);
+
+    expect(heal).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledWith(runtimePython(project), ['-c', RUNTIME_IMPORT_PROBE], project);
+    expect(await readFile(join(project, '.runtime-ready'), 'utf8')).not.toBe('');
+  });
+
+  it('does not mark a runtime ready when verification fails after a .pth repair error', async () => {
+    const { bundle, project } = await fixture();
+    vi.spyOn(pthAscii, 'asciiSafePthFiles').mockRejectedValue(new Error('file locked'));
+    const run = vi.fn(async (_command: string, args: string[]) => {
+      if (args.includes(RUNTIME_IMPORT_PROBE)) throw new Error('Python import failed');
+    });
+
+    await expect(installRuntime(bundle, project, 'uv', run, new AbortController().signal))
+      .rejects.toThrow('Python import failed');
+    await expect(readFile(join(project, '.runtime-ready'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
   it('rejects Intel Macs before creating files or downloading dependencies', async () => {
     const { bundle, project } = await fixture();
     const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
