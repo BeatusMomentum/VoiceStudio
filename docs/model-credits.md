@@ -1,6 +1,6 @@
 # Model credits in About
 
-Settings → About displays model and conversion authors, source links, and upstream
+The About section in Settings → System preflight displays model and conversion authors, source links, and upstream
 terms in the maintained Electron desktop and web UI. Credits remain visible before
 the backend answers or a model is installed. Surrounding labels are translated in
 all 21 loaded locales; mandatory legal notices retain their original English text.

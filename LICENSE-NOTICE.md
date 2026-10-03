@@ -63,6 +63,11 @@ notice compliance or permission for a particular use.
 Third-party dependencies retain their own licenses. See `bun.lock`, `uv.lock`,
 and `native/desktop-bridge/Cargo.lock` for the resolved set.
 
+The locked PyAV 15.1.0 wheels bundle FFmpeg and x264/x265 libraries. PyAV's source
+licence alone does not describe those binaries' terms. The
+[wheel audit](docs/licensing/pyav-15.1.0-audit.md) records their hashes, build flags,
+upstream licence-label patch, and unresolved redistribution requirements.
+
 ### Reference
 
 The full canonical text of the GNU Affero General Public License, Version 3 is

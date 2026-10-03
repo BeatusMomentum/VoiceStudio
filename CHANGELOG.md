@@ -98,6 +98,7 @@ metadata and the backend fallback mirror it.
 - Removed three hidden settings that nothing could set; the `OMNIVOICE_PRONUNCIATION` and `OMNIVOICE_TEXT_NORMALIZATION` switches remain (#2578)
 
 ### Docs
+- Record the locked PyAV wheels' FFmpeg build flags, bundled codecs and unresolved redistribution terms (#2587)
 - Maintainer guide for repository settings that can't live in code; the licence notice scope and the contributing guide's list of network calls match the current app (#2556)
 - Contact addresses are now hi@voicestudio.sh (general and licensing), partner@voicestudio.sh (partnerships) and security@voicestudio.sh (security reports) (#2556)
 - Chinese README now matches the Electron installation and migration guide (#2377) — thanks @lg114!
