@@ -36,17 +36,23 @@ def test_hardcoded_defaults_and_download_calls_need_records(tmp_path):
     source.write_text('''
 DEFAULT_REPO = os.environ.get("CUSTOM_REPO", "example/default")
 PIPELINE_MODEL_ID = "example/pipeline"
+DEFAULT_MODEL = "example/another-default"
 snapshot_download(repo_id="example/download")
+AutoModel(model="example/keyword")
 AutoModel.from_pretrained("example/pretrained")
 _FW_ALIAS_REPOS = {"tiny": "example/alias"}
+ASR_MODEL = "moonshine/base"
+MANAGED_MODEL_SUBDIR = "pretrained_models/Fun-CosyVoice3-0.5B"
 GH_REPO = "0xShug0/audio.cpp"
 ''', encoding="utf-8")
     module = checker()
     ids = module.source_model_ids(tmp_path)
     assert ids == {"example/default", "example/pipeline", "example/download",
-                   "example/pretrained", "example/alias"}
+                   "example/pretrained", "example/alias", "example/another-default",
+                   "example/keyword", "UsefulSensors/moonshine-base"}
     errors = module.validate(registry(), catalog(), ids)
-    assert all(f"Missing model record: {rid}" in errors for rid in ids)
+    assert all(f"Missing model record: {rid}" in errors
+               for rid in ids if rid.startswith("example/"))
 
 
 def test_new_catalog_model_requires_its_own_record():

@@ -802,6 +802,21 @@
       ],
       "configured_at": "backend/services/asr_backend.py _fw_repo",
       "notes": "Runtime fallback outside models.yaml. Licence identifier is model-card metadata; component terms and attribution require review."
+    },
+    {
+      "id": "openai/whisper-large-v3-turbo",
+      "license": "mit",
+      "commercial_use": false,
+      "review_status": "unreviewed",
+      "credit": "OpenAI — Whisper large-v3-turbo",
+      "source_url": "https://huggingface.co/openai/whisper-large-v3-turbo",
+      "evidence_url": "https://huggingface.co/openai/whisper-large-v3-turbo/blob/41f01f3fe87f28c78e2fbf8b568835947dd65ed9/README.md",
+      "revision": "41f01f3fe87f28c78e2fbf8b568835947dd65ed9",
+      "engines": [
+        "pytorch-whisper"
+      ],
+      "configured_at": "backend/services/tts_backend.py OMNIVOICE_PYTORCH_ASR_MODEL fallback",
+      "notes": "Clone-reference ASR fallback outside models.yaml. Model-card licence metadata is recorded; component terms and required notices remain under review."
     }
   ],
   "dynamic_assets": [

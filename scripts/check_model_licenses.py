@@ -18,6 +18,9 @@ import yaml
 _REPO_ID = re.compile(r"[A-Za-z0-9][\w.-]*/[\w.-]+")
 # Native program downloads are audited separately; these are not model weights.
 _PROGRAM_REPOS = {"0xShug0/audio.cpp", "zackees/ffmpeg_bins"}
+# A local checkout subdirectory and an SDK alias also match org/model syntax.
+_LOCAL_MODEL_PATHS = {"pretrained_models/Fun-CosyVoice3-0.5B"}
+_MODEL_ALIASES = {"moonshine/base": "UsefulSensors/moonshine-base"}
 
 
 def source_model_ids(root):
@@ -33,13 +36,13 @@ def source_model_ids(root):
         for node in ast.walk(tree):
             value = None
             if isinstance(node, ast.keyword) and node.arg in {
-                "repo_id", "weights_repo_id", "model_id", "model_name"
+                "repo_id", "weights_repo_id", "model_id", "model_name", "model"
             }:
                 value = node.value
             elif isinstance(node, (ast.Assign, ast.AnnAssign)):
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
                 if any(isinstance(target, ast.Name) and re.search(
-                    r"REPO|MODEL_ID|MODEL_NAME", target.id.upper()
+                    r"REPO|MODEL", target.id.upper()
                 ) for target in targets):
                     value = node.value
             elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
@@ -50,7 +53,8 @@ def source_model_ids(root):
                     if (isinstance(leaf, ast.Constant) and isinstance(leaf.value, str)
                             and _REPO_ID.fullmatch(leaf.value)):
                         found.add(leaf.value)
-    return found - _PROGRAM_REPOS
+    return {_MODEL_ALIASES.get(rid, rid)
+            for rid in found - _PROGRAM_REPOS - _LOCAL_MODEL_PATHS}
 
 
 def catalog_ids(value):

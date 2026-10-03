@@ -1,6 +1,6 @@
 # Model licence inventory
 
-`backend/config/model_licenses.json` records 53 configured model repositories and
+`backend/config/model_licenses.json` records 54 configured model repositories and
 seven unresolved asset families. Each record has an upstream licence label,
 commercial-use review flag, credit text, source/evidence links and review notes.
 Pinned model-card revisions identify the evidence inspected; they do not pin
