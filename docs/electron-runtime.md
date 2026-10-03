@@ -82,7 +82,7 @@ The backend's default desktop origins include `app://voicestudio` alongside the 
 
 Clean recovery serializes cleanup against install, region and location actions. Filesystem failures return to setup with current logs and access guidance. Closing or restarting the app during cleanup prevents that stale action from starting a new installation.
 
-An installation-in-progress marker persists through interruption or verification failure. Both readiness and legacy-environment compatibility reject marked projects until a successful import check completes, so Retry cannot bypass a partial installation merely because its copied dependency manifests match.
+An installation-in-progress marker persists through interruption or verification failure. Both readiness and legacy-environment compatibility reject marked projects until a successful import check completes, so Retry cannot bypass a partial installation merely because its copied dependency manifests match. Startup-path (`.pth`) repair is best-effort during setup: a locked file does not skip the Python import check, and a failed import check still prevents the runtime from being marked ready.
 
 macOS packaging includes the microphone purpose description shared with Tauri and the audio-input entitlement for the app and helper processes, alongside Electron's runtime entitlements. This is checked by the packaging contract; an actual signed macOS microphone run remains required.
 

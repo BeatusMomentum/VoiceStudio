@@ -184,6 +184,7 @@ metadata and the backend fallback mirror it.
 - A browser UI on another origin receives each take's id, seed, timing and routing details (#2578)
 - Long or queued generations no longer show a failure after 21 minutes while the backend is still working (#2578)
 - The desktop backend starts on Windows when the user profile path has non-English characters (#1783, #2578)
+- Runtime setup continues to Python verification when an optional startup-path repair fails (#2578)
 - Uninstall scripts remove the Electron app's runtime, logs and updater cache (#2578)
 - The in-app Docker instructions reuse your model cache at the path the image reads (#2578)
 - Recording durations show their unit again in Japanese, Korean, Polish, Thai and Vietnamese (#2578)

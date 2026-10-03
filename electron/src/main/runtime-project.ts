@@ -647,7 +647,8 @@ export async function installRuntime(
   phase('installing_deps');
   // Heal an existing environment first so its interpreter can run the probes
   // below (and uv's own interpreter query) instead of dying in `site` (#1783).
-  await asciiSafePthFiles(join(project, '.venv'));
+  // Repair is best-effort; the interpreter/import probes remain authoritative.
+  await asciiSafePthFiles(join(project, '.venv')).catch(() => []);
   const interpreterExists = await stat(runtimePython(project)).then(
     (info) => info.isFile(),
     () => false,
@@ -774,7 +775,7 @@ export async function installRuntime(
   signal.throwIfAborted();
   // A non-English profile path in uv's editable .pth crashes Python 3.11 at
   // startup on a non-UTF-8 Windows code page (#1783).
-  await asciiSafePthFiles(join(project, '.venv'));
+  await asciiSafePthFiles(join(project, '.venv')).catch(() => []);
   phase('verifying');
   await run(runtimePython(project), ['-c', RUNTIME_IMPORT_PROBE], project);
   signal.throwIfAborted();
