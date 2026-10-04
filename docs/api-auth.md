@@ -397,10 +397,10 @@ traffic in **every** configuration, loopback included:
   `OMNIVOICE_MCP_ALLOWED_HOSTS`, `OMNIVOICE_API_URL`,
   `OMNIVOICE_PUBLIC_API_BASE` or `OMNIVOICE_BIND_HOST`. This stops a web page
   from re-pointing its own domain at `127.0.0.1` (DNS rebinding). A request
-  that presents a valid API key, administrator session (including a WebSocket
-  ticket) or share PIN is never host-checked, whatever its peer address — so
+  that presents a valid API key or administrator session (including a WebSocket
+  ticket) is never host-checked, whatever its peer address — so
   Caddy or cloudflared on the same machine can forward the original `Host`
-  with the client's key. A wrong or missing credential gets no such pass. The
+  with the client's key. A wrong or missing credential, or a share PIN alone, gets no such pass. The
   UI shell, its assets and the session exchange are not host-checked either,
   so a remote UI on any host name can still load and sign in. To reach the
   backend by another name without a credential — a reverse proxy that keeps

@@ -432,19 +432,22 @@ def presents_valid_credential(
     *,
     store: AdminSessionStore | None = None,
 ) -> bool:
-    """Whether the request carries a valid API key, admin session or PIN.
+    """Whether the request carries a valid API key or admin session.
 
     Independent of network position: a loopback peer is resolved as LOOPBACK
     before credentials are looked at, but a reverse proxy on this machine
-    forwards remote clients that authenticate themselves. A WebSocket ticket
-    is consumed by this check, so call it at most once per handshake.
+    forwards remote clients that authenticate themselves. The share PIN does
+    not count: it is short enough to guess, and a loopback request keeps
+    loopback rights, so a page re-pointing its domain at 127.0.0.1 could
+    otherwise try PINs until one passes. A WebSocket ticket is consumed by
+    this check, so call it at most once per handshake.
     """
     if store is None:
         store = _active_admin_session_store()
     candidate = _credential_candidate(connection)
     if candidate is not None:
         return _candidate_principal(connection, candidate, remote_api_key(), store) is not None
-    return _valid_pin(connection)
+    return False
 
 
 def principal_for(

@@ -334,7 +334,7 @@ def test_loopback_proxy_with_a_valid_key_is_not_host_checked(default_hosts, monk
     admin_session_store.clear()
 
 
-def test_loopback_proxy_with_an_admin_session_or_pin_is_not_host_checked(default_hosts, monkeypatch):
+def test_loopback_proxy_with_an_admin_session_is_not_host_checked_but_a_pin_is(default_hosts, monkeypatch):
     from main import app
     from services.admin_sessions import admin_session_store
 
@@ -352,8 +352,11 @@ def test_loopback_proxy_with_an_admin_session_or_pin_is_not_host_checked(default
 
     monkeypatch.delenv("OMNIVOICE_API_KEY")
     monkeypatch.setattr(app.state, "network_share", _Share(), raising=False)
-    assert proxied.get("/v1/audio/voices", headers={"X-OmniVoice-Pin": "4321"}).status_code == 200
+    # A guessable PIN must not let a rebinding page through with loopback
+    # rights; right and wrong PINs are refused alike, so there is no oracle.
+    assert proxied.get("/v1/audio/voices", headers={"X-OmniVoice-Pin": "4321"}).status_code == 403
     assert proxied.get("/v1/audio/voices", headers={"X-OmniVoice-Pin": "0000"}).status_code == 403
+    assert proxied.get("/system/diagnose", headers={"X-OmniVoice-Pin": "4321"}).status_code == 403
 
 
 def test_host_refusal_says_where_to_configure_the_desktop_app(default_hosts):

@@ -222,7 +222,7 @@ def _network_authorized_only(connection) -> bool:
 
     That is what a rebinding page exploits: loopback and trusted-network
     callers, and anonymous callers of a backend with no API key. Requests
-    that present a valid API key, administrator session or share PIN prove
+    that present a valid API key or administrator session prove
     knowledge of a secret a rebinding page does not have — even from a
     loopback peer, which is how a reverse proxy on this machine (Caddy,
     cloudflared) forwards remote clients with their original ``Host``.
