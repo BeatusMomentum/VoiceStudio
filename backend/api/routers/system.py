@@ -1228,7 +1228,11 @@ def _authorized_sidecar_dir(value, authorization) -> str:
     if value:
         raise HTTPException(
             status_code=403,
-            detail="Choose the engine folder in the desktop app; raw paths are not accepted.",
+            detail=(
+                "Engine folders cannot be set through the API. Set the variable in "
+                "the backend's environment (for example ~/.config/omnivoice/env) and "
+                "restart, or use the one-click engine installer in Settings → Models."
+            ),
         )
     if not authorization:
         return ""  # clear

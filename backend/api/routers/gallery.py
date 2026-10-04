@@ -335,7 +335,7 @@ async def upload_voice_clip(
     ext = media_extension(audio.filename, MEDIA_EXTS, ".wav")
     if ext is None:
         raise HTTPException(
-            status_code=400,
+            status_code=415,
             detail=unsupported_media_detail(
                 "audio", MEDIA_EXTS, os.path.splitext(audio.filename or "")[1]
             ),
