@@ -228,7 +228,7 @@ def test_install_worker_withholds_token_from_mirror(monkeypatch, tmp_path):
 
     monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot)
     monkeypatch.setattr(token_resolver, "resolve", lambda *a, **k: _token())
-    monkeypatch.setattr(download, "_download_endpoint", lambda: "https://hf-mirror.com")
+    monkeypatch.setattr(download, "_download_endpoint", lambda gated=False: "https://hf-mirror.com")
     monkeypatch.setattr(download, "compute_plan", lambda _plan: {
         "total_bytes": 1, "cached_bytes": 0, "to_download_bytes": 1,
         "n_files": 1, "n_cached": 0,

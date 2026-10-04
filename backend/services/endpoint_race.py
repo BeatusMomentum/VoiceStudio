@@ -470,6 +470,30 @@ def effective_endpoint() -> Optional[str]:
     return None
 
 
+def download_endpoint(*, gated: bool = False) -> Optional[str]:
+    """``effective_endpoint()`` for one download.
+
+    A gated repository needs the token, which only Hugging Face receives, so an
+    automatically picked mirror can never serve it: gated downloads use the
+    canonical endpoint unless the user explicitly chose a mirror. Never raises.
+    """
+    endpoint = effective_endpoint()
+    if not gated or not endpoint or host_gets_auth(endpoint):
+        return endpoint
+    return endpoint if explicit_mirror() else CANONICAL_ENDPOINT
+
+
+def explicit_mirror() -> str:
+    """The mirror the user explicitly configured, or "" for none. Never raises."""
+    try:
+        endpoint = explicit_endpoint()
+    except Exception:
+        return ""
+    if not isinstance(endpoint, str) or not endpoint or host_gets_auth(endpoint):
+        return ""
+    return endpoint
+
+
 def reselect_after_failure(repo_id: str, reason: Optional[str] = None) -> bool:
     """After a network-classified download failure: re-race once and report
     whether the effective endpoint changed (the caller then retries on it).

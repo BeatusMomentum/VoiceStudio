@@ -108,16 +108,17 @@ def _download_max_workers() -> int:
         return 8
 
 
-def _download_endpoint() -> "str | None":
+def _download_endpoint(gated: bool = False) -> "str | None":
     """Optional HF endpoint override, per-call ``endpoint=`` rather than a
     process-wide HF_ENDPOINT mutation. Explicit configuration (FDL-10 mirror
     path: HF_ENDPOINT env / ``hf_endpoint`` pref / Settings) always wins; when
     nothing was chosen, the automatic endpoint selection's cached pick applies
     (services.endpoint_race — probe-based, cached, never probes here). A
     mirror routes through the classic LFS path (no Xet) — documented in
-    docs/downloading-models.md."""
+    docs/downloading-models.md. A gated repository needs the token, so it
+    ignores an automatically picked mirror (only an explicit one applies)."""
     from services import endpoint_race
-    return endpoint_race.effective_endpoint()
+    return endpoint_race.download_endpoint(gated=gated)
 
 
 def apply_xet_env() -> None:
@@ -614,6 +615,8 @@ async def install_model(req: InstallModelRequest):
         # Failure handling must work even when imports, token resolution or
         # revision lookup fail before the heartbeat thread is started.
         _resolving = threading.Event()
+        _gated = bool(model_spec.get("gated"))
+        _endpoint = None
         token = hf_progress.current_repo_id.set(req.repo_id)
         target_token = hf_progress.current_target.set("local")
         hf_progress.emit({
@@ -648,7 +651,7 @@ async def install_model(req: InstallModelRequest):
             _tqdm_cls = hf_progress.tracked_tqdm_class()
             if _tqdm_cls is not None:
                 dl_kwargs["tqdm_class"] = _tqdm_cls
-            _endpoint = _download_endpoint()
+            _endpoint = _download_endpoint(gated=_gated)
             if _endpoint:
                 dl_kwargs["endpoint"] = _endpoint
             # The token goes to Hugging Face only, never to a mirror.
@@ -871,7 +874,7 @@ async def install_model(req: InstallModelRequest):
                     # user endpoints are never switched.
                     from services import endpoint_race
                     if endpoint_race.reselect_after_failure(req.repo_id, str(net_err)):
-                        _endpoint = _download_endpoint()
+                        _endpoint = _download_endpoint(gated=_gated)
                         if _endpoint:
                             dl_kwargs["endpoint"] = _endpoint
                         else:
@@ -965,10 +968,29 @@ async def install_model(req: InstallModelRequest):
                 "PYANNOTE_LICENSE_REQUIRED",
             }:
                 _docs_topic = _catalogue_topic
+            # A mirror the user chose never receives the token, so no token or
+            # accepted terms can make a gated install succeed there. Say so
+            # instead of sending the user to the token settings.
+            from services.endpoint_race import explicit_mirror
+            if (
+                _gated
+                and _endpoint
+                and _endpoint == explicit_mirror()
+                and _docs_topic in {
+                    "",
+                    "HF_AUTH_FAILED",
+                    "PYANNOTE_LICENSE_REQUIRED",
+                    "POCKETTTS_GATED_WEIGHTS",
+                }
+            ):
+                from core.failure import public_hint_for_topic
+                _docs_topic = "HF_MIRROR_GATED"
+                _error = f"{e} — {public_hint_for_topic(_docs_topic)}"
             # Waiting cannot fix an access/token verdict. Let the user accept
             # the terms or update the token and retry immediately.
             if _docs_topic in {
                 "HF_AUTH_FAILED",
+                "HF_MIRROR_GATED",
                 "PYANNOTE_LICENSE_REQUIRED",
                 "POCKETTTS_GATED_WEIGHTS",
                 "DISK_SPACE_LOW",  # freeing space, not waiting, is the fix
