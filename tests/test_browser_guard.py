@@ -168,6 +168,15 @@ def test_side_effectful_get_routes_carry_the_cross_site_dependency():
         "/community/items/{item_id}/preview",
         "/setup/preflight",
         "/models/access/status",
+        "/dub/export-stems/{job_id}",
+        "/dub/export-segments/{job_id}",
+        "/dub/preview/{job_id}/{segment_index}",
+        "/audio/{audio_id}.ogg",
+        "/audio/{audio_id}.opus",
+        "/profile-images/search",
+        "/api/settings/hf-token/state",
+        "/api/settings/storage",
+        "/system/tailscale/status",
     }
     guarded = set()
     for route in app.routes:
@@ -249,6 +258,9 @@ def test_rebound_hostname_is_refused_even_when_same_origin(default_hosts, monkey
         "http://192.168.1.20:3901",  # LAN share by address
         "http://app.localhost:3900",
         "http://gpu-box.tail1234.ts.net",  # tailscale serve
+        "http://host.docker.internal:3900",  # n8n / Open WebUI in Docker Desktop
+        "http://gateway.docker.internal:3900",
+        "http://host.containers.internal:3900",  # Podman
     ],
 )
 def test_default_host_names_pass(default_hosts, base_url):
@@ -291,4 +303,78 @@ def test_credentialed_remote_clients_are_not_host_checked(default_hosts, monkeyp
     assert rebound.get(
         "/system/network/state", headers={"Authorization": "Bearer guess"}
     ).status_code == 403
+    admin_session_store.clear()
+
+
+@pytest.mark.parametrize(
+    "path", ["/dub/export-stems/abc", "/dub/export-segments/abc", "/dub/preview/abc/0"]
+)
+def test_dub_export_gets_refuse_cross_site(path):
+    response = _client().get(path, headers={"Sec-Fetch-Site": "cross-site"})
+    assert response.status_code == 403
+    assert "another website" in response.json()["detail"]
+
+
+def test_loopback_proxy_with_a_valid_key_is_not_host_checked(default_hosts, monkeypatch):
+    """Caddy / cloudflared on this machine keep the client's Host header."""
+    from services.admin_sessions import admin_session_store
+
+    admin_session_store.clear()
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret-key")
+    proxied = _client("https://voice.example.com")  # loopback peer
+    assert proxied.get(
+        "/system/network/state", headers={"Authorization": "Bearer s3cret-key"}
+    ).status_code == 200
+    assert proxied.get("/system/network/state?api_key=s3cret-key").status_code == 200
+    # Without the key — or with a wrong one — the rebinding defence holds.
+    assert proxied.get("/system/network/state").status_code == 403
+    assert proxied.get(
+        "/system/network/state", headers={"Authorization": "Bearer s3cret-keyX"}
+    ).status_code == 403
+    admin_session_store.clear()
+
+
+def test_loopback_proxy_with_an_admin_session_or_pin_is_not_host_checked(default_hosts, monkeypatch):
+    from main import app
+    from services.admin_sessions import admin_session_store
+
+    admin_session_store.clear()
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret-key")
+    session = admin_session_store.issue("s3cret-key")
+    proxied = _client("https://voice.example.com")
+    assert proxied.get(
+        "/system/network/state", headers={"Authorization": f"Bearer {session.token}"}
+    ).status_code == 200
+    admin_session_store.clear()
+
+    class _Share:
+        pin = "4321"
+
+    monkeypatch.delenv("OMNIVOICE_API_KEY")
+    monkeypatch.setattr(app.state, "network_share", _Share(), raising=False)
+    assert proxied.get("/v1/audio/voices", headers={"X-OmniVoice-Pin": "4321"}).status_code == 200
+    assert proxied.get("/v1/audio/voices", headers={"X-OmniVoice-Pin": "0000"}).status_code == 403
+
+
+def test_host_refusal_says_where_to_configure_the_desktop_app(default_hosts):
+    detail = _client("http://evil.example:3900").get("/system/network/state").json()["detail"]
+    assert "OMNIVOICE_ALLOWED_HOSTS" in detail
+    assert "~/.config/omnivoice/env" in detail
+
+
+def test_loopback_proxy_websocket_with_a_ticket_is_not_host_checked(default_hosts, monkeypatch):
+    from services.admin_sessions import admin_session_store
+
+    admin_session_store.clear()
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret-key")
+    session = admin_session_store.issue("s3cret-key")
+    ticket = admin_session_store.issue_ws_ticket(session.token, "/ws/tts", "s3cret-key").token
+    proxied = _client("https://voice.example.com")
+    with proxied.websocket_connect(f"/ws/tts?ws_ticket={ticket}") as ws:
+        ws.send_json({})
+        assert ws.receive_json()["type"] == "error"
+    # Tickets stay single-use.
+    with pytest.raises(WebSocketDisconnect):
+        with proxied.websocket_connect(f"/ws/tts?ws_ticket={ticket}") as ws:
+            ws.receive_text()
     admin_session_store.clear()
