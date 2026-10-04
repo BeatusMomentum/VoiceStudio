@@ -1593,7 +1593,7 @@ def _existing_segment_artifact(job_id: str, candidate_ids: list) -> str | None:
     return None
 
 
-@router.get("/dub/preview/{job_id}/{segment_index}")
+@router.get("/dub/preview/{job_id}/{segment_index}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_preview_segment(job_id: str, segment_index: int, lang: str = Query(None)):
     _job_dir_or_400(job_id)
     lang = _safe_lang_or_400(lang)
@@ -2097,7 +2097,7 @@ async def dub_export_ass(
     )
 
 
-@router.get("/dub/export-segments/{job_id}")
+@router.get("/dub/export-segments/{job_id}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_export_segments_zip(job_id: str, lang: str = Query(None)):
     import zipfile
     _job_dir_or_400(job_id)
@@ -2225,7 +2225,7 @@ async def dub_download_mp3(
         headers={"Content-Disposition": content_disposition(dl_name)},
     )
 
-@router.get("/dub/export-stems/{job_id}")
+@router.get("/dub/export-stems/{job_id}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_export_stems(job_id: str, lang: str = Query(None)):
     import zipfile
     _job_dir_or_400(job_id)

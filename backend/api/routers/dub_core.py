@@ -19,7 +19,7 @@ from core.db import db_conn
 from core.config import PREVIEW_DIR
 from core.tasks import task_manager
 from core.logging_utils import log_safe
-from core.media_types import MEDIA_EXTS, media_extension, unsupported_media_detail
+from core.media_types import AUDIO_EXTS, MEDIA_EXTS, media_extension, media_upload_suffix, unsupported_media_detail
 from core.url_safety import UnsafeURLError, check_public_url
 from core import event_bus
 from schemas.requests import CleanupSegmentsRequest, DubIngestUrlRequest, ParseSubtitleTextRequest
@@ -627,7 +627,12 @@ def delete_single_dub_history(history_id: str):
 
 @router.post("/preview/upload")
 async def preview_upload(video: UploadFile = File(...)):
-    ext = os.path.splitext(video.filename or "video.mp4")[1].lower()
+    ext = media_upload_suffix(video.filename, ".mp4")
+    if ext is None:
+        raise HTTPException(
+            status_code=415,
+            detail=unsupported_media_detail("video", MEDIA_EXTS, os.path.splitext(video.filename or "")[1]),
+        )
     safe_name = f"{uuid.uuid4().hex[:12]}"
     vid_path = os.path.join(PREVIEW_DIR, f"{safe_name}{ext}")
     wav_path = os.path.join(PREVIEW_DIR, f"{safe_name}.wav")
@@ -695,7 +700,7 @@ _ingest_gen       = dub_pipeline.ingest_pipeline
 #: Recognised audio extensions for audio-only dubbing (#119). When the client
 #: declares input_type=audio we refuse anything that isn't a known audio
 #: container so a mislabelled video can't slip past the video-skipping branch.
-_AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma"}
+_AUDIO_EXTS = AUDIO_EXTS
 
 def _dub_upload_disk_error() -> HTTPException:
     return HTTPException(
@@ -796,7 +801,7 @@ async def dub_upload(
     ext = os.path.splitext(video.filename or "video.mp4")[1]
     if input_type == "video" and media_extension(video.filename, MEDIA_EXTS, ".mp4") is None:
         raise HTTPException(
-            status_code=400,
+            status_code=415,
             detail=unsupported_media_detail("video", MEDIA_EXTS, ext),
         )
     ext = ext.lower()

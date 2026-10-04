@@ -182,12 +182,58 @@ def test_uploads_refuse_non_media_extensions(name):
         data={"name": "x"},
         files={"audio": (name, b"--exec touch /tmp/x\n", "application/octet-stream")},
     )
-    assert gallery.status_code == 400
+    assert gallery.status_code == 415
     dub = client.post(
         "/dub/upload",
         files={"video": (name, b"--exec touch /tmp/x\n", "application/octet-stream")},
     )
-    assert dub.status_code == 400
+    assert dub.status_code == 415
+
+
+@pytest.mark.parametrize("name", ["evil.conf", "cfg.txt", "run.sh", "x.wav:stream", "clip.m\\..\\x"])
+def test_profile_batch_and_preview_uploads_share_the_media_policy(name):
+    client = _client()
+    payload = b"--exec touch /tmp/x\n"
+    profile = client.post(
+        "/profiles",
+        data={"name": "x"},
+        files={"ref_audio": (name, payload, "application/octet-stream")},
+    )
+    assert profile.status_code == 415
+    batch = client.post(
+        "/batch/enqueue", files={"video": (name, payload, "application/octet-stream")}
+    )
+    assert batch.status_code == 415
+    preview = client.post(
+        "/preview/upload", files={"video": (name, payload, "application/octet-stream")}
+    )
+    assert preview.status_code == 415
+
+
+@pytest.mark.parametrize(
+    "name", ["book.m4b", "a.mka", "a.ac3", "a.mp2", "a.asf", "a.f4v", "a.mxf", "A.M4B"]
+)
+def test_real_media_extensions_are_accepted(name):
+    from core.media_types import MEDIA_EXTS, media_extension, media_upload_suffix
+
+    assert media_extension(name, MEDIA_EXTS, ".wav") == os.path.splitext(name)[1].lower()
+    assert media_upload_suffix(name) == os.path.splitext(name)[1].lower()
+
+
+def test_media_extensions_are_plain_and_exclude_config_or_script_types():
+    import re
+
+    from core.media_types import AUDIO_EXTS, MEDIA_EXTS, VIDEO_EXTS, media_upload_suffix
+
+    assert MEDIA_EXTS == AUDIO_EXTS | VIDEO_EXTS
+    assert all(re.fullmatch(r"\.[a-z0-9]{1,8}", ext) for ext in MEDIA_EXTS)
+    for ext in (".conf", ".cfg", ".ini", ".env", ".txt", ".json", ".yaml", ".toml",
+                ".sh", ".bat", ".cmd", ".ps1", ".py", ".js", ".html", ".svg", ".ps",
+                ".exe", ".dll", ".so", ".lnk", ".pth"):
+        assert ext not in MEDIA_EXTS, ext
+    assert media_upload_suffix("recording") == ""
+    assert media_upload_suffix(None, ".mp4") == ".mp4"
+    assert media_upload_suffix("evil.conf") is None
 
 
 def test_ws_tts_emotion_clip_must_live_in_app_folders(tmp_path, monkeypatch):

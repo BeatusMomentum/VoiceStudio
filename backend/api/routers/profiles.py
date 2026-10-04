@@ -19,7 +19,8 @@ from core import event_bus, voice_leases
 from core.scrub import scrub_text
 from core.personalities import get_personalities
 from omnivoice.utils.voice_design import heal_design_instruct, sanitize_instruct
-from core.path_security import UnsafePath, resolve_within, upload_suffix
+from core.media_types import media_upload_suffix
+from core.path_security import UnsafePath, resolve_within
 from core.profile_images import MAX_IMAGE_BYTES, normalize_portrait
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
@@ -191,9 +192,9 @@ async def create_profile(
     portrait_path = os.path.join(VOICES_DIR, f"{profile_id}.portrait.jpg")
 
     if kind == "clone":
-        ext = upload_suffix(ref_audio.filename)
+        ext = media_upload_suffix(ref_audio.filename)
         if ext is None:
-            raise HTTPException(status_code=415, detail="Choose an audio file with a plain file extension.")
+            raise HTTPException(status_code=415, detail="Choose an audio or video file.")
         audio_filename = f"{profile_id}{ext}"
         audio_path = os.path.join(VOICES_DIR, audio_filename)
         # Storage can be removed after startup; recover before persisting uploads.

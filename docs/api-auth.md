@@ -374,29 +374,49 @@ traffic in **every** configuration, loopback included:
   `PATCH`, `DELETE`) or WebSocket handshake whose `Origin` is not allowed is
   refused with `403` (WebSocket close `1008`), as is one whose
   `Sec-Fetch-Site` is `cross-site` or `same-site` without an allowed `Origin`.
-  A few `GET` routes that start work (dub exports and transcription streams,
-  previews, setup checks) refuse cross-site `Sec-Fetch-Site` too; ordinary
-  navigation to the UI is unaffected. Allowed origins are this backend's own
+  `GET` routes that start work or reach outside the machine refuse cross-site
+  `Sec-Fetch-Site` too: dub downloads and exports (video, audio, MP3, stems,
+  segment clips), dub segment and video previews, transcription streams, voice
+  and archetype previews, Ogg/Opus encoding of generated audio, history,
+  profile-image search, community catalog reads, setup preflight, model access
+  checks, storage rescans, Hugging Face token checks, LLM provider model
+  lists, Tailscale status, engine health and disk-usage checks, and
+  diagnostics. Ordinary navigation to the UI is unaffected.
+  Allowed origins are this backend's own
   origin, `app://voicestudio` and the `OMNIVOICE_ALLOWED_ORIGINS` list
   (see [CORS](#browsers-from-another-origin-cors)). Clients that send no
   `Origin` and no `Sec-Fetch-Site` — scripts, curl, SDKs, MCP clients, the
   desktop app's own process — are not affected.
 - **Unrecognized host names.** A request that only network position
-  authorizes (loopback, a trusted network, or any client when no API key is set) must address
-  the backend by an IP address, `localhost` / `*.localhost`, this machine's
-  host name, a Tailscale MagicDNS name (`*.ts.net`), or a host named in
-  `OMNIVOICE_ALLOWED_ORIGINS`, `OMNIVOICE_MCP_ALLOWED_HOSTS`,
-  `OMNIVOICE_API_URL`, `OMNIVOICE_PUBLIC_API_BASE` or `OMNIVOICE_BIND_HOST`. This stops a web page from
-  re-pointing its own domain at `127.0.0.1` (DNS rebinding). Requests that
-  present the API key, an administrator session or the share PIN are not
-  host-checked, nor are the UI shell, its assets and the session exchange, so
-  a remote UI on any host name can still load and sign in. To reach the backend by another name without a credential —
-  a reverse proxy that keeps the original `Host`, or a Docker host opened as
-  `http://nas.lan:3900` — list it:
+  authorizes (loopback, a trusted network, or any client when no API key is
+  set) and carries no valid credential must address the backend by an IP
+  address, `localhost` / `*.localhost`, this machine's host name, a Tailscale
+  MagicDNS name (`*.ts.net`), a container host alias (`host.docker.internal`,
+  `gateway.docker.internal`, `host.containers.internal`), or a host named in
+  `OMNIVOICE_ALLOWED_HOSTS`, `OMNIVOICE_ALLOWED_ORIGINS`,
+  `OMNIVOICE_MCP_ALLOWED_HOSTS`, `OMNIVOICE_API_URL`,
+  `OMNIVOICE_PUBLIC_API_BASE` or `OMNIVOICE_BIND_HOST`. This stops a web page
+  from re-pointing its own domain at `127.0.0.1` (DNS rebinding). A request
+  that presents a valid API key, administrator session (including a WebSocket
+  ticket) or share PIN is never host-checked, whatever its peer address — so
+  Caddy or cloudflared on the same machine can forward the original `Host`
+  with the client's key. A wrong or missing credential gets no such pass. The
+  UI shell, its assets and the session exchange are not host-checked either,
+  so a remote UI on any host name can still load and sign in. To reach the
+  backend by another name without a credential — a reverse proxy that keeps
+  the original `Host`, or a Docker host opened as `http://nas.lan:3900` — list
+  it:
 
 ```bash
 export OMNIVOICE_ALLOWED_HOSTS="nas.lan,.home.example"   # ".suffix" allows subdomains
 ```
+
+The packaged desktop app has no Settings field for this. Add the same line
+without `export` (`OMNIVOICE_ALLOWED_HOSTS=nas.lan`) to the user env file —
+`~/.config/omnivoice/env` on macOS and Linux,
+`%USERPROFILE%\.config\omnivoice\env` on Windows, or the file named by
+`OMNIVOICE_ENV_FILE` — and restart VoiceStudio. Docker takes it as
+`-e OMNIVOICE_ALLOWED_HOSTS=...`.
 
 `OMNIVOICE_ALLOWED_HOSTS=*` turns the host check off; use it only behind a
 proxy that validates `Host` itself. Browser extensions or other web apps that

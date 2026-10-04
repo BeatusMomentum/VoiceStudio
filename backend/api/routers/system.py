@@ -20,6 +20,7 @@ import shlex
 
 from core.config import OUTPUTS_DIR, DATA_DIR, CRASH_LOG_PATH, LOG_PATH, IDLE_TIMEOUT_SECONDS
 from core.version import APP_VERSION
+from core.browser_guard import reject_cross_site_get
 from core.logging_utils import log_safe
 from core.nvidia_smi import find_nvidia_smi
 from core.public_errors import public_failure
@@ -1227,7 +1228,11 @@ def _authorized_sidecar_dir(value, authorization) -> str:
     if value:
         raise HTTPException(
             status_code=403,
-            detail="Choose the engine folder in the desktop app; raw paths are not accepted.",
+            detail=(
+                "Engine folders cannot be set through the API. Set the variable in "
+                "the backend's environment (for example ~/.config/omnivoice/env) and "
+                "restart, or use the one-click engine installer in Settings → Models."
+            ),
         )
     if not authorization:
         return ""  # clear
@@ -1573,7 +1578,7 @@ async def network_disable(request: Request):
 
 # ── Tailscale (loopback-only control surface) ────────────────────────────────
 
-@router.get("/system/tailscale/status")
+@router.get("/system/tailscale/status", dependencies=[Depends(reject_cross_site_get)])
 async def tailscale_status():
     return _tailscale.status()
 

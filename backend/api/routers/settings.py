@@ -21,6 +21,7 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from core.browser_guard import reject_cross_site_get
 from core.logging_utils import log_safe
 from core.nvidia_smi import find_nvidia_smi
 from core.engine_licenses import LICENSE_GATED_ENGINES
@@ -79,7 +80,7 @@ def clear_hf_token(also_clear_hf_cli: bool = Query(False)):
     return _state_response()
 
 
-@router.get("/hf-token/state")
+@router.get("/hf-token/state", dependencies=[Depends(reject_cross_site_get)])
 def get_hf_token_state(fresh: bool = Query(False)):
     """3-source HF token cascade state for the Settings UI.
 
@@ -1060,7 +1061,7 @@ def set_models_dir(body: _ModelsDirBody):
 # router-level dep like every sibling.
 
 
-@router.get("/storage")
+@router.get("/storage", dependencies=[Depends(reject_cross_site_get)])
 async def get_storage_report(refresh: bool = Query(False)):
     """Disk + per-category storage usage for the Settings → Storage panel.
 

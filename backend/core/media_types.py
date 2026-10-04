@@ -10,13 +10,24 @@ from __future__ import annotations
 
 import os
 
+# Every container the app's file pickers can offer (they accept ``audio/*`` and
+# ``video/*``) and ffmpeg can demux — including VoiceStudio's own ``.m4b``
+# audiobook export. The point is to keep configuration and script files out of
+# the data directory, not to second-guess real media; ffmpeg checks content.
 AUDIO_EXTS = frozenset({
-    ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".oga", ".opus", ".wma",
-    ".aif", ".aiff", ".caf", ".amr", ".weba",
+    ".wav", ".wave", ".w64", ".rf64", ".bwf", ".mp3", ".mp2", ".mp1", ".mpa",
+    ".m4a", ".m4b", ".m4r", ".aac", ".adts", ".flac", ".ogg", ".oga", ".opus",
+    ".spx", ".wma", ".aif", ".aiff", ".aifc", ".caf", ".amr", ".awb", ".3ga",
+    ".weba", ".mka", ".ac3", ".eac3", ".ec3", ".dts", ".mlp", ".thd", ".ape",
+    ".wv", ".tta", ".tak", ".au", ".snd", ".voc", ".gsm", ".ra", ".dsf", ".dff",
+    ".qcp",
 })
 VIDEO_EXTS = frozenset({
-    ".mp4", ".m4v", ".mov", ".mkv", ".webm", ".avi", ".wmv", ".flv", ".mpg",
-    ".mpeg", ".mpe", ".ts", ".mts", ".m2ts", ".3gp", ".3g2", ".ogv", ".vob",
+    ".mp4", ".m4v", ".mov", ".qt", ".mkv", ".mk3d", ".webm", ".avi", ".divx",
+    ".wmv", ".asf", ".flv", ".f4v", ".mpg", ".mpeg", ".mpe", ".mpv", ".m1v",
+    ".m2v", ".m2p", ".ts", ".tp", ".trp", ".m2t", ".mts", ".m2ts", ".3gp",
+    ".3gpp", ".3g2", ".ogv", ".ogm", ".vob", ".vro", ".mod", ".tod", ".mxf",
+    ".dv", ".rm", ".rmvb", ".nut", ".nsv", ".amv", ".wtv", ".ismv",
 })
 MEDIA_EXTS = AUDIO_EXTS | VIDEO_EXTS
 
@@ -38,3 +49,20 @@ def unsupported_media_detail(kind: str, allowed: frozenset[str], ext: str) -> st
         f"Unsupported {kind} file type '{ext or 'no extension'}'. "
         f"Use one of: {', '.join(sorted(allowed))}."
     )
+
+
+def media_upload_suffix(filename: str | None, default: str = "") -> str | None:
+    """Stored suffix for an uploaded media file, or None to refuse it.
+
+    Like :func:`media_extension` with :data:`MEDIA_EXTS`, except a name without
+    an extension keeps *default* (callers that probe content with ffmpeg do
+    not need one).
+    """
+    name = str(filename or "")
+    if "." not in name:
+        return default
+    # Everything after the last dot, separators included, so a name that
+    # smuggles a path (``a.m\\..\\x``) is refused the same way on every OS.
+    ext = "." + name.rsplit(".", 1)[1].lower()
+    return ext if ext in MEDIA_EXTS else None
+

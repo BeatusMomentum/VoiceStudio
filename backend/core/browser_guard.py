@@ -26,7 +26,7 @@ servers, LAN sharing by IP address and Tailscale MagicDNS names):
 
 * ``OMNIVOICE_ALLOWED_ORIGINS`` — extra browser origins (shared with CORS).
 * ``OMNIVOICE_ALLOWED_HOSTS`` — extra host names the backend may be addressed
-  by, comma-separated; ``.example.com`` allows subdomains, ``*`` disables the
+  by (beyond the Docker/Podman host aliases), comma-separated; ``.example.com`` allows subdomains, ``*`` disables the
   host check (only behind a proxy that validates ``Host`` itself).
 """
 
@@ -54,6 +54,14 @@ _MCP_HOSTS_ENV = "OMNIVOICE_MCP_ALLOWED_HOSTS"
 # ingress), never to an address a third party chooses, so they cannot be used
 # to rebind onto this machine. Allowed by default so `tailscale serve` works.
 _DEFAULT_HOST_SUFFIXES = (".ts.net",)
+# Names Docker Desktop and Podman give containers for reaching the host (the
+# documented n8n / Open WebUI / SillyTavern setups). ``.internal`` is reserved
+# for private use (ICANN, 2024), so no public DNS name can rebind to them.
+_DEFAULT_HOSTS = frozenset({
+    "host.docker.internal",
+    "gateway.docker.internal",
+    "host.containers.internal",
+})
 _CROSS_SITE_FETCH = frozenset({"cross-site", "same-site"})
 
 CROSS_SITE_DETAIL = (
@@ -63,8 +71,9 @@ CROSS_SITE_DETAIL = (
 )
 HOST_DETAIL = (
     "Request refused: VoiceStudio was addressed by an unrecognized host name. "
-    "Open it via localhost or an IP address, or add the host name to "
-    "OMNIVOICE_ALLOWED_HOSTS and restart VoiceStudio."
+    "Open it via localhost or an IP address, send the API key, or add the "
+    "host name to OMNIVOICE_ALLOWED_HOSTS (for the desktop app, as a line in "
+    "~/.config/omnivoice/env) and restart VoiceStudio."
 )
 
 
@@ -122,7 +131,7 @@ def _machine_names() -> frozenset[str]:
 
 def _configured_hosts() -> tuple[frozenset[str], tuple[str, ...], bool]:
     """(exact names, allowed suffixes, wildcard) from the environment."""
-    exact: set[str] = set(_machine_names())
+    exact: set[str] = {*_machine_names(), *_DEFAULT_HOSTS}
     suffixes: list[str] = list(_DEFAULT_HOST_SUFFIXES)
     wildcard = False
     for entry in _env_list(ALLOWED_HOSTS_ENV):
@@ -213,17 +222,20 @@ def _network_authorized_only(connection) -> bool:
 
     That is what a rebinding page exploits: loopback and trusted-network
     callers, and anonymous callers of a backend with no API key. Requests
-    that present an API key, an administrator session or the share PIN prove
-    knowledge of a secret a rebinding page does not have; anonymous callers
-    of a keyed backend are answered by the API-key gate (a 401 the UI uses to
-    prompt for the key). Neither is host-checked, so remote deployments
-    behind arbitrary names keep working with their credentials.
+    that present a valid API key, administrator session or share PIN prove
+    knowledge of a secret a rebinding page does not have — even from a
+    loopback peer, which is how a reverse proxy on this machine (Caddy,
+    cloudflared) forwards remote clients with their original ``Host``.
+    Anonymous callers of a keyed backend are answered by the API-key gate (a
+    401 the UI uses to prompt for the key). Neither is host-checked, so
+    remote deployments behind arbitrary names keep working with their
+    credentials.
     """
-    from core.auth import PrincipalKind, principal_for, remote_api_key
+    from core.auth import PrincipalKind, presents_valid_credential, principal_for, remote_api_key
 
     kind = principal_for(connection).kind
     if kind in {PrincipalKind.LOOPBACK, PrincipalKind.TRUSTED_NETWORK}:
-        return True
+        return not presents_valid_credential(connection)
     return kind == PrincipalKind.ANONYMOUS and not remote_api_key()
 
 

@@ -25,7 +25,8 @@ from pydantic import BaseModel
 from core.config import DATA_DIR
 from core import failure, voice_leases
 from core.logging_utils import log_safe
-from core.path_security import contained_join, portable_filename, upload_suffix
+from core.media_types import media_upload_suffix
+from core.path_security import contained_join, portable_filename
 from core.file_cleanup import FileCleanupError, unlink_if_present
 from services.dub_batching import (
     BATCH_WIDTH_ENV,
@@ -982,9 +983,9 @@ async def enqueue_batch_job(
     # Save the uploaded video
     batch_dir = os.path.join(DATA_DIR, "batch")
     os.makedirs(batch_dir, exist_ok=True)
-    ext = upload_suffix(video.filename, ".mp4")
+    ext = media_upload_suffix(video.filename, ".mp4")
     if ext is None:
-        raise HTTPException(415, "Choose a video file with a plain file extension.")
+        raise HTTPException(415, "Choose an audio or video file.")
     video_path = os.path.join(batch_dir, f"{job_id}{ext}")
 
     await _save_upload(video, video_path)

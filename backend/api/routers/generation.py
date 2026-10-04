@@ -81,8 +81,8 @@ def _cached_ogg(key: tuple[str, int, int, int]) -> bytes | None:
         return encoded
 
 
-@router.get("/audio/{audio_id}.ogg")
-@router.get("/audio/{audio_id}.opus")
+@router.get("/audio/{audio_id}.ogg", dependencies=[Depends(reject_cross_site_get)])
+@router.get("/audio/{audio_id}.opus", dependencies=[Depends(reject_cross_site_get)])
 async def generated_ogg_opus(audio_id: str):
     """Serve the same render as /audio/<id>.wav, encoded as Ogg/Opus."""
     if not re.fullmatch(r"[0-9a-f]{8}", audio_id):

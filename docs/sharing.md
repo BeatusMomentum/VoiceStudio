@@ -54,5 +54,5 @@ Tailscale proxies the loopback backend directly, so — like LAN sharing — it 
 
 ## Notes
 - Both paths leave the running model and in-flight jobs **completely untouched**.
-- Open shared or remote VoiceStudio by IP address, `localhost`, this machine's host name or its Tailscale name. Any other host name (for example a reverse proxy domain) needs the API key or an `OMNIVOICE_ALLOWED_HOSTS` entry; see [API authentication](api-auth.md#requests-from-other-websites-and-host-names).
+- Open shared or remote VoiceStudio by IP address, `localhost`, this machine's host name, its Tailscale name or a container host alias such as `host.docker.internal`. Any other host name (for example a reverse proxy domain) needs a valid API key, admin session or share PIN, or an `OMNIVOICE_ALLOWED_HOSTS` entry; see [API authentication](api-auth.md#requests-from-other-websites-and-host-names).
 - Server deployments (Docker, or a source backend started with `OMNIVOICE_BIND_HOST=0.0.0.0`) manage their own networking; the in-app toggle is for the desktop app and is unaffected by these flows.
