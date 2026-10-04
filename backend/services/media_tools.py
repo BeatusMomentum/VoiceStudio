@@ -696,8 +696,8 @@ def guarded_ytdlp_invocation() -> "tuple[list[str], dict[str, str] | None]":
     """Like :func:`ytdlp_invocation`, with the URL-import policy enforced.
 
     The subprocess refuses connections to private-network addresses (unless
-    the user opted in) and validates resolved media URLs before ffmpeg sees
-    them — see ``core.url_safety``. Use it for every yt-dlp run whose input
+    the user opted in), downloads only through yt-dlp's native downloaders and
+    refuses live streams — see ``core.url_safety``. Use it for every yt-dlp run whose input
     comes from a caller. A build that cannot re-invoke the interpreter falls
     back to the plain CLI; callers still validate the URL up front.
     """
