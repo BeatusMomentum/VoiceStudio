@@ -16,7 +16,7 @@ from core.http_headers import content_disposition
 from core.logging_utils import log_safe
 from core.path_security import UnsafePath, portable_filename, resolve_within
 from core.tasks import task_manager
-from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 from services.ffmpeg_utils import (
     bed_mix_filter,
@@ -36,6 +36,7 @@ from services.video_retime import (
 
 from api.routers.dub_core import _get_job
 from schemas.requests import ProsodyMirrorRequest
+from core.browser_guard import reject_cross_site_get
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
@@ -668,8 +669,8 @@ def _build_audio_export_cmd(
     return cmd
 
 
-@router.get("/dub/download/{job_id}")
-@router.get("/dub/download/{job_id}/{filename}")
+@router.get("/dub/download/{job_id}", dependencies=[Depends(reject_cross_site_get)])
+@router.get("/dub/download/{job_id}/{filename}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_download(
     job_id: str,
     preserve_bg: bool = Query(True, description="Mix background noise into dubbed tracks"),
@@ -1153,7 +1154,7 @@ def _preview_lock(path: str) -> asyncio.Lock:
     return lock
 
 
-@router.api_route("/dub/preview-video/{job_id}", methods=["GET", "HEAD"])
+@router.api_route("/dub/preview-video/{job_id}", methods=["GET", "HEAD"], dependencies=[Depends(reject_cross_site_get)])
 async def dub_preview_video(
     request: Request,
     job_id: str,
@@ -1429,7 +1430,7 @@ def _compute_timeline_sync(src_path: str) -> tuple[list[float], list[float]]:
     return onsets, [round(float(value), 5) for value in peaks]
 
 
-@router.get("/dub/onsets/{job_id}")
+@router.get("/dub/onsets/{job_id}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_get_onsets(job_id: str):
     """Speech-onset times for the timeline editor's snap-to-onset ticks (#280).
 
@@ -1849,8 +1850,8 @@ async def _mixed_dub_audio(exports_dir: str, lang: str, bg_audio: str, track_pat
     return target
 
 
-@router.get("/dub/download-audio/{job_id}")
-@router.get("/dub/download-audio/{job_id}/{filename}")
+@router.get("/dub/download-audio/{job_id}", dependencies=[Depends(reject_cross_site_get)])
+@router.get("/dub/download-audio/{job_id}/{filename}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_download_audio(
     job_id: str,
     lang: str = Query(None),
@@ -2142,8 +2143,8 @@ async def dub_export_segments_zip(job_id: str, lang: str = Query(None)):
         headers={"Content-Disposition": content_disposition(f"segments_{safe_name}.zip")},
     )
 
-@router.get("/dub/download-mp3/{job_id}")
-@router.get("/dub/download-mp3/{job_id}/{filename}")
+@router.get("/dub/download-mp3/{job_id}", dependencies=[Depends(reject_cross_site_get)])
+@router.get("/dub/download-mp3/{job_id}/{filename}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_download_mp3(
     job_id: str,
     lang: str = Query(None),

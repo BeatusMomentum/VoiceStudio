@@ -16,7 +16,7 @@ import threading
 import traceback
 from pathlib import Path
 from typing import Optional, Literal
-from fastapi import APIRouter, File, Form, UploadFile, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
@@ -36,6 +36,7 @@ from core import event_bus
 from core.render_trace import call as trace_call
 from core.logging_utils import log_safe
 from omnivoice.utils.voice_design import heal_design_instruct
+from core.browser_guard import reject_cross_site_get
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.generate")
@@ -3087,7 +3088,7 @@ def _prune_history_over_cap(*, keep_id: str | None = None) -> int:
     return len(victims)
 
 
-@router.get("/history")
+@router.get("/history", dependencies=[Depends(reject_cross_site_get)])
 def list_history():
     """The newest 50 generations plus every starred take, newest first, kept to
     rows whose audio still exists on disk.

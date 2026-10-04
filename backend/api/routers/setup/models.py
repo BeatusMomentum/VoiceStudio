@@ -15,7 +15,8 @@ import sys
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from core.browser_guard import reject_cross_site_get
 
 logger = logging.getLogger("omnivoice.setup.models")
 router = APIRouter()
@@ -575,7 +576,7 @@ def invalidate_cache() -> None:
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
-@router.get("/models/access/status")
+@router.get("/models/access/status", dependencies=[Depends(reject_cross_site_get)])
 def model_access_status(repo_id: str = Query(...)):
     """Check gated Hub access without downloading model files.
 

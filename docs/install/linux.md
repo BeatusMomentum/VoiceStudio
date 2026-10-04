@@ -127,6 +127,17 @@ See [Electron setup](../../electron/README.md) for backend configuration and
 quality gates. The first launch downloads model weights only when you install
 a model.
 
+### Arch Linux (AUR)
+
+```bash
+yay -S voicestudio-bin   # or paru -S voicestudio-bin
+```
+
+`voicestudio-bin` is a community-maintained AUR package that installs the
+release `.deb`; report packaging problems on its AUR page. Package-managed
+installs should set `VOICESTUDIO_DISABLE_UPDATER=1` so `pacman` handles
+updates instead of the in-app updater.
+
 ## ChromeOS, iPad and other devices
 
 There is no native ChromeOS or iPadOS app, and VoiceStudio does not run

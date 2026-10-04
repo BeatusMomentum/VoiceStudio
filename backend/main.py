@@ -1572,6 +1572,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 _SHELL_PATHS = {"/", "/index.html", "/favicon.ico", "/early-error-capture.js", "/health"}
 
+
+def _is_public_path(path: str) -> bool:
+    """HTTP paths every gate leaves reachable: the SPA shell and its assets,
+    so a remote UI can load and say what is wrong, and the credential
+    exchange, which validates the presented key itself."""
+    return (
+        path in _SHELL_PATHS
+        or path.startswith("/assets/")
+        or path.startswith("/favicon")
+        or path == "/api/auth/session"
+    )
+
 # Paths that answer while deferred startup is still running. The shutdown
 # signal must exist before the ordinary system router so a bounded Windows
 # process-tree stop cannot leave a false crash sentinel.
@@ -1648,13 +1660,7 @@ class NetworkAccessMiddleware:
         client = scope["client"][0] if scope.get("client") else None
         if is_local_host(client):
             return await self.app(scope, receive, send)
-        path = scope["path"]
-        if (
-            path in _SHELL_PATHS
-            or path.startswith("/assets/")
-            or path.startswith("/favicon")
-            or path == "/api/auth/session"
-        ):
+        if _is_public_path(scope["path"]):
             return await self.app(scope, receive, send)
         supplied = (
             request.headers.get("x-omnivoice-pin")
@@ -1749,13 +1755,7 @@ class BearerKeyMiddleware:
         key = remote_api_key() or ""
         if not key:
             return await self.app(scope, receive, send)
-        path = scope.get("path", "")
-        if scope["type"] == "http" and (
-            path in _SHELL_PATHS
-            or path.startswith("/assets/")
-            or path.startswith("/favicon")
-            or path == "/api/auth/session"
-        ):
+        if scope["type"] == "http" and _is_public_path(scope.get("path", "")):
             return await self.app(scope, receive, send)
 
         from starlette.requests import HTTPConnection
@@ -1830,6 +1830,13 @@ app.add_middleware(NetworkAccessMiddleware)
 # carried its own loopback guard; remote mode is exactly the case where a
 # keyed non-loopback client must reach them.
 app.add_middleware(BearerKeyMiddleware)
+
+# Applies whatever the auth configuration: refuses state-changing requests and
+# WebSocket handshakes that another website's page sends, and requests that
+# address this backend by an unrecognized host name (DNS rebinding). Just
+# inside CORS so preflights reach CORS and refusals keep their CORS headers.
+from core.browser_guard import BrowserGuardMiddleware
+app.add_middleware(BrowserGuardMiddleware, is_public_path=_is_public_path)
 
 app.add_middleware(
     CORSMiddleware,
