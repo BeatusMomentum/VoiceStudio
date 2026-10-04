@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -22,6 +23,8 @@ from pydantic import BaseModel
 
 from core import prefs
 from core.failure import is_disk_full_error, is_hf_connectivity_error
+from core.path_security import UnsafePath, contained_child, safe_relative_path
+from services.hf_auth import token_for_endpoint
 from services.hf_revisions import revision_for
 from utils import hf_progress
 from utils import download_aggregator
@@ -216,6 +219,11 @@ def _create_cache_pointer(blob_path: str, pointer: str) -> None:
     _create_symlink(blob_path, pointer, new_blob=False)
 
 
+# Hub etags name blob files: a git blob SHA-1 or an LFS SHA-256, nothing else.
+_ETAG_RE = re.compile(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}")
+_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
+
+
 def _segmented_snapshot(repo_id: str, *, endpoint: "str | None", revision: str) -> str:
     """Fetch every file of a repo via the segmented downloader into the HF
     cache, mirroring hf_hub_download's blob+snapshot+refs layout so the result
@@ -240,13 +248,24 @@ def _segmented_snapshot(repo_id: str, *, endpoint: "str | None", revision: str) 
     # segmented_download interpolates it into `f"Bearer {token}"` and sends a
     # malformed header carrying the raw secret. Unwrap once, here.
     _resolved = _resolve_token()
-    token = _resolved.token if _resolved else None
-    api = HfApi(endpoint=endpoint, token=token)
+    # Mirrors never receive the token; False also stops huggingface_hub from
+    # sending one it finds on its own.
+    hub_token = token_for_endpoint(endpoint, _resolved.token if _resolved else None)
+    token = hub_token or None
+    api = HfApi(endpoint=endpoint, token=hub_token)
     info = api.repo_info(repo_id, repo_type="model", revision=revision)
     commit = info.sha
     files = [s.rfilename for s in (info.siblings or [])]
-    if commit != revision or not files:
+    if commit != revision or not files or not _COMMIT_RE.fullmatch(str(commit)):
         raise RuntimeError("repo_info returned no commit/siblings")
+    # File names and etags come from the endpoint. Validate every one before
+    # touching the disk; any refusal raises so the caller falls back to
+    # snapshot_download, which applies huggingface_hub's own checks.
+    for rel in files:
+        try:
+            safe_relative_path(rel)
+        except UnsafePath as exc:
+            raise RuntimeError("repo_info listed a file outside the repository") from exc
 
     repo_dir = os.path.join(_C.HF_HUB_CACHE, repo_folder_name(repo_id=repo_id, repo_type="model"))
     blobs_dir = os.path.join(repo_dir, "blobs")
@@ -259,12 +278,15 @@ def _segmented_snapshot(repo_id: str, *, endpoint: "str | None", revision: str) 
         if _repo_cancelled(repo_id):
             raise _InstallCancelled()
         url = hf_hub_url(repo_id, rel, endpoint=endpoint, revision=commit)
-        meta = get_hf_file_metadata(url, token=token)
+        meta = get_hf_file_metadata(url, token=hub_token)
         etag = (meta.etag or "").strip('"')
-        if not etag:
-            raise RuntimeError(f"no etag for {rel}")
-        blob_path = os.path.join(blobs_dir, etag)
-        pointer = os.path.join(snap_dir, rel)
+        if not _ETAG_RE.fullmatch(etag):
+            raise RuntimeError("file metadata returned an invalid etag")
+        try:
+            blob_path = str(contained_child(blobs_dir, etag))
+            pointer = str(contained_child(snap_dir, rel))
+        except UnsafePath as exc:
+            raise RuntimeError("download target is outside the model cache") from exc
         os.makedirs(os.path.dirname(pointer), exist_ok=True)
         if not os.path.exists(blob_path):
             _asyncio.run(segmented_download(
@@ -620,8 +642,7 @@ async def install_model(req: InstallModelRequest):
             }
             from services.token_resolver import resolve as resolve_token
             resolved_token = resolve_token()
-            if resolved_token:
-                dl_kwargs["token"] = resolved_token.token
+            _bearer = resolved_token.token if resolved_token else None
             if allow_patterns:
                 dl_kwargs["allow_patterns"] = allow_patterns
             _tqdm_cls = hf_progress.tracked_tqdm_class()
@@ -630,6 +651,10 @@ async def install_model(req: InstallModelRequest):
             _endpoint = _download_endpoint()
             if _endpoint:
                 dl_kwargs["endpoint"] = _endpoint
+            # The token goes to Hugging Face only, never to a mirror.
+            _hub_token = token_for_endpoint(_endpoint, _bearer)
+            if _hub_token is not None:
+                dl_kwargs["token"] = _hub_token
             if sys.platform == "win32":
                 dl_kwargs["local_dir_use_symlinks"] = False
 
@@ -669,8 +694,8 @@ async def install_model(req: InstallModelRequest):
                 _preflight_kwargs["allow_patterns"] = allow_patterns
             if _endpoint:
                 _preflight_kwargs["endpoint"] = _endpoint
-            if resolved_token:
-                _preflight_kwargs["token"] = resolved_token.token
+            if _hub_token is not None:
+                _preflight_kwargs["token"] = _hub_token
             try:
                 _plan = list(snapshot_download(**_preflight_kwargs))  # nosec B615 -- immutable revision_for pin
                 for dependency in model_spec.get("dependencies") or ():
@@ -851,6 +876,11 @@ async def install_model(req: InstallModelRequest):
                             dl_kwargs["endpoint"] = _endpoint
                         else:
                             dl_kwargs.pop("endpoint", None)
+                        _hub_token = token_for_endpoint(_endpoint, _bearer)
+                        if _hub_token is None:
+                            dl_kwargs.pop("token", None)
+                        else:
+                            dl_kwargs["token"] = _hub_token
                         logger.info(
                             "model install %s: endpoint failover — retrying on %s",
                             req.repo_id, _endpoint or "https://huggingface.co",

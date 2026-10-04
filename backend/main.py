@@ -136,6 +136,12 @@ try:
 except ImportError:
     pass
 
+# A mirror in HF_ENDPOINT must never receive the Hugging Face token, here or in
+# engine processes that inherit this environment.
+from services.hf_auth import apply_process_token_policy as _apply_hf_token_policy  # noqa: E402
+
+_apply_hf_token_policy()
+
 # ── cuDNN 8 library preload ─────────────────────────────────────────────
 # Moved into _phase_a_build (`native_preload` step, early-bind refactor): the
 # native dlopen/LoadLibrary belongs to the deferred heavy phase, and its one

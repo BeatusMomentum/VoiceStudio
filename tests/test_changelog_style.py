@@ -52,6 +52,8 @@ _REF_ALLOWLIST = (
     # owner-authored hardening committed without a public issue
     "The local API refuses requests sent by other websites",
     "URL imports accept only http(s) links",
+    # owner-authored download hardening, no public issue
+    "Model downloads keep every file inside the model cache",
 )
 
 _HEADING = re.compile(r"^## \[([^\]]+)\](?:\s*[—–-]\s*(.*))?$")

@@ -145,6 +145,7 @@ metadata and the backend fallback mirror it.
 - Network Sharing from packaged desktop apps serves the web interface to LAN devices on macOS, Windows and Linux, and never redirects them to their own `localhost` (#2599) — thanks @Xpertfall!
 - The local API refuses requests sent by other websites or addressed by unrecognized host names; set `OMNIVOICE_ALLOWED_HOSTS` to reach VoiceStudio by a custom host name without an API key
 - URL imports accept only http(s) links and refuse private-network addresses unless `OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1` is set; voice-gallery and dubbing uploads accept media files only
+- Model downloads keep every file inside the model cache, mirrors never receive your Hugging Face token, mirror URLs must use HTTPS, and voice bundle imports and GGUF checksum checks are stricter
 - Elevated Windows app removal stops before deleting data and points to a normal PowerShell window or Settings (#2578)
 - Contributor audits inspect committed files and exclude submodules, while still stopping on failed file attribution (#2556)
 

@@ -145,6 +145,12 @@ failed download at once. Caveats:
   chunk-dedup and Xet's parallel fetch, but you gain reachability. On the
   classic path, per-byte speed/ETA **is** shown continuously.
 - Russia and some networks have no official mirror; use a VPN/tunnel.
+- A custom mirror URL must use `https://` (plain `http://` is accepted only
+  for a local proxy on `localhost`/`127.0.0.1`) and must not contain a user
+  name, password, query or fragment.
+- Your Hugging Face token is sent only to Hugging Face, never to a mirror.
+  Gated models (speaker diarization) therefore download from the official
+  endpoint: switch to **Hugging Face (official)** to install them.
 
 ## Cancelling a download
 
