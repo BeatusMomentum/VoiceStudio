@@ -654,7 +654,12 @@ redirect, so the generic mirror trick doesn't help here.
      rest of the (small) dependencies still come from PyPI/your mirror.
 
 If you don't have an NVIDIA GPU, you don't need the CUDA build at all — a CPU /
-Apple-Silicon install skips this index entirely.
+Apple-Silicon install skips this index entirely. Electron source and packaged
+setup select CPU wheels when no NVIDIA driver is detected. Set
+`OMNIVOICE_TORCH_VARIANT=cpu` before `bun run setup:api` or the packaged install
+action to choose them explicitly; see [CPU setup](../../electron/README.md#running-without-a-gpu).
+An unusable NVIDIA driver is a setup warning for CPU-capable engines;
+GPU-only engines still require supported hardware.
 
 **Linked issue:** [#569](https://github.com/debpalash/VoiceStudio/issues/569)
 

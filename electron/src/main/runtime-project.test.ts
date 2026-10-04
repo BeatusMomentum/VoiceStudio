@@ -62,6 +62,11 @@ function forcePlatform(platform: NodeJS.Platform) {
   vi.spyOn(process, 'platform', 'get').mockReturnValue(platform);
 }
 beforeEach(() => {
+  // Runtime fixtures must not depend on live region-probe latency.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({ ok: true })),
+  );
   // Installation fixtures exercise a supported host; the Intel case overrides it.
   if (process.platform === 'darwin') vi.spyOn(process, 'arch', 'get').mockReturnValue('arm64');
   // The baseline fixtures model an NVIDIA host (the lock's default wheels) whatever
@@ -111,8 +116,9 @@ describe('packaged runtime setup', () => {
     const arch = vi.spyOn(process, 'arch', 'get').mockReturnValue('x64');
     const run = vi.fn();
     try {
-      await expect(installRuntime(bundle, project, null, run, new AbortController().signal))
-        .rejects.toMatchObject({ code: 'INTEL_MAC_UNSUPPORTED' });
+      await expect(
+        installRuntime(bundle, project, null, run, new AbortController().signal),
+      ).rejects.toMatchObject({ code: 'INTEL_MAC_UNSUPPORTED' });
       expect(run).not.toHaveBeenCalled();
       expect(statfs).not.toHaveBeenCalled();
     } finally {
@@ -400,7 +406,9 @@ describe('packaged runtime setup', () => {
     });
     await installRuntime(bundle, project, 'uv', run, new AbortController().signal);
     expect(run.mock.calls.find(([, args]) => args[0] === 'cache')?.[1]).toEqual([
-      'cache', 'clean', 'sentencepiece',
+      'cache',
+      'clean',
+      'sentencepiece',
     ]);
     const sync = run.mock.calls.find(([, args]) => args[0] === 'sync');
     expect(sync?.[1]).toContain('sentencepiece');

@@ -1,10 +1,13 @@
+import { nvidiaDriverPresent } from '../../scripts/torch-variant.mjs';
+export { nvidiaDriverPresent } from '../../scripts/torch-variant.mjs';
+import { clearCtranslate2ExecutableStack } from '../../scripts/native-compat.mjs';
+export { clearCtranslate2ExecutableStack } from '../../scripts/native-compat.mjs';
 import { downloadProxyEnv } from './proxy-env';
 import { downloadRuntimeInstaller } from './runtime-download';
 import { asciiSafePthFiles } from './pth-ascii';
 import { scrubText } from '../shared/utils/scrub';
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import {
   cp,
   mkdir,
@@ -159,38 +162,6 @@ function cpuTorchApplies(platform: NodeJS.Platform, arch: string): boolean {
 }
 
 /**
- * Whether an NVIDIA driver is installed. File checks only (no subprocess), and
- * deliberately generous: a false positive costs one avoidable GPU-wheel
- * download, a false negative would silently strand a GPU host on CPU torch.
- */
-export function nvidiaDriverPresent(
-  platform: NodeJS.Platform = process.platform,
-  exists: (path: string) => boolean = existsSync,
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  if (platform === 'win32') {
-    const root = env.SystemRoot || env.windir || 'C:\\Windows';
-    return (
-      ['nvcuda.dll', 'nvml.dll', 'nvidia-smi.exe'].some((name) =>
-        exists(join(root, 'System32', name)),
-      ) || exists('C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe')
-    );
-  }
-  if (platform !== 'linux') return false;
-  return [
-    '/proc/driver/nvidia/version',
-    '/dev/nvidiactl',
-    '/usr/lib/wsl/lib/libcuda.so.1',
-    '/usr/lib/x86_64-linux-gnu/libcuda.so.1',
-    '/usr/lib64/libcuda.so.1',
-    '/usr/lib/libcuda.so.1',
-    '/lib/x86_64-linux-gnu/libcuda.so.1',
-    '/usr/local/nvidia/lib64/libcuda.so.1',
-    '/usr/bin/nvidia-smi',
-  ].some((path) => exists(path));
-}
-
-/**
  * Pick the PyTorch flavour to install. `OMNIVOICE_TORCH_VARIANT` =
  * `cuda` | `cpu` | `rocm` | `auto` (default). Auto installs the CPU build on
  * Linux/Windows x64 hosts with no NVIDIA driver (no multi-GB CUDA download) and
@@ -294,75 +265,6 @@ async function hasCudnn8Libraries(compatDir: string): Promise<boolean> {
         : name.startsWith('libcudnn') && name.endsWith('.so.8'),
     ).length >= 5
   );
-}
-
-function readElfUint16(buffer: Buffer, offset: number, littleEndian: boolean): number {
-  return littleEndian ? buffer.readUInt16LE(offset) : buffer.readUInt16BE(offset);
-}
-
-function readElfUint32(buffer: Buffer, offset: number, littleEndian: boolean): number {
-  return littleEndian ? buffer.readUInt32LE(offset) : buffer.readUInt32BE(offset);
-}
-
-function writeElfUint32(
-  buffer: Buffer,
-  value: number,
-  offset: number,
-  littleEndian: boolean,
-): void {
-  if (littleEndian) buffer.writeUInt32LE(value, offset);
-  else buffer.writeUInt32BE(value, offset);
-}
-
-/** Clear an obsolete executable-stack request in CTranslate2's Linux wheel. */
-export async function clearCtranslate2ExecutableStack(
-  sitePackages: string,
-  platform = process.platform,
-): Promise<number> {
-  if (platform !== 'linux') return 0;
-  const libraryDir = join(sitePackages, 'ctranslate2.libs');
-  const names = await readdir(libraryDir).catch(() => [] as string[]);
-  let patched = 0;
-  for (const name of names.filter(
-    (candidate) => candidate.startsWith('libctranslate2') && candidate.includes('.so'),
-  )) {
-    const path = join(libraryDir, name);
-    const buffer = await readFile(path);
-    if (
-      buffer.length < 64 ||
-      buffer[0] !== 0x7f ||
-      buffer[1] !== 0x45 ||
-      buffer[2] !== 0x4c ||
-      buffer[3] !== 0x46
-    )
-      continue;
-    const elfClass = buffer[4];
-    const littleEndian = buffer[5] === 1;
-    if ((elfClass !== 1 && elfClass !== 2) || (!littleEndian && buffer[5] !== 2)) continue;
-    const programOffset =
-      elfClass === 2
-        ? Number(littleEndian ? buffer.readBigUInt64LE(32) : buffer.readBigUInt64BE(32))
-        : readElfUint32(buffer, 28, littleEndian);
-    const entrySize = readElfUint16(buffer, elfClass === 2 ? 54 : 42, littleEndian);
-    const entryCount = readElfUint16(buffer, elfClass === 2 ? 56 : 44, littleEndian);
-    let changed = false;
-    for (let index = 0; index < entryCount; index += 1) {
-      const entry = programOffset + index * entrySize;
-      if (entry + entrySize > buffer.length) break;
-      if (readElfUint32(buffer, entry, littleEndian) !== 0x6474e551) continue;
-      const flagsOffset = entry + (elfClass === 2 ? 4 : 24);
-      const flags = readElfUint32(buffer, flagsOffset, littleEndian);
-      if ((flags & 1) !== 0) {
-        writeElfUint32(buffer, flags & ~1, flagsOffset, littleEndian);
-        changed = true;
-      }
-    }
-    if (changed) {
-      await writeFile(path, buffer);
-      patched += 1;
-    }
-  }
-  return patched;
 }
 
 async function ensureCudnn8Compat(
