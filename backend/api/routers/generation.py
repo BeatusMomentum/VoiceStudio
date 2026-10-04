@@ -23,6 +23,7 @@ from pydantic import BaseModel
 import sqlite3
 from core.db import db_conn, ensure_schema
 from core.config import OUTPUTS_DIR, VOICES_DIR
+from core.path_security import contained_join
 import functools
 from services.model_manager import (
     get_model, _gpu_pool, run_on_gpu_pool_guarded, GpuJobTimeoutError,
@@ -320,7 +321,7 @@ def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
         ) else "clone"
     out["kind"] = profile_kind
     if row["is_locked"] and row["locked_audio_path"]:
-        out["ref_audio_path"] = os.path.join(VOICES_DIR, row["locked_audio_path"])
+        out["ref_audio_path"] = contained_join(VOICES_DIR, row["locked_audio_path"])
         if not out["ref_text"]:
             out["ref_text"] = row["ref_text"]
         if not out["instruct"]:
@@ -330,9 +331,7 @@ def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
     elif profile_kind == "design":
         # Rendered sample (if present) carries the voice identity; instruct
         # alone is the fallback for legacy archetype rows.
-        out["ref_audio_path"] = (
-            os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
-        )
+        out["ref_audio_path"] = contained_join(VOICES_DIR, row["ref_audio_path"])
         if out["ref_audio_path"] and not out["ref_text"] and row["ref_text"]:
             out["ref_text"] = row["ref_text"]
         if not out["instruct"]:
@@ -347,9 +346,7 @@ def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
         if out["seed"] is None and row["seed"] is not None:
             out["seed"] = row["seed"]
     else:
-        out["ref_audio_path"] = (
-            os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
-        )
+        out["ref_audio_path"] = contained_join(VOICES_DIR, row["ref_audio_path"])
         if not out["ref_text"] and row["ref_text"]:
             out["ref_text"] = row["ref_text"]
         elif out["ref_audio_path"] and not out["ref_text"]:

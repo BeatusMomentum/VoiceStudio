@@ -105,6 +105,9 @@ metadata and the backend fallback mirror it.
 - Remote workers open only the files a task sends as inputs, never a path named in its parameters
 - Remote worker registration signs a fresh single-use challenge from the app, so a recorded registration cannot be reused
 - The desktop app attaches only to a local backend that identifies itself as VoiceStudio, not to any service on its port
+- Dubbing and batch jobs accept only plain language codes when naming their output files
+- Saved voice, gallery and call-recording files are read only from inside their data folders, and uploads need a plain file extension
+- Engine install folders can no longer be set to a typed path over the HTTP API; they can still be cleared
 - Elevated Windows app removal stops before deleting data and points to a normal PowerShell window or Settings (#2578)
 - Contributor audits inspect committed files and exclude submodules, while still stopping on failed file attribution (#2556)
 

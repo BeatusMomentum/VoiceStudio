@@ -53,6 +53,9 @@ _REF_ALLOWLIST = (
     "Remote workers open only the files a task sends as inputs",
     "Remote worker registration signs a fresh single-use challenge",
     "The desktop app attaches only to a local backend that identifies itself",
+    "Dubbing and batch jobs accept only plain language codes",
+    "Saved voice, gallery and call-recording files are read only from inside",
+    "Engine install folders can no longer be set to a typed path",
 )
 
 _HEADING = re.compile(r"^## \[([^\]]+)\](?:\s*[—–-]\s*(.*))?$")

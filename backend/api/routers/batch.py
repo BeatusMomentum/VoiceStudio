@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from core.config import DATA_DIR
 from core import failure
 from core.logging_utils import log_safe
-from core.path_security import portable_filename
+from core.path_security import contained_join, portable_filename, upload_suffix
 from core.file_cleanup import FileCleanupError, unlink_if_present
 from services.dub_batching import (
     BATCH_WIDTH_ENV,
@@ -260,8 +260,8 @@ def _batch_voice(voice_id: str | None) -> dict:
     relative = row["locked_audio_path"] if row["is_locked"] else row["ref_audio_path"]
     if not relative:
         raise ValueError("That saved voice has no reference audio")
-    ref_audio = os.path.join(VOICES_DIR, relative)
-    if not os.path.isfile(ref_audio):
+    ref_audio = contained_join(VOICES_DIR, relative)
+    if not ref_audio or not os.path.isfile(ref_audio):
         raise ValueError("That saved voice's reference audio is missing")
     resolved.update({
         "ref_audio": ref_audio,
@@ -919,6 +919,11 @@ async def enqueue_batch_job(
     lang_list = [l.strip() for l in langs.split(",") if l.strip()]
     if not lang_list:
         raise HTTPException(400, "At least one target language is required")
+    # Each code names per-language outputs (dubbed_{lang}.wav, output_{lang}.mp4).
+    from api.routers.dub_core import _safe_lang_or_400
+
+    for lang in lang_list:
+        _safe_lang_or_400(lang)
 
     # Validate the snapshot before persisting a potentially large upload.
     # Resolve it again in the worker so deleting or editing a queued profile
@@ -959,7 +964,9 @@ async def enqueue_batch_job(
     # Save the uploaded video
     batch_dir = os.path.join(DATA_DIR, "batch")
     os.makedirs(batch_dir, exist_ok=True)
-    ext = os.path.splitext(video.filename or "video.mp4")[1] or ".mp4"
+    ext = upload_suffix(video.filename, ".mp4")
+    if ext is None:
+        raise HTTPException(415, "Choose a video file with a plain file extension.")
     video_path = os.path.join(batch_dir, f"{job_id}{ext}")
 
     await _save_upload(video, video_path)

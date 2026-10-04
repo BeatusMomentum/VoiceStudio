@@ -117,6 +117,7 @@ def build_stream_kwargs(data: dict) -> dict:
         try:
             from core.db import db_conn
             from core.config import VOICES_DIR
+            from core.path_security import contained_join
             with db_conn() as conn:
                 row = conn.execute(
                     "SELECT * FROM voice_profiles WHERE id=?",
@@ -124,13 +125,9 @@ def build_stream_kwargs(data: dict) -> dict:
                 ).fetchone()
             if row:
                 if row["is_locked"] and row["locked_audio_path"]:
-                    kw["ref_audio"] = os.path.join(
-                        VOICES_DIR, row["locked_audio_path"]
-                    )
+                    kw["ref_audio"] = contained_join(VOICES_DIR, row["locked_audio_path"])
                 elif row["ref_audio_path"]:
-                    kw["ref_audio"] = os.path.join(
-                        VOICES_DIR, row["ref_audio_path"]
-                    )
+                    kw["ref_audio"] = contained_join(VOICES_DIR, row["ref_audio_path"])
                 if row["ref_text"]:
                     kw["ref_text"] = row["ref_text"]
                 if row["instruct"] and not data.get("instruct"):

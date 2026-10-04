@@ -125,3 +125,48 @@ def resolve_within(root: os.PathLike[str] | str, value: os.PathLike[str] | str) 
     if resolved == root_path:
         raise UnsafePath("path must name an item below its allowed root")
     return resolved
+
+
+def contained_join(root: os.PathLike[str] | str, value: object) -> str | None:
+    """``os.path.join(root, value)`` for a persisted name, or None if unsafe.
+
+    Database rows hold either a bare filename relative to *root* or, for older
+    rows, an absolute path that was built from *root*. Both keep their exact
+    historical spelling (render caches key on it); a value that is empty or
+    resolves outside *root* returns None so callers treat it as absent.
+    """
+    if not isinstance(value, (str, os.PathLike)):
+        return None
+    raw = os.fspath(value)
+    if not isinstance(raw, str) or not raw:
+        return None
+    root_text = os.fspath(root)
+    relative = raw
+    if os.path.isabs(raw):
+        # Absolute rows were written from the unresolved root; strip that
+        # spelling first so a symlinked data folder keeps matching.
+        prefix = os.path.normcase(root_text.rstrip("\\/") + os.sep)
+        if os.path.normcase(raw).startswith(prefix):
+            relative = raw[len(prefix):]
+    try:
+        resolve_within(root_text, relative)
+    except UnsafePath:
+        return None
+    return os.path.join(root_text, raw)
+
+
+_UPLOAD_SUFFIX = re.compile(r"\.[A-Za-z0-9]{1,16}\Z")
+
+
+def upload_suffix(filename: object, default: str = "") -> str | None:
+    """Extension of a client-supplied upload name, safe to append to a
+    server-generated stem; *default* when the name has none.
+
+    Returns None when the extension is anything but letters and digits (a
+    path separator, an NTFS ``:stream``, control characters), so callers
+    decide between a 415 and a neutral fallback.
+    """
+    ext = os.path.splitext(str(filename or ""))[1]
+    if not ext:
+        return default
+    return ext if _UPLOAD_SUFFIX.fullmatch(ext) else None

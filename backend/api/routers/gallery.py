@@ -20,6 +20,7 @@ from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
 from core.audio_validation import resolve_regular_file
 from core.file_cleanup import FileCleanupError, unlink_if_present
+from core.path_security import contained_join, upload_suffix
 from services.ffmpeg_utils import spawn_subprocess
 
 logger = logging.getLogger("omnivoice.gallery")
@@ -145,7 +146,7 @@ def delete_voice(voice_id: str):
         if not row:
             raise HTTPException(status_code=404, detail="Voice not found")
 
-        audio_path = row["audio_path"]
+        audio_path = contained_join(VOICE_GALLERY_DIR, row["audio_path"])
         if audio_path:
             try:
                 unlink_if_present(audio_path)
@@ -322,7 +323,9 @@ async def upload_voice_clip(
 ):
     """Upload a voice clip directly to the gallery."""
     voice_id = str(uuid.uuid4())[:8]
-    ext = os.path.splitext(audio.filename or ".wav")[1]
+    ext = upload_suffix(audio.filename)
+    if ext is None:
+        raise HTTPException(status_code=415, detail="Choose a media file with a plain file extension.")
     audio_path = str(VOICE_GALLERY_DIR / f"{voice_id}{ext}")
 
     with open(audio_path, "wb") as f:
@@ -490,8 +493,9 @@ def _materialize_gallery_profile(
             pre_row = conn.execute(
                 "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,),
             ).fetchone()
-            if pre_row is not None:
-                pre_source = Path(pre_row["audio_path"])
+            pre_path = contained_join(VOICE_GALLERY_DIR, pre_row["audio_path"]) if pre_row is not None else None
+            if pre_path:
+                pre_source = Path(pre_path)
                 if pre_source.is_file():
                     pre_existing = _existing_gallery_profile(conn, dict(pre_row), pre_source)
                     copy_needed = pre_existing is None or not _gallery_profile_audio_is_current(
@@ -513,8 +517,9 @@ def _materialize_gallery_profile(
                 raise HTTPException(status_code=404, detail="Voice not found")
 
             voice = dict(row)
-            source = Path(voice["audio_path"])
-            if not source.is_file():
+            source_path = contained_join(VOICE_GALLERY_DIR, voice["audio_path"])
+            source = Path(source_path) if source_path else None
+            if source is None or not source.is_file():
                 raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
             def _install_audio(destination: Path) -> None:
@@ -605,9 +610,9 @@ def preview_voice(voice_id: str):
     if not row:
         raise HTTPException(status_code=404, detail="Voice not found")
 
-    audio_path = row["audio_path"]
+    audio_path = contained_join(VOICE_GALLERY_DIR, row["audio_path"])
 
-    if os.path.isabs(audio_path) and os.path.exists(audio_path):
+    if audio_path and os.path.isabs(audio_path) and os.path.exists(audio_path):
         # Serve the file from this API route so deployments mounted below a
         # path prefix do not lose that prefix while following a redirect.
         return FileResponse(audio_path)
@@ -667,7 +672,7 @@ def batch_delete_voices(body: dict):
         for vid in ids:
             row = conn.execute("SELECT audio_path FROM voice_gallery WHERE id = ?", (vid,)).fetchone()
             if row:
-                audio_path = row["audio_path"]
+                audio_path = contained_join(VOICE_GALLERY_DIR, row["audio_path"])
                 if audio_path:
                     try:
                         unlink_if_present(audio_path)
