@@ -22,7 +22,7 @@ from core.audio_validation import resolve_regular_file
 from core.file_cleanup import FileCleanupError, unlink_if_present
 from core.media_types import MEDIA_EXTS, media_extension, unsupported_media_detail
 from core.url_safety import UnsafeURLError, check_public_url
-from core.path_security import contained_join, upload_suffix
+from core.path_security import contained_join
 from services.ffmpeg_utils import spawn_subprocess
 
 logger = logging.getLogger("omnivoice.gallery")
