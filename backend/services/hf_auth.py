@@ -10,6 +10,8 @@ from typing import Optional, Union
 from urllib.parse import urlsplit
 
 HF_AUTH_HOSTS = ("huggingface.co", "hf.co")
+# Account calls (whoami, access checks) always go here, never to HF_ENDPOINT.
+CANONICAL_ENDPOINT = "https://huggingface.co"
 
 
 def host_gets_auth(url: Optional[str]) -> bool:
@@ -51,6 +53,18 @@ def token_for_endpoint(
     return False
 
 
+def canonical_whoami(token: str) -> dict:
+    """Validate ``token`` against Hugging Face itself.
+
+    ``huggingface_hub.whoami`` and ``login`` contact the library default
+    endpoint, which ``HF_ENDPOINT`` turns into a mirror; an explicit token is
+    sent even with implicit tokens disabled. This call pins the endpoint.
+    """
+    from huggingface_hub import HfApi
+
+    return HfApi(endpoint=CANONICAL_ENDPOINT).whoami(token=token)
+
+
 def env_allows_token(environ) -> bool:
     """True unless ``environ['HF_ENDPOINT']`` names a non-Hugging Face host."""
     endpoint = (environ.get("HF_ENDPOINT") or "").strip()
@@ -90,8 +104,10 @@ def apply_process_token_policy(environ: Optional[dict] = None) -> None:
 
 
 __all__ = [
+    "CANONICAL_ENDPOINT",
     "HF_AUTH_HOSTS",
     "apply_process_token_policy",
+    "canonical_whoami",
     "env_allows_token",
     "host_gets_auth",
     "hub_endpoint",

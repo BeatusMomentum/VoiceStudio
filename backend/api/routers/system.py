@@ -1249,7 +1249,7 @@ async def set_env_var(body: dict):
     Persistent keys (proxy, FFMPEG_PATH, translation provider keys, …) are
     saved to ``prefs.json`` so they survive backend restarts (restored at
     startup in ``main.py``). HF_TOKEN is persisted via
-    ``huggingface_hub.login()`` (and cleared with the shared token-file helper). Other keys
+    ``token_resolver.persist_hub_token()`` (and cleared with the shared token-file helper). Other keys
     are set on ``os.environ`` for the running process.
 
     The loopback-origin gate that previously lived inline here is now applied
@@ -1306,15 +1306,15 @@ async def set_env_var(body: dict):
         os.environ[key] = value
         logger.info("Environment variable set (length=%d)", len(value))
 
-        # Capability 1 / issue #35: HF_TOKEN persists across restarts via
-        # huggingface_hub.login() — writes the token to $HF_HOME/token so
-        # the next process pickup doesn't need an env var. add_to_git_credential
-        # stays False; we don't want to spew tokens into the user's git config.
+        # Capability 1 / issue #35: HF_TOKEN persists across restarts in the
+        # Hub token file so the next process pickup doesn't need an env var.
+        # persist_hub_token validates on huggingface.co only (never a mirror)
+        # and never writes a git credential.
         if key == "HF_TOKEN":
             try:
-                from huggingface_hub import login as _hf_login
-                _hf_login(token=value, add_to_git_credential=False)
-                logger.info("HF token persisted to $HF_HOME/token via login()")
+                from services.token_resolver import persist_hub_token
+                persist_hub_token(value)
+                logger.info("HF token persisted to the local Hub token file")
             except Exception as e:
                 # Non-fatal — the runtime env var is still set, so the
                 # current process will still see the token. We just lose
@@ -1333,7 +1333,7 @@ async def set_env_var(body: dict):
             except Exception:
                 raise HTTPException(status_code=500, detail="Could not clear local Hugging Face token files") from None
 
-    # HF_TOKEN persistence is handled above via huggingface_hub.login()/
+    # HF_TOKEN persistence is handled above via persist_hub_token()/
     # clear_hf_cli_tokens() — it never touches prefs.json. Everything else in
     # PERSISTENT_KEYS (proxy, FFMPEG_PATH, translation provider keys, …) is
     # saved to prefs.json so it survives backend restarts (restored at

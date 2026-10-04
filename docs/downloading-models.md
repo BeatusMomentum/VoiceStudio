@@ -148,9 +148,12 @@ failed download at once. Caveats:
 - A custom mirror URL must use `https://` (plain `http://` is accepted only
   for a local proxy on `localhost`/`127.0.0.1`) and must not contain a user
   name, password, query or fragment.
-- Your Hugging Face token is sent only to Hugging Face, never to a mirror.
-  Gated models (speaker diarization) therefore download from the official
-  endpoint: switch to **Hugging Face (official)** to install them.
+- Your Hugging Face token is sent only to Hugging Face, never to a mirror —
+  including token checks and gated-access checks. Gated models (speaker
+  diarization) therefore download from the official endpoint: in **Auto** mode
+  they always do, even when automatic selection picked the mirror; with a
+  mirror you chose yourself, the install fails with `HF_MIRROR_GATED` — switch
+  to **Hugging Face (official)** to install them.
 
 ## Cancelling a download
 

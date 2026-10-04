@@ -158,6 +158,9 @@ _HINTS: dict[str, str] = {
     "DIARIZATION_MODEL_MISSING": "Install or repair the selected diarisation model in Settings > Models > Diarisation, then retry transcription.",
     "DIARIZATION_LOAD_FAILED": "Open Settings > Logs > Backend for the model load error, then retry transcription after correcting it.",
     "PYANNOTE_LICENSE_REQUIRED": "Accept the pyannote model licenses on Hugging Face, then retry.",
+    # Set by the model install when a gated model fails on a mirror the user
+    # chose: mirrors never receive the token, so no token change can help.
+    "HF_MIRROR_GATED": "This model is gated, and mirrors never receive your Hugging Face token. Switch to Hugging Face (official) in Settings → Models → Hugging Face mirror, then retry.",
     "POCKETTTS_GATED_WEIGHTS": "PocketTTS weights are gated on HuggingFace. Accept the access agreement at huggingface.co/kyutai/pocket-tts, then set HF_TOKEN in Settings → Hugging Face and retry.",
     "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — VoiceStudio retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
     # Literal versions, not `--constraint deploy/torch-constraints.txt`:

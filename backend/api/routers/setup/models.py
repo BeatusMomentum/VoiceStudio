@@ -613,12 +613,15 @@ def model_access_status(repo_id: str = Query(...)):
         }
 
     from huggingface_hub import get_hf_file_metadata, hf_hub_url
+    from services.hf_auth import CANONICAL_ENDPOINT
 
     results = []
     for current in repositories:
         try:
-            url = hf_hub_url(current, filename=".gitattributes")
-            get_hf_file_metadata(url, token=resolved.token)
+            # Access is an account verdict on Hugging Face itself; a configured
+            # mirror (HF_ENDPOINT) must never receive the token.
+            url = hf_hub_url(current, filename=".gitattributes", endpoint=CANONICAL_ENDPOINT)
+            get_hf_file_metadata(url, token=resolved.token, endpoint=CANONICAL_ENDPOINT)
             access = "granted"
         except Exception as exc:  # Hub exception types vary across releases.
             status = getattr(getattr(exc, "response", None), "status_code", None)
