@@ -22,6 +22,7 @@ from services.ffmpeg_utils import (
     bed_mix_filter,
     explain_ffmpeg_failure,
     find_ffmpeg,
+    local_inputs_only,
     run_ffmpeg,
 )
 from services.karaoke_ass import build_ass, scale_words
@@ -658,7 +659,7 @@ def _build_audio_export_cmd(
                 "-map", "[aout]"]
     cmd += codec
     cmd.append(out_path)
-    return cmd
+    return local_inputs_only(cmd, tool="ffmpeg")
 
 
 @router.get("/dub/download/{job_id}", dependencies=[Depends(reject_cross_site_get)])

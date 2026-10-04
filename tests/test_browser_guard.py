@@ -363,6 +363,7 @@ def test_host_refusal_says_where_to_configure_the_desktop_app(default_hosts):
     detail = _client("http://evil.example:3900").get("/system/network/state").json()["detail"]
     assert "OMNIVOICE_ALLOWED_HOSTS" in detail
     assert "~/.config/omnivoice/env" in detail
+    assert "%USERPROFILE%\\.config\\omnivoice\\env" in detail
 
 
 def test_loopback_proxy_websocket_with_a_ticket_is_not_host_checked(default_hosts, monkeypatch):

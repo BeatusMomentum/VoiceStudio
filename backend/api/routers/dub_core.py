@@ -20,7 +20,8 @@ from core.config import PREVIEW_DIR
 from core.tasks import task_manager
 from core.logging_utils import log_safe
 from core.media_types import AUDIO_EXTS, MEDIA_EXTS, media_extension, media_upload_suffix, unsupported_media_detail
-from core.url_safety import UnsafeURLError, check_public_url
+from core.url_safety import UnsafeURLError, check_public_url, is_manifest_head, is_manifest_file
+from core.failure import InvalidMediaFileError
 from core import event_bus
 from schemas.requests import CleanupSegmentsRequest, DubIngestUrlRequest, ParseSubtitleTextRequest
 from services.srt_parser import CUE_SOURCE_FIELDS, CUE_SOURCE_ID
@@ -32,7 +33,7 @@ from services.asr_backend import (
     run_transcribe_guarded,
 )
 from services.audio_io import _safe_soundfile_write
-from services.ffmpeg_utils import find_ffmpeg
+from services.ffmpeg_utils import find_ffmpeg, local_inputs_only
 from services.segmentation import (
     segment_transcript,
     assign_speakers_from_diarization,
@@ -637,6 +638,9 @@ async def preview_upload(video: UploadFile = File(...)):
     vid_path = os.path.join(PREVIEW_DIR, f"{safe_name}{ext}")
     wav_path = os.path.join(PREVIEW_DIR, f"{safe_name}.wav")
     payload = await video.read()
+    if is_manifest_head(payload[:512]):
+        # A playlist/manifest named like a video: ffmpeg would follow its URLs.
+        raise InvalidMediaFileError()
 
     def _write_and_extract() -> bool:
         with open(vid_path, "wb") as f:
@@ -644,11 +648,11 @@ async def preview_upload(video: UploadFile = File(...)):
         if ext in {".wav", ".mp3", ".m4a", ".aac"}:
             return False
         try:
-            ffmpeg_cmd = [
+            ffmpeg_cmd = local_inputs_only([
                 find_ffmpeg(), "-y", "-i", vid_path,
                 "-vn", "-acodec", "pcm_s16le", "-ar", "22050", "-ac", "1",
                 wav_path
-            ]
+            ])
             subprocess.run(
                 ffmpeg_cmd, check=True,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -888,6 +892,15 @@ async def dub_upload(
         raise
     finally:
         await video.close()
+
+    # Refuse a playlist/manifest named like media before any ffmpeg sees it.
+    try:
+        manifest = await asyncio.to_thread(is_manifest_file, video_path)
+    except OSError:
+        manifest = False  # The prep task reports the unreadable file.
+    if manifest:
+        _discard_upload()
+        raise InvalidMediaFileError()
 
     filename = video.filename or f"video{ext}"
     task_id = f"prep_{job_id}"

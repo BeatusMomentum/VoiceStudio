@@ -99,7 +99,7 @@ imported until the recording is available. Voice-gallery clips download the
 audio track and cut the clip on this computer. To import from a media server on your own network,
 set `OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1` for the backend (for example in
 `~/.config/omnivoice/env`) and restart. Uploads accept common audio and video
-file types only. Explicit cookies.txt selection is available under URL sign-in options; optional caption downloads are available.
+file types only; a playlist or manifest renamed as a video is refused. Explicit cookies.txt selection is available under URL sign-in options; optional caption downloads are available.
 
 Translation quality uses the existing backend Fast, Autofit and Cinematic modes.
 The choice persists in the working draft and saved project (`translateQuality`),

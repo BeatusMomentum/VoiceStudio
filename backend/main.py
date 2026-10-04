@@ -1440,7 +1440,12 @@ def _safe_validation_input(value):
     return value
 
 
-from core.failure import NoAudioTrackError, no_audio_track_detail  # noqa: E402
+from core.failure import (  # noqa: E402
+    InvalidMediaFileError,
+    NoAudioTrackError,
+    invalid_media_file_detail,
+    no_audio_track_detail,
+)
 
 
 @app.exception_handler(NoAudioTrackError)
@@ -1453,6 +1458,17 @@ async def no_audio_track_handler(request: Request, exc: NoAudioTrackError):
     return JSONResponse(
         status_code=422,
         content={"detail": no_audio_track_detail()},
+        headers=_cors_headers_for(request),
+    )
+
+
+@app.exception_handler(InvalidMediaFileError)
+async def invalid_media_file_handler(request: Request, exc: InvalidMediaFileError):
+    """422 for an upload that is unreadable or not media at all (a playlist or
+    manifest named like a video), on every route that checks its input."""
+    return JSONResponse(
+        status_code=422,
+        content={"detail": invalid_media_file_detail()},
         headers=_cors_headers_for(request),
     )
 

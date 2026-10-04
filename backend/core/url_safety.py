@@ -216,12 +216,25 @@ def check_resolved_media_urls(info: dict) -> None:
 _MANIFEST_PREFIXES = (b"#EXTM3U", b"ffconcat", b"<", b"v=0")
 
 
+def is_manifest_head(head: bytes) -> bool:
+    """Whether the first bytes of a file are a playlist/manifest, not media."""
+    return head.removeprefix(b"\xef\xbb\xbf").lstrip().startswith(_MANIFEST_PREFIXES)
+
+
+def is_manifest_file(path: str) -> bool:
+    """Whether ``path`` holds a playlist/manifest that ffmpeg would follow.
+
+    Shared by URL imports and local uploads: a file named ``clip.mp4`` whose
+    content is an HLS playlist or concat list must never reach ffmpeg as
+    media.
+    """
+    with open(path, "rb") as fh:
+        return is_manifest_head(fh.read(512))
+
+
 def check_downloaded_media(path: str) -> None:
     """Refuse a downloaded "media" file that is really a playlist/manifest."""
-    with open(path, "rb") as fh:
-        head = fh.read(512)
-    head = head.removeprefix(b"\xef\xbb\xbf").lstrip()
-    if head.startswith(_MANIFEST_PREFIXES):
+    if is_manifest_file(path):
         raise UnsafeURLError(NOT_MEDIA_DETAIL)
 
 

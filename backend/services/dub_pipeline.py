@@ -50,6 +50,7 @@ from services.ffmpeg_utils import (
     _spawn_with_retry,
     find_ffmpeg,
     find_ffprobe,
+    local_inputs_only,
     raise_for_audio_extract_failure,
     require_audio_stream,
     validate_media_source,
@@ -716,14 +717,14 @@ def _probe_codecs(path: str) -> tuple[str, str]:
         return ("", "")
     try:
         out = subprocess.run(
-            [ffprobe, "-v", "error", "-select_streams", "v:0",
-             "-show_entries", "stream=codec_name", "-of", "csv=p=0", path],
+            local_inputs_only([ffprobe, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_name", "-of", "csv=p=0", path], tool="ffprobe"),
             capture_output=True, text=True, timeout=10,
         )
         vcodec = (out.stdout or "").strip().lower()
         out = subprocess.run(
-            [ffprobe, "-v", "error", "-select_streams", "a:0",
-             "-show_entries", "stream=codec_name", "-of", "csv=p=0", path],
+            local_inputs_only([ffprobe, "-v", "error", "-select_streams", "a:0",
+             "-show_entries", "stream=codec_name", "-of", "csv=p=0", path], tool="ffprobe"),
             capture_output=True, text=True, timeout=10,
         )
         acodec = (out.stdout or "").strip().lower()
@@ -766,9 +767,9 @@ def _ensure_browser_playable_mp4(video_path: str) -> str:
         pass
     else:
         rc = subprocess.run(
-            [ffmpeg_bin, "-y", "-i", video_path,
+            local_inputs_only([ffmpeg_bin, "-y", "-i", video_path,
              "-c:v", "copy", "-c:a", "copy",
-             "-movflags", "+faststart", target],
+             "-movflags", "+faststart", target], tool="ffmpeg"),
             capture_output=True,
         ).returncode
         if rc != 0 or not os.path.exists(target):
@@ -776,11 +777,11 @@ def _ensure_browser_playable_mp4(video_path: str) -> str:
     if rc != 0:
         # Full transcode — h264 baseline-ish + aac is the safe combo.
         rc = subprocess.run(
-            [ffmpeg_bin, "-y", "-i", video_path,
+            local_inputs_only([ffmpeg_bin, "-y", "-i", video_path,
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
              "-pix_fmt", "yuv420p",
              "-c:a", "aac", "-b:a", "192k",
-             "-movflags", "+faststart", target],
+             "-movflags", "+faststart", target], tool="ffmpeg"),
             capture_output=True,
         ).returncode
     if rc == 0 and os.path.exists(target) and target != video_path:

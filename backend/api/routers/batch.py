@@ -306,6 +306,7 @@ async def _run_batch_pipeline_leased(job_id: str, job: dict, lease: voice_leases
     from services.ffmpeg_utils import (
         bed_mix_filter,
         find_ffmpeg,
+        local_inputs_only,
         raise_for_audio_extract_failure,
         require_audio_stream,
         validate_media_source,
@@ -319,9 +320,9 @@ async def _run_batch_pipeline_leased(job_id: str, job: dict, lease: voice_leases
         require_audio_stream(video_path)
         try:
             subprocess.run(
-                [ffmpeg, "-y", "-i", video_path,
+                local_inputs_only([ffmpeg, "-y", "-i", video_path,
                  "-vn", "-acodec", "pcm_s16le", "-ar", "22050", "-ac", "1",
-                 audio_path],
+                 audio_path]),
                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 timeout=300, check=True,
             )
@@ -330,7 +331,7 @@ async def _run_batch_pipeline_leased(job_id: str, job: dict, lease: voice_leases
             raise
         # Get duration
         result = subprocess.run(
-            [ffmpeg, "-i", audio_path],
+            local_inputs_only([ffmpeg, "-i", audio_path]),
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             timeout=30,
         )
@@ -885,26 +886,26 @@ async def _run_batch_pipeline_leased(job_id: str, job: dict, lease: voice_leases
             if bg:
                 # Mix dubbed audio with original background
                 subprocess.run(
-                    [ffmpeg, "-y",
+                    local_inputs_only([ffmpeg, "-y",
                      "-i", video_path,
                      "-i", track_path,
                      "-filter_complex",
                      bed_mix_filter("0:a", "1:a", out="out", duration="first"),
                      "-map", "0:v", "-map", "[out]",
                      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                     "-shortest", output_path],
+                     "-shortest", output_path]),
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     timeout=600, check=True,
                 )
             else:
                 # Replace audio entirely
                 subprocess.run(
-                    [ffmpeg, "-y",
+                    local_inputs_only([ffmpeg, "-y",
                      "-i", video_path,
                      "-i", track_path,
                      "-map", "0:v", "-map", "1:a",
                      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                     "-shortest", output_path],
+                     "-shortest", output_path]),
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     timeout=600, check=True,
                 )
@@ -989,6 +990,18 @@ async def enqueue_batch_job(
     video_path = os.path.join(batch_dir, f"{job_id}{ext}")
 
     await _save_upload(video, video_path)
+    from core.url_safety import is_manifest_file
+    try:
+        manifest = await asyncio.to_thread(is_manifest_file, video_path)
+    except OSError:
+        manifest = False  # The extract step reports the unreadable file.
+    if manifest:
+        # A playlist/manifest named like media: ffmpeg would follow its URLs.
+        try:
+            unlink_if_present(video_path)
+        except FileCleanupError:
+            logger.warning("Could not remove refused batch upload", exc_info=True)
+        raise failure.InvalidMediaFileError()
 
     job = {
         "id": job_id,

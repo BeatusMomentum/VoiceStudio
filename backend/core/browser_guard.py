@@ -73,7 +73,8 @@ HOST_DETAIL = (
     "Request refused: VoiceStudio was addressed by an unrecognized host name. "
     "Open it via localhost or an IP address, send the API key, or add the "
     "host name to OMNIVOICE_ALLOWED_HOSTS (for the desktop app, as a line in "
-    "~/.config/omnivoice/env) and restart VoiceStudio."
+    "~/.config/omnivoice/env on macOS and Linux, or "
+    "%USERPROFILE%\\.config\\omnivoice\\env on Windows) and restart VoiceStudio."
 )
 
 

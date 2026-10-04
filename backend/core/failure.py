@@ -111,6 +111,15 @@ def no_audio_track_detail() -> dict[str, str]:
         "hint": _HINTS["NO_AUDIO_TRACK"],
     }
 
+def invalid_media_file_detail() -> dict[str, str]:
+    """Structured HTTP ``detail`` for an unreadable or non-media upload."""
+    return {
+        "code": InvalidMediaFileError.code,
+        "docs_topic": InvalidMediaFileError.docs_topic,
+        "message": INVALID_MEDIA_FILE_MESSAGE,
+        "hint": _HINTS["INVALID_MEDIA_FILE"],
+    }
+
 # One-line "what to do" per docs-taxonomy key. Keys mirror error_docs_map's
 # taxonomy; the docs URL itself stays owned by error_docs_map.
 _HINTS: dict[str, str] = {
