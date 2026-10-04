@@ -1194,9 +1194,16 @@ PERSISTENT_KEYS = {
 # main.py); merging them here lets users inspect/clear them from the same
 # Settings env panel as every other persisted var. Single-sourced from the
 # installer's SPECS so a future sidecar engine can't forget to register.
+#
+# The backend runs the interpreter inside these folders, so they are host
+# paths that must never arrive as raw HTTP text: a new value comes only from a
+# one-shot desktop authorization (kind "sidecar_dir"), like the models folder.
+# Clearing stays a plain request; values already persisted keep working.
+_SIDECAR_DIR_KEYS: set[str] = set()
 try:
     from services.sidecar_install import persistent_env_vars as _sidecar_env_vars
-    PERSISTENT_KEYS |= _sidecar_env_vars()
+    _SIDECAR_DIR_KEYS = set(_sidecar_env_vars())
+    PERSISTENT_KEYS |= _SIDECAR_DIR_KEYS
 except Exception:  # pragma: no cover — defensive: env panel > installer wiring
     pass
 
@@ -1213,6 +1220,26 @@ _PORT_KEYS = {"OMNIVOICE_SHARE_PORT"}
 # worker for days before the guard ever fires.
 _TIMEOUT_KEYS = {"OMNIVOICE_GENERATE_TIMEOUT_S", "OMNIVOICE_CPU_GENERATE_TIMEOUT_S"}
 _MAX_GENERATE_TIMEOUT_S = 21600.0  # 6 hours
+
+
+def _authorized_sidecar_dir(value, authorization) -> str:
+    """Resolve a sidecar install folder from a desktop authorization only."""
+    if value:
+        raise HTTPException(
+            status_code=403,
+            detail="Choose the engine folder in the desktop app; raw paths are not accepted.",
+        )
+    if not authorization:
+        return ""  # clear
+    from core.path_authorization import PathAuthorizationError, consume
+
+    try:
+        raw = consume(str(authorization), "sidecar_dir").strip()
+    except PathAuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in raw):
+        raise HTTPException(status_code=400, detail="Path contains invalid control characters")
+    return os.path.abspath(os.path.expanduser(raw)) if raw else ""
 
 
 @router.post("/system/set-env")
@@ -1239,6 +1266,9 @@ async def set_env_var(body: dict):
             status_code=400,
             detail=f"Key '{key}' is not allowed. Allowed: {', '.join(sorted(ALLOWED_KEYS))}",
         )
+
+    if key in _SIDECAR_DIR_KEYS:
+        value = _authorized_sidecar_dir(value, body.get("authorization"))
 
     if value:
         # Port keys must be a numeric string in the unprivileged range so a
