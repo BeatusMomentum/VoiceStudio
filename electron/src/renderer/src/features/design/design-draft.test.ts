@@ -6,6 +6,7 @@ import {
   designInstruct,
   designRecipe,
   editVoice,
+  designRequestSeed,
   linkedDesignProfile,
   pickDetail,
   readDraft,
@@ -103,6 +104,15 @@ describe('saved design voice link', () => {
     ).toBeNull();
     expect(linkedDesignProfile(draft, [{ ...profile, kind: 'clone' }])).toBeNull();
     expect(linkedDesignProfile(draft, undefined)).toBeNull();
+  });
+
+  it('keeps a seedless saved voice seedless so it re-renders instead of redesigning', () => {
+    const seedless = { ...profile, seed: null };
+    const draft = { ...restored(), seed: 9 };
+    expect(linkedDesignProfile(draft, [seedless])?.id).toBe('designed-voice');
+    expect(designRequestSeed(draft, seedless)).toBeUndefined();
+    expect(designRequestSeed(draft, profile)).toBe(9);
+    expect(designRequestSeed(draft, null)).toBe(9);
   });
 });
 

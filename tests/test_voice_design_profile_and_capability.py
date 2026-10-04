@@ -75,6 +75,16 @@ def test_a_changed_seed_designs_from_the_request_with_the_profiles_instruct():
     assert cond["seed"] == 7
 
 
+def test_an_explicit_seed_designs_when_the_profile_has_none():
+    row = _design_row(seed=None)
+    cond = _gen()._resolve_profile_conditioning(row, seed=7)
+    assert cond["ref_audio_path"] is None
+    assert cond["seed"] == 7
+    assert cond["diverged"]
+    # An omitted seed still means the profile's, so the sample re-renders.
+    assert not _gen()._resolve_profile_conditioning(row)["diverged"]
+
+
 def test_a_locked_design_take_is_not_cloned_once_edited():
     row = _design_row(is_locked=1, locked_audio_path="locked.wav")
     assert _gen()._resolve_profile_conditioning(row)["ref_audio_path"].endswith("locked.wav")

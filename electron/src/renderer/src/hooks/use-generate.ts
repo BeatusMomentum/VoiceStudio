@@ -19,7 +19,13 @@ import { throttle } from '@tanstack/react-pacer';
 import { toast } from 'sonner';
 import { ApiError, apiJson, describeError, isAbortError } from '@/lib/api/client';
 import { generateClone, sanitizeInstruct } from '@/lib/api/generate';
-import type { DesignRecipe, EnginesResponse, GenerateResult, InstructVocabulary } from '@/lib/api/types';
+import type {
+  DesignRecipe,
+  EnginesResponse,
+  GenerateResult,
+  InstructVocabulary,
+  Profile,
+} from '@/lib/api/types';
 import { effectiveSamplingSteps } from '@/lib/audio/quality';
 import { cachedTtsLanguagesSupported } from '@/lib/language-options';
 import { tr } from '@/lib/i18n-text';
@@ -48,11 +54,25 @@ let lastRoutingStatus: string | null = null;
 export interface DesignGenerateInput {
   text: string;
   instruct: string;
-  seed: number;
+  /** Omitted to use the linked profile's own (possibly unset) seed. */
+  seed?: number;
   language?: string;
   profileId?: string | null;
   /** Stored with the take so reopening it rebuilds the same draft (#2389). */
   recipe?: DesignRecipe;
+}
+
+type DesignBlocker = 'engine' | 'loading' | 'design' | null;
+
+/**
+ * True when re-rendering this linked design profile clones its saved sample
+ * (the locked take, else the rendered sample), so the engine designs nothing.
+ * Mirrors /generate's profile conditioning for an undiverged design request.
+ */
+export function clonesSavedSample(profile: Profile | null | undefined): boolean {
+  return Boolean(
+    profile && ((profile.is_locked && profile.locked_audio_path) || profile.ref_audio_path),
+  );
 }
 
 export interface UseGenerateClone {
@@ -72,7 +92,9 @@ export interface UseGenerateClone {
   canGenerate: boolean;
   canGenerateDesign: boolean;
   /** `design`: the active engine needs a reference clip, so it can't design. */
-  designBlocker: 'engine' | 'loading' | 'design' | null;
+  designBlocker: DesignBlocker;
+  /** The blocker for re-rendering `profile`: cloning its saved sample isn't design. */
+  designBlockerFor(profile: Profile | null | undefined): DesignBlocker;
   cloneBlocker: CloneBlocker;
   /** How the active engine reads `instruct`: OmniVoice tags or as written (#2389). */
   instructVocabulary: InstructVocabulary;
@@ -127,8 +149,13 @@ function useGenerateController(): UseGenerateClone {
   const instructVocabulary = activeTts?.instruct_vocabulary ?? 'tags';
   // An engine that declares it can't design would only fail inside the
   // engine (and /generate refuses it); say so before anything starts.
-  const designBlocker: UseGenerateClone['designBlocker'] =
+  const designBlocker: DesignBlocker =
     activeTts?.supports_voice_design === false ? 'design' : ttsBlocker;
+  const designBlockerFor = useCallback(
+    (profile: Profile | null | undefined): DesignBlocker =>
+      clonesSavedSample(profile) ? ttsBlocker : designBlocker,
+    [designBlocker, ttsBlocker],
+  );
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -232,7 +259,13 @@ function useGenerateController(): UseGenerateClone {
       }
       if (
         design
-          ? designBlocker || !design.text.trim()
+          ? designBlockerFor(
+              design.profileId
+                ? queryClient
+                    .getQueryData<Profile[]>(queryKeys.profiles)
+                    ?.find((profile) => profile.id === design.profileId)
+                : null,
+            ) || !design.text.trim()
           : blocker ||
             !settings.text.trim() ||
             (!settings.selectedProfileId && !reference.file?.size)
@@ -344,7 +377,7 @@ function useGenerateController(): UseGenerateClone {
           .catch(() => {});
       }
     },
-    [queryClient, onProgress, blocker, designBlocker, instructVocabulary],
+    [queryClient, onProgress, blocker, designBlockerFor, instructVocabulary],
   );
 
   const cancel = useCallback(() => {
@@ -370,6 +403,7 @@ function useGenerateController(): UseGenerateClone {
     canGenerate: blocker === null && !isGenerating,
     canGenerateDesign: designBlocker === null && !isGenerating,
     designBlocker,
+    designBlockerFor,
     cloneBlocker: blocker,
     instructVocabulary,
   };

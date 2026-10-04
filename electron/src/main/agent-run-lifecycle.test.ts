@@ -2,10 +2,12 @@
 import { EventEmitter } from 'node:events';
 import type { BackendSupervisor } from './backend';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { registerRepairAgents, REPAIR_CHANNELS } from './repair-agents';
+import { AGENT_SCAN_TTL_MS, registerRepairAgents, REPAIR_CHANNELS } from './repair-agents';
 const mock = vi.hoisted(() => ({
   handlers: new Map<string, (...args: any[]) => any>(),
   spawn: vi.fn(),
+  execFile: vi.fn(),
+  spawnSync: vi.fn(),
   bridge: vi.fn(),
   close: vi.fn(async () => {}),
   output: vi.fn(),
@@ -30,11 +32,29 @@ vi.mock('node:fs', () => ({
 }));
 vi.mock('node:child_process', () => ({
   spawn: mock.spawn,
-  spawnSync: () => ({
-    status: 0,
-    stdout: process.platform === 'win32' ? 'C:\\agents\\codex.exe' : '/usr/bin/codex',
-  }),
+  execFile: mock.execFile,
+  spawnSync: mock.spawnSync,
 }));
+type ProbeCallback = (error: Error | null, stdout: string, stderr: string) => void;
+function answerProbes() {
+  mock.execFile.mockImplementation(
+    (_file: string, args: string[], _options: unknown, callback: ProbeCallback) => {
+      // Only codex is installed; probes answer asynchronously like a real child.
+      setTimeout(() =>
+        args.includes('--version')
+          ? callback(null, 'codex 1.2.3\n', '')
+          : args[0] === 'codex'
+            ? callback(
+                null,
+                process.platform === 'win32' ? 'C:\\agents\\codex.exe' : '/usr/bin/codex',
+                '',
+              )
+            : callback(new Error('not found'), '', ''),
+      );
+      return { stdin: { end: vi.fn() } };
+    },
+  );
+}
 vi.mock('./repair-api-bridge', () => ({ startRepairApiBridge: mock.bridge }));
 vi.mock('./llm-agent-bridge', () => ({
   startLlmAgentBridge: async () => ({ url: '', token: '', close() {} }),
@@ -54,6 +74,7 @@ const request = {
 let dispose: (() => void) | undefined;
 beforeEach(() => {
   vi.clearAllMocks();
+  answerProbes();
   mock.bridge.mockResolvedValue({ contextFile: '/temp/isolated/context.json', close: mock.close });
   vi.stubGlobal(
     'fetch',
@@ -118,4 +139,34 @@ it('launches app chat outside the checkout and closes its capability after strea
   );
   expect(mock.handlers.get(REPAIR_CHANNELS.state)!(event).status).toBe('complete');
   expect(mock.close).toHaveBeenCalled();
+});
+
+it('scans CLIs asynchronously and reuses the scan until the TTL or an explicit refresh', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    await setup();
+    const list = (options?: { refresh?: boolean }) =>
+      mock.handlers.get(REPAIR_CHANNELS.list)!(event, options);
+    const pending = list();
+    // The handler answers with a promise: the main process never blocks on a probe.
+    expect(pending).toBeInstanceOf(Promise);
+    const agents = await pending;
+    expect(agents.find((agent: { id: string }) => agent.id === 'codex')).toMatchObject({
+      available: true,
+      version: 'codex 1.2.3',
+    });
+    const probes = mock.execFile.mock.calls.length;
+    await list();
+    expect(mock.execFile.mock.calls.length).toBe(probes);
+    vi.setSystemTime(Date.now() + 2_000);
+    await list({ refresh: true });
+    expect(mock.execFile.mock.calls.length).toBeGreaterThan(probes);
+    const refreshed = mock.execFile.mock.calls.length;
+    vi.setSystemTime(Date.now() + AGENT_SCAN_TTL_MS);
+    await list();
+    expect(mock.execFile.mock.calls.length).toBeGreaterThan(refreshed);
+    expect(mock.spawnSync).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
 });

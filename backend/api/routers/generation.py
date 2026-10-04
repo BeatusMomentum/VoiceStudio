@@ -310,7 +310,9 @@ def _design_request_diverges(row, *, instruct=None, seed=None):
     request that sends a different instruct or seed asks for a different
     voice; cloning the old sample would drown the new attributes, which is
     how "Male" kept coming back female once a design was saved. An omitted
-    instruct or seed means "the profile's", so it never diverges.
+    instruct or seed means "the profile's", so it never diverges; an explicit
+    seed on a profile saved without one asks for a specific voice the saved
+    sample was never rendered with, so it does.
     """
     if instruct and str(instruct).strip():
         requested = _design_instruct_key(instruct)
@@ -320,7 +322,9 @@ def _design_request_diverges(row, *, instruct=None, seed=None):
         }
         if requested not in stored:
             return True
-    return seed is not None and row["seed"] is not None and int(seed) != int(row["seed"])
+    if seed is None:
+        return False
+    return row["seed"] is None or int(seed) != int(row["seed"])
 
 
 def _design_refusal(backend_cls, *, profile_id=None, has_ref_audio=False,

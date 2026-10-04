@@ -6,6 +6,8 @@ import { GenerationProvider, useGenerateClone } from './use-generate';
 import { patchCloneSettings } from '@/lib/store/clone-settings';
 import { generateClone } from '@/lib/api/generate';
 import { setLatestOutput } from '@/lib/store/output';
+import { queryKeys } from '@/lib/query';
+import type { Profile } from '@/lib/api/types';
 const modelStatus = vi.hoisted(() => ({
   value: { status: 'loading', loading: true } as {
     status: string;
@@ -320,6 +322,57 @@ it.each([
     fireEvent.click(button);
     if (sends) await waitFor(() => expect(generateClone).toHaveBeenCalled());
     else {
+      await act(async () => {});
+      expect(generateClone).not.toHaveBeenCalled();
+    }
+    engine.design = undefined;
+  },
+);
+
+it.each([
+  ['a saved design voice with a sample', { ref_audio_path: 'design.wav' }, 'none', true],
+  ['a locked design voice', { is_locked: 1, locked_audio_path: 'locked.wav' }, 'none', true],
+  ['a saved design voice without a sample', {}, 'design', false],
+] as const)(
+  'lets a reference-only engine re-render %s only by cloning its sample',
+  async (_label, sample, expectedBlocker, sends) => {
+    engine.design = false;
+    vi.mocked(generateClone).mockReset().mockRejectedValue(new Error('stop'));
+    const profile = {
+      id: 'voice-design',
+      kind: 'design',
+      ref_audio_path: null,
+      ...sample,
+    } as unknown as Profile;
+    const client = new QueryClient();
+    client.setQueryData(queryKeys.profiles, [profile]);
+    function DesignConsumer() {
+      const state = useGenerateClone();
+      return (
+        <button
+          onClick={() =>
+            void state.generateDesign({ text: 'Hi', instruct: 'male', profileId: profile.id })
+          }
+        >
+          linked {state.designBlockerFor(profile) ?? 'none'}
+        </button>
+      );
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <GenerationProvider>
+          <DesignConsumer />
+        </GenerationProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByText(`linked ${expectedBlocker}`));
+    if (sends) {
+      await waitFor(() => expect(generateClone).toHaveBeenCalled());
+      expect(generateClone).toHaveBeenCalledWith(
+        expect.objectContaining({ profileId: profile.id, seed: undefined }),
+        expect.anything(),
+      );
+    } else {
       await act(async () => {});
       expect(generateClone).not.toHaveBeenCalled();
     }

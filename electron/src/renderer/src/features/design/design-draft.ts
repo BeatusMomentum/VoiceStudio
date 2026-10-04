@@ -145,6 +145,18 @@ export function linkedDesignProfile(
 }
 
 /**
+ * The seed a take sends. A linked voice saved without a seed keeps its own
+ * (none): the draft's placeholder would read as an edit and design a new
+ * voice instead of re-rendering the saved one.
+ */
+export function designRequestSeed(
+  draft: Pick<DesignDraft, 'seed'>,
+  linked: Profile | null,
+): number | undefined {
+  return linked && linked.seed == null ? undefined : draft.seed;
+}
+
+/**
  * Apply the mapping of `described`, which the caller has checked is still the
  * current description. The most recent intent wins per detail: a pick holds
  * until the description changes what it says about that detail (or about its

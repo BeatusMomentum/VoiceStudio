@@ -1,4 +1,9 @@
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import {
+  execFile,
+  spawn,
+  spawnSync,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process';
 import {
   accessSync,
   constants,
@@ -132,15 +137,48 @@ function trusted(event: IpcMainInvokeEvent, owner: BrowserWindow | null) {
     throw new Error('Untrusted repair-agent request');
 }
 
-function locate(command: string): LaunchCommand | null {
-  const finder = process.platform === 'win32' ? 'where.exe' : 'which';
-  const found = spawnSync(finder, [command], {
-    encoding: 'utf8',
-    env: envWithToolPath(),
-    windowsHide: true,
+const PROBE_TIMEOUT_MS = 4_000;
+/** How long a CLI scan answers `list()` before it re-runs (an explicit refresh skips it). */
+export const AGENT_SCAN_TTL_MS = 30_000;
+
+interface ProbeResult {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Run a short probe without blocking the main process: a synchronous
+ * `which`/`--version` per CLI froze every window for up to seconds each.
+ */
+function probe(executable: string, args: string[]): Promise<ProbeResult> {
+  return new Promise((resolveProbe) => {
+    try {
+      const child = execFile(
+        executable,
+        args,
+        {
+          encoding: 'utf8',
+          timeout: PROBE_TIMEOUT_MS,
+          env: envWithToolPath(),
+          windowsHide: true,
+        },
+        (error, stdout, stderr) =>
+          resolveProbe({ ok: !error, stdout: `${stdout ?? ''}`, stderr: `${stderr ?? ''}` }),
+      );
+      // A probe never reads input; EOF keeps a CLI that waits on stdin from stalling.
+      child.stdin?.end();
+    } catch {
+      resolveProbe({ ok: false, stdout: '', stderr: '' });
+    }
   });
+}
+
+async function locate(command: string): Promise<LaunchCommand | null> {
+  const finder = process.platform === 'win32' ? 'where.exe' : 'which';
+  const found = await probe(finder, [command]);
   const paths =
-    found.status === 0
+    found.ok
       ? found.stdout
           .split(/\r?\n/)
           .map((item) => item.trim())
@@ -179,13 +217,8 @@ function locate(command: string): LaunchCommand | null {
   return null;
 }
 
-function versionOf(command: LaunchCommand): string {
-  const result = spawnSync(command.executable, [...command.prefix, '--version'], {
-    encoding: 'utf8',
-    timeout: 4_000,
-    env: envWithToolPath(),
-    windowsHide: true,
-  });
+async function versionOf(command: LaunchCommand): Promise<string> {
+  const result = await probe(command.executable, [...command.prefix, '--version']);
   return `${result.stdout || result.stderr || ''}`.trim().split(/\r?\n/)[0]?.slice(0, 120) || '';
 }
 
@@ -695,24 +728,38 @@ export async function registerRepairAgents(
   const emit = (event: RepairAgentEvent) => {
     sendToLiveWindow(getMainWindow(), REPAIR_CHANNELS.event, event);
   };
-  const list = (): RepairAgentInfo[] => {
-    // Re-scan on every call: a CLI installed after launch must appear the next
-    // time the panel opens, without restarting the app.
-    return DEFINITIONS.map((definition) => {
-      const command = locate(definition.command);
-      if (command) commands.set(definition.id, command);
-      return {
-        id: definition.id,
-        label: definition.label,
-        available: Boolean(command),
-        version: command ? versionOf(command) : '',
-      };
+  let scan: { startedAt: number; agents: Promise<RepairAgentInfo[]> } | null = null;
+  const rescan = () =>
+    Promise.all(
+      DEFINITIONS.map(async (definition): Promise<RepairAgentInfo> => {
+        const command = await locate(definition.command);
+        if (command) commands.set(definition.id, command);
+        else commands.delete(definition.id);
+        return {
+          id: definition.id,
+          label: definition.label,
+          available: Boolean(command),
+          version: command ? await versionOf(command) : '',
+        };
+      }),
+    );
+  // Scans run off the main thread and are shared for a short TTL, so every
+  // caller opening at once costs one scan. Opening the panel refreshes, so a
+  // CLI installed after launch appears without restarting the app.
+  const list = (refresh = false): Promise<RepairAgentInfo[]> => {
+    const now = Date.now();
+    if (scan && now - scan.startedAt < (refresh ? 1_000 : AGENT_SCAN_TTL_MS)) return scan.agents;
+    const current = { startedAt: now, agents: rescan() };
+    scan = current;
+    current.agents.catch(() => {
+      if (scan === current) scan = null;
     });
+    return current.agents;
   };
 
-  ipcMain.handle(REPAIR_CHANNELS.list, (event) => {
+  ipcMain.handle(REPAIR_CHANNELS.list, (event, options?: { refresh?: boolean }) => {
     trusted(event, getMainWindow());
-    return list();
+    return list(options?.refresh === true);
   });
   ipcMain.handle(REPAIR_CHANNELS.state, (event) => {
     trusted(event, getMainWindow());
@@ -752,8 +799,10 @@ export async function registerRepairAgents(
     const sourceRoot = appOperationOnly ? null : workspaceRoot;
     if (!sourceRoot && !appOperationOnly)
       throw new Error('A writable VoiceStudio source checkout is required');
-    const command = commands.get(request.agent) ?? locate(request.agent);
+    const command = commands.get(request.agent) ?? (await locate(request.agent));
     if (!command) throw new Error('That repair agent is not installed');
+    // Locating may have awaited; a run started meanwhile still wins.
+    if (child || translationChild || preparing) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
 
     const sessionId = randomUUID();
     preparing = true;
@@ -882,8 +931,9 @@ export async function registerRepairAgents(
     validateDubTranslationRequest(request);
     if (child || translationChild || preparing) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
     const definition = DEFINITIONS.find((item) => item.id === request.agent)!;
-    const command = commands.get(request.agent) ?? locate(definition.command);
+    const command = commands.get(request.agent) ?? (await locate(definition.command));
     if (!command) throw new Error('That agent is not installed');
+    if (child || translationChild || preparing) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
 
     const prompt = promptOverride ?? dubTranslationPrompt(request);
     const sessionId = randomUUID();
@@ -1021,8 +1071,10 @@ export async function registerRepairAgents(
   });
   process.env.VOICESTUDIO_LLM_AGENT_URL = llmBridge.url;
   process.env.VOICESTUDIO_LLM_AGENT_TOKEN = llmBridge.token;
+  // Locate only (no --version probes), in parallel, before the backend reads it.
+  const installed = await Promise.all(DEFINITIONS.map((item) => locate(item.command)));
   process.env.VOICESTUDIO_LLM_AGENTS = JSON.stringify(
-    DEFINITIONS.filter((item) => locate(item.command)).map((item) => item.id),
+    DEFINITIONS.filter((_item, index) => installed[index]).map((item) => item.id),
   );
   ipcMain.handle(REPAIR_CHANNELS.stopTranslation, (event) => {
     trusted(event, getMainWindow());

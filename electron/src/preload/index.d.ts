@@ -295,7 +295,8 @@ export interface VoiceStudioBridge {
     }>;
   };
   repair: {
-    list(): Promise<RepairAgentInfo[]>;
+    /** Cached for a short TTL; `refresh` rescans for CLIs installed since. */
+    list(options?: { refresh?: boolean }): Promise<RepairAgentInfo[]>;
     getState(): Promise<RepairAgentState>;
     chooseWorkspace(): Promise<RepairAgentState>;
     start(request: RepairAgentRunRequest): Promise<{ sessionId: string }>;

@@ -127,7 +127,7 @@ export function VoiceStudioAgent() {
     if (!bridge || !open) return;
     let alive = true;
     void bridge.repair
-      .list()
+      .list({ refresh: true })
       .then((found) => {
         if (!alive) return;
         setAgents(found);

@@ -15,6 +15,7 @@ import {
   applyDescription,
   designInstruct,
   designRecipe,
+  designRequestSeed,
   editVoice,
   linkedDesignProfile,
   pickDetail,
@@ -90,6 +91,8 @@ export function DesignPage() {
   const designProfiles = profiles.data?.filter((profile) => profile.kind === 'design') ?? [];
   // The saved voice this draft still is; any edit turns it into a new design.
   const activeProfile = linkedDesignProfile(draft, profiles.data);
+  // Re-rendering a saved sample is cloning, which any ready engine can do.
+  const designBlocker = generation.designBlockerFor(activeProfile);
   const editingProfile = profiles.data?.find((profile) => profile.id === editingId);
   useEffect(() => {
     const restore = (event: Event) => {
@@ -508,12 +511,12 @@ export function DesignPage() {
             />
           </div>
           <div className="mx-auto w-full max-w-4xl shrink-0 px-6 pb-4">
-            {generation.designBlocker === 'engine' && !generation.isGenerating && (
+            {designBlocker === 'engine' && !generation.isGenerating && (
               <div className="mb-3">
                 <EngineNotice operation="design" compact />
               </div>
             )}
-            {generation.designBlocker === 'design' && !generation.isGenerating && (
+            {designBlocker === 'design' && !generation.isGenerating && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
                 <p role="status">
                   {t('designWorkspace.engine_cannot_design', {
@@ -529,7 +532,7 @@ export function DesignPage() {
                 </Link>
               </div>
             )}
-            {generation.designBlocker === 'loading' && !generation.isGenerating && (
+            {designBlocker === 'loading' && !generation.isGenerating && (
               <p className="mb-3 px-1 text-sm text-muted-foreground" role="status">
                 {t('preferences.loading')}
               </p>
@@ -564,7 +567,8 @@ export function DesignPage() {
                     !draft.text.trim() ||
                     // Free-form engines take the description itself, not its mapping.
                     (!freeform && mapper.pending) ||
-                    !generation.canGenerateDesign
+                    generation.isGenerating ||
+                    designBlocker !== null
                   }
                   aria-busy={generation.isGenerating}
                   aria-label={generationLabel}
@@ -573,7 +577,7 @@ export function DesignPage() {
                       text: draft.text,
                       instruct: designInstruct(draft, generation.instructVocabulary),
                       recipe: designRecipe(draft),
-                      seed: draft.seed,
+                      seed: designRequestSeed(draft, activeProfile),
                       profileId: activeProfile?.id ?? null,
                     })
                   }
