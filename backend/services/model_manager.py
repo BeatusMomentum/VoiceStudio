@@ -2234,6 +2234,9 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
         endpoint = os.environ.get("HF_ENDPOINT")
     if endpoint:
         dl_kwargs["endpoint"] = endpoint
+    from services.hf_auth import token_for_endpoint
+    if token_for_endpoint(endpoint, None) is False:
+        dl_kwargs["token"] = False  # a mirror never receives the HF token
     if force:
         # Replace present-but-corrupt blobs that resume would trust by size.
         dl_kwargs["force_download"] = True
@@ -2297,6 +2300,10 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
                             dl_kwargs["endpoint"] = new_ep
                         else:
                             dl_kwargs.pop("endpoint", None)
+                        if token_for_endpoint(new_ep, None) is False:
+                            dl_kwargs["token"] = False
+                        else:
+                            dl_kwargs.pop("token", None)
                         logger.info(
                             "Auto-repair of %s: endpoint failover — retrying on %s",
                             checkpoint, new_ep or "https://huggingface.co",

@@ -102,6 +102,7 @@ metadata and the backend fallback mirror it.
 - License notice: commercial use is free under the AGPL; the paid licence is for closed-source use, with Pro plans linked (#2578)
 
 ### Fixed
+- Model downloads keep every file inside the model cache, mirrors never receive your Hugging Face token, mirror URLs must use HTTPS, and voice bundle imports and GGUF checksum checks are stricter
 - Elevated Windows app removal stops before deleting data and points to a normal PowerShell window or Settings (#2578)
 - Contributor audits inspect committed files and exclude submodules, while still stopping on failed file attribution (#2556)
 

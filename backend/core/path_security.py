@@ -82,6 +82,51 @@ def portable_filename(value: object, default: str = "file", max_bytes: int = 200
     return stem + ext
 
 
+def safe_relative_path(value: object) -> str:
+    """Validate a remote-supplied relative path such as a Hub ``rfilename``.
+
+    Accepts forward-slash separated names (``subdir/model.safetensors``) and
+    rejects anything that could name a location outside the directory it is
+    joined to on any desktop OS: absolute, drive or UNC paths, backslashes,
+    ``.``/``..`` and empty segments, ``:`` (drives, NTFS streams) and control
+    characters. Returns the value unchanged when it is safe.
+    """
+    if not isinstance(value, str) or not value:
+        raise UnsafePath("path is empty")
+    if (
+        "\\" in value
+        or ":" in value
+        or value.startswith("/")
+        or os.path.isabs(value)
+        or ntpath.isabs(value)
+        or ntpath.splitdrive(value)[0]
+        or re.search(r"[\x00-\x1f\x7f]", value)
+    ):
+        raise UnsafePath("path must be relative")
+    if any(part in {"", ".", ".."} for part in value.split("/")):
+        raise UnsafePath("path contains an unsafe component")
+    return value
+
+
+def contained_child(root: os.PathLike[str] | str, rel: object) -> Path:
+    """``root/rel`` for a remote-supplied ``rel``, proven to stay under ``root``.
+
+    The parent directories are resolved (following any symlinks already on
+    disk) and must remain inside the resolved root. The final component is not
+    followed, so an existing cache pointer that links to its blob elsewhere is
+    still recognised as living in this directory.
+    """
+    parts = safe_relative_path(rel).split("/")
+    root_path = Path(os.path.realpath(root))
+    parent = Path(os.path.realpath(root_path.joinpath(*parts[:-1])))
+    try:
+        if os.path.commonpath((str(root_path), str(parent))) != str(root_path):
+            raise UnsafePath("path escapes its allowed root")
+    except ValueError as exc:  # Windows paths on different drives
+        raise UnsafePath("path escapes its allowed root") from exc
+    return parent / parts[-1]
+
+
 def resolve_within(root: os.PathLike[str] | str, value: os.PathLike[str] | str) -> Path:
     """Resolve *value* beneath *root*, rejecting traversal and symlink escapes.
 
