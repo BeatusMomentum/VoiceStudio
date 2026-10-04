@@ -249,7 +249,7 @@ def test_gallery_upload_rejects_unusable_extensions(gallery_client):
         data={"name": "x"},
         files={"audio": ("clip.wav:stream", io.BytesIO(b"RIFF" + bytes(64)), "audio/wav")},
     )
-    assert response.status_code == 415
+    assert response.status_code == 400  # refused by the media-extension allowlist
     assert set(Path(gallery.VOICE_GALLERY_DIR).glob("*")) == before
 
 
