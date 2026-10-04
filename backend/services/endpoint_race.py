@@ -51,9 +51,10 @@ from dataclasses import asdict, dataclass
 from typing import Callable, Optional
 from urllib.parse import urlsplit
 
+from services.hf_auth import CANONICAL_ENDPOINT, host_gets_auth
+
 logger = logging.getLogger("omnivoice.endpoint_race")
 
-CANONICAL_ENDPOINT = "https://huggingface.co"
 COMMUNITY_MIRROR = "https://hf-mirror.com"
 
 # Hard env opt-out: any of these values disables auto selection entirely.

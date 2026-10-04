@@ -4034,7 +4034,8 @@ def get_diarization_pipeline(return_error: bool = False):
     resolved = token_resolver.resolve()
     # Access is checked during explicit installation. An already-installed
     # local bundle remains usable after a token expires or is removed.
-    hf_token = resolved.token if resolved else False
+    from services.hf_auth import token_for_endpoint
+    hf_token = token_for_endpoint(None, resolved.token) if resolved else False
     try:
         torch = _lazy_torch()
         _ensure_pyannote_hf_token_compat()  # #167: use_auth_token -> token
