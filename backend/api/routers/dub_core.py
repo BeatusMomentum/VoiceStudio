@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 import soundfile as sf
 import torch
 from typing import Optional
-from fastapi import Request
+from fastapi import Request, Depends
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
@@ -18,6 +18,8 @@ from core.db import db_conn
 from core.config import PREVIEW_DIR
 from core.tasks import task_manager
 from core.logging_utils import log_safe
+from core.media_types import MEDIA_EXTS, media_extension, unsupported_media_detail
+from core.url_safety import UnsafeURLError, check_public_url
 from core import event_bus
 from schemas.requests import CleanupSegmentsRequest, DubIngestUrlRequest, ParseSubtitleTextRequest
 from services.srt_parser import CUE_SOURCE_FIELDS, CUE_SOURCE_ID
@@ -42,6 +44,7 @@ from services.segmentation import (
 )
 from services.onset_align import snap_segment_starts
 from services import dub_pipeline
+from core.browser_guard import reject_cross_site_get
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
@@ -779,7 +782,13 @@ async def dub_upload(
             detail="Invalid job_id. Must be alphanumeric + hyphens/underscores only, ≤64 chars. Generate a fresh job_id or omit it to auto-create one.",
         )
     ext = os.path.splitext(video.filename or "video.mp4")[1]
-    if input_type == "audio" and ext.lower() not in _AUDIO_EXTS:
+    if input_type == "video" and media_extension(video.filename, MEDIA_EXTS, ".mp4") is None:
+        raise HTTPException(
+            status_code=400,
+            detail=unsupported_media_detail("video", MEDIA_EXTS, ext),
+        )
+    ext = ext.lower()
+    if input_type == "audio" and ext not in _AUDIO_EXTS:
         raise HTTPException(
             status_code=400,
             detail=f"Audio-only dubbing needs an audio file ({', '.join(sorted(_AUDIO_EXTS))}); got '{ext or 'no extension'}'.",
@@ -890,12 +899,10 @@ async def dub_ingest_url(req: DubIngestUrlRequest, request: Request):
     audio extract, Demucs, scene detect, thumbnail) happens in the background
     task and progress is streamed via /tasks/stream/{task_id}.
     """
-    url = (req.url or "").strip()
-    if not url or not (url.startswith("http://") or url.startswith("https://")):
-        raise HTTPException(
-            status_code=400,
-            detail="URL must start with http:// or https://. Paste a full video link (e.g. https://youtube.com/watch?v=…) or drop a local file instead.",
-        )
+    try:
+        url = await asyncio.to_thread(check_public_url, req.url or "")
+    except UnsafeURLError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     source_lang_override = _source_lang_override(req.source_lang)
 
     try:
@@ -1173,7 +1180,7 @@ def _recover_from_phrase_embeddings(
         return None
 
 
-@router.get("/dub/transcribe-stream/{job_id}")
+@router.get("/dub/transcribe-stream/{job_id}", dependencies=[Depends(reject_cross_site_get)])
 async def dub_transcribe_stream(
     job_id: str,
     num_speakers: Optional[int] = None,

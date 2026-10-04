@@ -20,6 +20,8 @@ from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
 from core.audio_validation import resolve_regular_file
 from core.file_cleanup import FileCleanupError, unlink_if_present
+from core.media_types import MEDIA_EXTS, media_extension, unsupported_media_detail
+from core.url_safety import UnsafeURLError, check_public_url
 from services.ffmpeg_utils import spawn_subprocess
 
 logger = logging.getLogger("omnivoice.gallery")
@@ -179,6 +181,7 @@ async def search_youtube(
             *ytdlp_argv,
             "--dump-json",
             "--remote-components", "ejs:github",
+            "--",
             f"ytsearch{max_results}:{query}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -228,13 +231,17 @@ async def download_youtube_clip(
     description: str = Query("", description="Optional description"),
 ):
     """Download a clip from YouTube for voice cloning."""
+    try:
+        video_url = await asyncio.to_thread(check_public_url, video_url)
+    except UnsafeURLError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     voice_id = str(uuid.uuid4())[:8]
     output_path = str(VOICE_GALLERY_DIR / f"{voice_id}.wav")
     temp_path = str(VOICE_GALLERY_DIR / f"{voice_id}.%(ext)s")
 
     try:
-        from services.media_tools import ytdlp_invocation
-        ytdlp_argv, ytdlp_env = ytdlp_invocation()
+        from services.media_tools import guarded_ytdlp_invocation
+        ytdlp_argv, ytdlp_env = guarded_ytdlp_invocation()
         cmd = [
             *ytdlp_argv,
             "--remote-components", "ejs:github",
@@ -249,6 +256,8 @@ async def download_youtube_clip(
             "0",
             "-o",
             temp_path,
+            # Positional input after "--" can never be parsed as an option.
+            "--",
             video_url,
         ]
 
@@ -302,9 +311,10 @@ async def download_youtube_clip(
         return {
             "success": True,
             "voice_id": voice_id,
-            "audio_path": output_path,
             "duration": duration,
         }
+    except HTTPException:
+        raise
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="yt-dlp not installed")
     except Exception as e:
@@ -321,8 +331,15 @@ async def upload_voice_clip(
     audio: UploadFile = File(...),
 ):
     """Upload a voice clip directly to the gallery."""
+    ext = media_extension(audio.filename, MEDIA_EXTS, ".wav")
+    if ext is None:
+        raise HTTPException(
+            status_code=400,
+            detail=unsupported_media_detail(
+                "audio", MEDIA_EXTS, os.path.splitext(audio.filename or "")[1]
+            ),
+        )
     voice_id = str(uuid.uuid4())[:8]
-    ext = os.path.splitext(audio.filename or ".wav")[1]
     audio_path = str(VOICE_GALLERY_DIR / f"{voice_id}{ext}")
 
     with open(audio_path, "wb") as f:
@@ -370,7 +387,6 @@ async def upload_voice_clip(
     return {
         "id": voice_id,
         "name": name,
-        "audio_path": audio_path,
         "duration": duration,
     }
 

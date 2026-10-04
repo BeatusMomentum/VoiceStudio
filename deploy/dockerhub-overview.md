@@ -178,6 +178,10 @@ adds there are root-owned).
 - The image ships with `OMNIVOICE_SERVER_MODE=1`, which relaxes the desktop-only
   loopback-origin gate so the admin UI works through Docker's NAT. Set it to `0`
   if you front the container with your own loopback auth proxy.
+- Without an API key, open VoiceStudio by `localhost` or an IP address; to use a
+  host name such as `http://nas.lan:3900`, add `-e OMNIVOICE_ALLOWED_HOSTS=nas.lan`.
+  URL imports refuse private-network addresses unless
+  `-e OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1` is set.
 - For LAN or internet-facing deployments, set a long random
   `OMNIVOICE_API_KEY` and pass the same key through the browser's login prompt.
   A six-digit share PIN is also available for casual LAN access, but it does

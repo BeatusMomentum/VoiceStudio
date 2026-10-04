@@ -362,12 +362,49 @@ validation removes only that trusted, configured prefix; it never accepts an
 arbitrary path merely because it ends in `/ws/events`, `/ws/transcribe` or
 `/ws/tts`.
 
+## Requests from other websites and host names
+
+Independently of every gate above, the backend refuses two kinds of browser
+traffic in **every** configuration, loopback included:
+
+- **Requests another website sends.** A state-changing request (`POST`, `PUT`,
+  `PATCH`, `DELETE`) or WebSocket handshake whose `Origin` is not allowed is
+  refused with `403` (WebSocket close `1008`), as is one whose
+  `Sec-Fetch-Site` is `cross-site` or `same-site` without an allowed `Origin`.
+  A few `GET` routes that start work (dub exports and transcription streams,
+  previews, setup checks) refuse cross-site `Sec-Fetch-Site` too; ordinary
+  navigation to the UI is unaffected. Allowed origins are this backend's own
+  origin, `app://voicestudio` and the `OMNIVOICE_ALLOWED_ORIGINS` list
+  (see [CORS](#browsers-from-another-origin-cors)). Clients that send no
+  `Origin` and no `Sec-Fetch-Site` — scripts, curl, SDKs, MCP clients, the
+  desktop app's own process — are not affected.
+- **Unrecognized host names.** A request that only network position
+  authorizes (loopback, a trusted network, or any client when no API key is set) must address
+  the backend by an IP address, `localhost` / `*.localhost`, this machine's
+  host name, a Tailscale MagicDNS name (`*.ts.net`), or a host named in
+  `OMNIVOICE_ALLOWED_ORIGINS`, `OMNIVOICE_MCP_ALLOWED_HOSTS`,
+  `OMNIVOICE_API_URL`, `OMNIVOICE_PUBLIC_API_BASE` or `OMNIVOICE_BIND_HOST`. This stops a web page from
+  re-pointing its own domain at `127.0.0.1` (DNS rebinding). Requests that
+  present the API key, an administrator session or the share PIN are not
+  host-checked, nor are the UI shell, its assets and the session exchange, so
+  a remote UI on any host name can still load and sign in. To reach the backend by another name without a credential —
+  a reverse proxy that keeps the original `Host`, or a Docker host opened as
+  `http://nas.lan:3900` — list it:
+
+```bash
+export OMNIVOICE_ALLOWED_HOSTS="nas.lan,.home.example"   # ".suffix" allows subdomains
+```
+
+`OMNIVOICE_ALLOWED_HOSTS=*` turns the host check off; use it only behind a
+proxy that validates `Host` itself. Browser extensions or other web apps that
+call the API directly need their origin in `OMNIVOICE_ALLOWED_ORIGINS`.
+
 ## Status codes
 
 | Code | Meaning | What to do |
 |---|---|---|
 | **401** | Consumption auth failed — `{"detail": "PIN required"}` or `{"detail": "API key required"}`. | Supply the PIN / key (header, cookie, or query param above). A WebSocket surfaces this as close code **1008**. |
-| **403** | Authorization failed: loopback/native access was required, cookie Origin/CSRF validation failed, a server-mode mutation lacked an admin credential, or a native path capability was invalid/expired. | A PIN cannot grant admin or filesystem access. Re-authenticate the UI; scripts should use the API-key header; run native operations from the desktop app. The admin gate names the key only when one can satisfy it: server mode with `OMNIVOICE_API_KEY` configured answers `{"detail": "loopback origin or admin API key required"}` (the bundled UI routes it to the API-key login form); PIN-only/no-key server mode and the desktop build answer `{"detail": "loopback origin required"}` (only loopback can satisfy the gate). |
+| **403** | Authorization failed: the request came from another website or used an unrecognized host name ([details](#requests-from-other-websites-and-host-names)), loopback/native access was required, cookie Origin/CSRF validation failed, a server-mode mutation lacked an admin credential, or a native path capability was invalid/expired. | A PIN cannot grant admin or filesystem access. Re-authenticate the UI; scripts should use the API-key header; run native operations from the desktop app. The admin gate names the key only when one can satisfy it: server mode with `OMNIVOICE_API_KEY` configured answers `{"detail": "loopback origin or admin API key required"}` (the bundled UI routes it to the API-key login form); PIN-only/no-key server mode and the desktop build answer `{"detail": "loopback origin required"}` (only loopback can satisfy the gate). |
 | **429** | A failed administrator-session exchange exceeded its per-client limit, the GPU pool is saturated, or a model download is rate-limited. Ships with `Retry-After`; workload throttles also carry `X-VoiceStudio-Retryable: true`. | Back off for `Retry-After` seconds. For authentication, verify the master before retrying; a correct master is never locked out. |
 
 ---

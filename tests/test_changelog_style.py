@@ -49,6 +49,9 @@ _REF_ALLOWLIST = (
     "Remote workers** sends individual jobs to GPUs",
     # owner-requested workspace promotion (engines + model store out of Settings), no issue
     "Model Catalogue** — a workspace of its own",
+    # owner-authored hardening committed without a public issue
+    "The local API refuses requests sent by other websites",
+    "URL imports accept only http(s) links",
 )
 
 _HEADING = re.compile(r"^## \[([^\]]+)\](?:\s*[—–-]\s*(.*))?$")

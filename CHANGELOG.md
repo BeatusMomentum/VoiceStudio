@@ -102,6 +102,8 @@ metadata and the backend fallback mirror it.
 - License notice: commercial use is free under the AGPL; the paid licence is for closed-source use, with Pro plans linked (#2578)
 
 ### Fixed
+- The local API refuses requests sent by other websites or addressed by unrecognized host names; set `OMNIVOICE_ALLOWED_HOSTS` to reach VoiceStudio by a custom host name without an API key
+- URL imports accept only http(s) links and refuse private-network addresses unless `OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1` is set; voice-gallery and dubbing uploads accept media files only
 - Elevated Windows app removal stops before deleting data and points to a normal PowerShell window or Settings (#2578)
 - Contributor audits inspect committed files and exclude submodules, while still stopping on failed file attribution (#2556)
 

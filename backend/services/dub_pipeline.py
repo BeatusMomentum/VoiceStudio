@@ -1003,6 +1003,15 @@ def yt_download_sync(
     """
     import glob
     import yt_dlp
+    from core.url_safety import (
+        check_public_url,
+        guard_outbound_connections,
+        ytdlp_url_guard_postprocessor,
+    )
+
+    # Every URL-import entry point validates first; re-check here so no caller
+    # can reach yt-dlp with an option-like or private-network "URL".
+    url = check_public_url(url)
     outtmpl = os.path.join(job_dir, "original.%(ext)s")
     # #1225: yt-dlp surfaces an OS write rejection as a bare
     # "Unable to download video: [Errno 22] Invalid argument" — no path, no
@@ -1084,7 +1093,8 @@ def yt_download_sync(
     client_idx = 0
     while True:
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with guard_outbound_connections(), yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.add_post_processor(ytdlp_url_guard_postprocessor(), when="before_dl")
                 info = ydl.extract_info(url, download=True)
                 path = ydl.prepare_filename(info)
             break
@@ -1157,7 +1167,7 @@ def yt_download_sync(
                 "sleep_interval_subtitles": 1,
             }
             try:
-                with yt_dlp.YoutubeDL(sub_opts) as ydl_sub:
+                with guard_outbound_connections(), yt_dlp.YoutubeDL(sub_opts) as ydl_sub:
                     ydl_sub.extract_info(url, download=True)
             except Exception as e:
                 logger.warning(
