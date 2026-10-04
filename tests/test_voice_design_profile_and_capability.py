@@ -112,11 +112,12 @@ def test_catalogue_reports_voice_design_support():
         assert entry["supports_voice_design"] in (True, False, None), bid
 
 
-def _engine(design, engine_id):
+def _engine(design, engine_id, *, cloning=True):
     class _Fake(_tts().TTSBackend):
         id = engine_id
         display_name = "Reference-only engine (test)"
         supports_voice_design = design
+        supports_cloning = cloning
         applies_own_mastering = False
         gpu_compat = ("cpu",)
         calls: list = []
@@ -215,6 +216,35 @@ def test_plain_tts_and_cloning_a_design_sample_stay_allowed(client, monkeypatch,
     res = client.post("/generate", data={"text": "Hello", "engine": fake.id, "profile_id": pid})
     assert res.status_code == 200, res.text
     assert fake.calls[-1].get("ref_audio")
+
+
+@pytest.mark.parametrize("design", [False, None])
+def test_a_saved_sample_is_refused_on_an_engine_that_cannot_clone(
+    client, monkeypatch, profiles, design
+):
+    # KittenTTS / Supertonic-3 ignore ref_audio: re-rendering a saved voice
+    # there would silently speak with a preset voice instead.
+    fake = _engine(design, f"fake-preset-only-{design}", cloning=False)
+    monkeypatch.setitem(_tts()._REGISTRY, fake.id, fake)
+    for kind in ("design", "clone"):
+        pid = profiles(kind, sample=True)
+        res = client.post("/generate", data={"text": "Hello", "engine": fake.id, "profile_id": pid})
+        assert res.status_code == 422, (kind, res.text)
+        assert "can't use reference audio" in res.json()["detail"]
+    upload = client.post(
+        "/generate", data={"text": "Hello", "engine": fake.id},
+        files={"ref_audio": ("ref.wav", b"RIFF0000WAVE", "audio/wav")},
+    )
+    assert upload.status_code == 422, upload.text
+    assert fake.calls == []
+    assert client.post("/generate", data={"text": "Hello", "engine": fake.id}).status_code == 200
+
+
+def test_preset_only_engines_declare_they_cannot_clone():
+    entries = {e["id"]: e for e in _tts().list_backends(include_hidden=True)}
+    for bid in ("kittentts", "supertonic3", "sherpa-onnx"):
+        if bid in entries:
+            assert entries[bid]["supports_cloning"] is False, bid
 
 
 def test_undeclared_engines_may_still_design(client, monkeypatch):

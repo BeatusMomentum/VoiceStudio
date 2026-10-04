@@ -516,10 +516,10 @@ export function DesignPage() {
                 <EngineNotice operation="design" compact />
               </div>
             )}
-            {designBlocker === 'design' && !generation.isGenerating && (
+            {(designBlocker === 'design' || designBlocker === 'cloning') && !generation.isGenerating && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
                 <p role="status">
-                  {t('designWorkspace.engine_cannot_design', {
+                  {t(designBlocker === 'cloning' ? 'designWorkspace.engine_cannot_reuse_sample' : 'designWorkspace.engine_cannot_design', {
                     engine: activeEngine?.display_name ?? '',
                   })}
                 </p>

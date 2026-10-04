@@ -62,7 +62,12 @@ export interface DesignGenerateInput {
   recipe?: DesignRecipe;
 }
 
-type DesignBlocker = 'engine' | 'loading' | 'design' | null;
+/**
+ * `design`: the engine can't design and there is no saved sample to clone.
+ * `cloning`: a saved sample would be re-rendered, but the engine ignores
+ * reference audio, so it would speak with a preset voice instead.
+ */
+type DesignBlocker = 'engine' | 'loading' | 'design' | 'cloning' | null;
 
 /**
  * True when re-rendering this linked design profile clones its saved sample
@@ -93,7 +98,10 @@ export interface UseGenerateClone {
   canGenerateDesign: boolean;
   /** `design`: the active engine needs a reference clip, so it can't design. */
   designBlocker: DesignBlocker;
-  /** The blocker for re-rendering `profile`: cloning its saved sample isn't design. */
+  /**
+   * The blocker for re-rendering `profile`: cloning its saved sample isn't
+   * design, but it does need an engine that reads reference audio.
+   */
   designBlockerFor(profile: Profile | null | undefined): DesignBlocker;
   cloneBlocker: CloneBlocker;
   /** How the active engine reads `instruct`: OmniVoice tags or as written (#2389). */
@@ -151,10 +159,14 @@ function useGenerateController(): UseGenerateClone {
   // engine (and /generate refuses it); say so before anything starts.
   const designBlocker: DesignBlocker =
     activeTts?.supports_voice_design === false ? 'design' : ttsBlocker;
+  const cannotClone = activeTts?.supports_cloning === false;
   const designBlockerFor = useCallback(
-    (profile: Profile | null | undefined): DesignBlocker =>
-      clonesSavedSample(profile) ? ttsBlocker : designBlocker,
-    [designBlocker, ttsBlocker],
+    (profile: Profile | null | undefined): DesignBlocker => {
+      if (!clonesSavedSample(profile)) return designBlocker;
+      // /generate refuses a saved sample on an engine that ignores it.
+      return ttsBlocker ?? (cannotClone ? 'cloning' : null);
+    },
+    [cannotClone, designBlocker, ttsBlocker],
   );
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);

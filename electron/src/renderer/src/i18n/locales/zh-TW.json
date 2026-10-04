@@ -617,7 +617,8 @@
   "designWorkspace": {
     "title": "設計聲音",
     "save_failed": "儲存語音設定檔失敗",
-    "engine_cannot_design": "{{engine}} 需要參考音訊片段，無法設計聲音。請切換到支援聲音設計的引擎（例如 OmniVoice），或改為複製聲音。"
+    "engine_cannot_design": "{{engine}} 需要參考音訊片段，無法設計聲音。請切換到支援聲音設計的引擎（例如 OmniVoice），或改為複製聲音。",
+    "engine_cannot_reuse_sample": "{{engine}} 無法使用參考音訊，因此不能用樣本重新產生這個已儲存的聲音。請切換到支援聲音複製的引擎（例如 OmniVoice）。"
   },
   "dub": {
     "timing_label": "時間匹配",

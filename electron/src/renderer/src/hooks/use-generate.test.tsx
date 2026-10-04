@@ -28,10 +28,15 @@ vi.mock('./use-tts-readiness', () => ({ useTtsReadiness: () => null }));
 const engine = vi.hoisted(() => ({
   vocabulary: undefined as 'tags' | 'freeform' | undefined,
   design: undefined as boolean | null | undefined,
+  cloning: undefined as boolean | null | undefined,
 }));
 vi.mock('./use-engines', () => ({
   useEngines: () => ({
-    activeTts: { instruct_vocabulary: engine.vocabulary, supports_voice_design: engine.design },
+    activeTts: {
+      instruct_vocabulary: engine.vocabulary,
+      supports_voice_design: engine.design,
+      supports_cloning: engine.cloning,
+    },
   }),
 }));
 vi.mock('@/lib/api/generate', () => ({
@@ -330,13 +335,20 @@ it.each([
 );
 
 it.each([
-  ['a saved design voice with a sample', { ref_audio_path: 'design.wav' }, 'none', true],
-  ['a locked design voice', { is_locked: 1, locked_audio_path: 'locked.wav' }, 'none', true],
-  ['a saved design voice without a sample', {}, 'design', false],
+  ['a saved design voice with a sample', { ref_audio_path: 'design.wav' }, false, true, 'none', true],
+  ['a locked design voice', { is_locked: 1, locked_audio_path: 'locked.wav' }, false, true, 'none', true],
+  ['a saved design voice without a sample', {}, false, true, 'design', false],
+  // KittenTTS / Supertonic-3 ignore reference audio: the saved voice would
+  // silently become a preset one, so the re-render stays blocked.
+  ['a saved sample on a preset-only engine', { ref_audio_path: 'design.wav' }, false, false, 'cloning', false],
+  ['a saved sample on an undeclared preset-only engine', { ref_audio_path: 'design.wav' }, null, false, 'cloning', false],
+  ['a locked take on a preset-only engine', { is_locked: 1, locked_audio_path: 'locked.wav' }, false, false, 'cloning', false],
+  ['a sampleless design on a preset-only engine', {}, false, false, 'design', false],
 ] as const)(
-  'lets a reference-only engine re-render %s only by cloning its sample',
-  async (_label, sample, expectedBlocker, sends) => {
-    engine.design = false;
+  're-renders %s only when the engine can clone its sample',
+  async (_label, sample, design, cloning, expectedBlocker, sends) => {
+    engine.design = design;
+    engine.cloning = cloning;
     vi.mocked(generateClone).mockReset().mockRejectedValue(new Error('stop'));
     const profile = {
       id: 'voice-design',
@@ -377,5 +389,6 @@ it.each([
       expect(generateClone).not.toHaveBeenCalled();
     }
     engine.design = undefined;
+    engine.cloning = undefined;
   },
 );

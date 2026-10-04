@@ -617,7 +617,8 @@
   "designWorkspace": {
     "title": "Ontwerpen",
     "save_failed": "Kan stemprofiel niet opslaan",
-    "engine_cannot_design": "{{engine}} kan geen stemmen ontwerpen, omdat het een referentieclip nodig heeft. Kies een engine die stemontwerp ondersteunt, zoals OmniVoice, of kloon in plaats daarvan een stem."
+    "engine_cannot_design": "{{engine}} kan geen stemmen ontwerpen, omdat het een referentieclip nodig heeft. Kies een engine die stemontwerp ondersteunt, zoals OmniVoice, of kloon in plaats daarvan een stem.",
+    "engine_cannot_reuse_sample": "{{engine}} kan geen referentieaudio gebruiken en deze opgeslagen stem dus niet opnieuw maken uit het voorbeeld. Kies een engine die stemklonen ondersteunt, zoals OmniVoice."
   },
   "dub": {
     "timing_label": "Timing",

@@ -327,26 +327,36 @@ def _design_request_diverges(row, *, instruct=None, seed=None):
     return row["seed"] is None or int(seed) != int(row["seed"])
 
 
-def _design_refusal(backend_cls, *, profile_id=None, has_ref_audio=False,
-                    instruct=None, seed=None, design_recipe=None):
-    """Why this request can't run, when it designs a voice on an engine that
-    declares it can't (``supports_voice_design = False``), else None.
+def _conditioning_refusal(backend_cls, *, profile_id=None, has_ref_audio=False,
+                          instruct=None, seed=None, design_recipe=None):
+    """Why this request can't run on ``backend_cls``, else None.
 
-    A design request has no reference clip to clone and either describes a
-    voice (an instruct or a Voice Design recipe) or names a design profile.
-    Cloning a design profile's saved sample is still cloning, and plain
-    preset-voice TTS (no reference, no description) is not design, so both
-    stay allowed. Refusing here, before any model load, turns a failure deep
-    inside the engine into an actionable 422.
+    Two conditioning mismatches would otherwise fail deep inside the engine
+    or, worse, render the wrong voice without a word:
+
+    * designing on an engine that declares it can't
+      (``supports_voice_design = False``): a request with no reference clip
+      that describes a voice (an instruct or a Voice Design recipe) or names
+      a design profile without a saved sample;
+    * a reference clip on an engine that declares it can't clone
+      (``supports_cloning = False``): an uploaded clip, or a profile whose
+      conditioning resolves to its saved sample. Such engines ignore
+      ``ref_audio``, so re-rendering a saved voice there would silently use
+      a preset voice instead.
+
+    Plain preset-voice TTS (no reference, no description) stays allowed, and
+    a model-dependent ``supports_cloning`` property is judged by the loaded
+    model later, not here. Refusing before any model load turns both into an
+    actionable 422.
     """
     from services.tts_backend import voice_design_support
 
-    if voice_design_support(backend_cls) is not False or has_ref_audio:
-        return None
     designing = bool(
         (instruct and str(instruct).strip())
         or (design_recipe and str(design_recipe).strip())
     )
+    # /generate ignores an upload when a profile is named.
+    reference = has_ref_audio and not profile_id
     if profile_id:
         with db_conn() as conn:
             row = conn.execute(
@@ -354,12 +364,20 @@ def _design_refusal(backend_cls, *, profile_id=None, has_ref_audio=False,
             ).fetchone()
         if row is not None:
             cond = _resolve_profile_conditioning(row, instruct=instruct, seed=seed)
-            if cond["ref_audio_path"]:
-                return None
+            reference = bool(cond["ref_audio_path"])
             designing = designing or cond["kind"] == "design"
-    if not designing:
-        return None
     name = getattr(backend_cls, "display_name", None) or getattr(backend_cls, "id", "This engine")
+    if reference:
+        if getattr(backend_cls, "supports_cloning", True) is False:
+            return (
+                f"{name} can't use reference audio: it only speaks with its own "
+                "preset voices, so it can't render this voice from its sample. "
+                "Choose an engine that supports voice cloning (for example "
+                "OmniVoice)."
+            )
+        return None
+    if not designing or voice_design_support(backend_cls) is not False:
+        return None
     return (
         f"{name} can't design a voice from a description: it needs a reference "
         "clip for the timbre. Choose an engine that supports Voice Design "
@@ -1863,13 +1881,14 @@ async def generate_speech(
         )
 
     # A design request on an engine that needs a reference clip would only
-    # fail inside the engine, after a model load. Say so before any work.
-    _design_refused = _design_refusal(
+    # fail inside the engine, after a model load, and a reference on an
+    # engine that can't clone would be silently dropped. Say so before any work.
+    _refused = _conditioning_refusal(
         backend_cls, profile_id=profile_id, has_ref_audio=ref_audio is not None,
         instruct=instruct, seed=seed, design_recipe=design_recipe,
     )
-    if _design_refused:
-        raise HTTPException(status_code=422, detail=_design_refused)
+    if _refused:
+        raise HTTPException(status_code=422, detail=_refused)
 
     # Crash forensics (#1164): a generate is exactly the kind of work an OOM
     # kill lands on — record it (engine id only, never the text) so an

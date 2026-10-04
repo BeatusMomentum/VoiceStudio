@@ -107,6 +107,7 @@ it('cancels during setup and rejects a concurrent request before launching a pro
   );
   await setup();
   const first = start();
+  await vi.waitFor(() => expect(mock.bridge).toHaveBeenCalled());
   await expect(start()).rejects.toThrow('already running');
   const stopped = mock.handlers.get(REPAIR_CHANNELS.stop)!(event);
   expect(stopped.status).toBe('stopped');
@@ -169,4 +170,83 @@ it('scans CLIs asynchronously and reuses the scan until the TTL or an explicit r
   } finally {
     vi.useRealTimers();
   }
+});
+
+/** Holds the next CLI lookup, so a launch stays suspended inside locate(). */
+function holdLocate(): () => void {
+  let answer: (() => void) | undefined;
+  const answered = mock.execFile.getMockImplementation()!;
+  mock.execFile.mockImplementationOnce(
+    (file: string, args: string[], options: unknown, callback: ProbeCallback) => {
+      answer = () => answered(file, args, options, callback);
+      return { stdin: { end: vi.fn() } };
+    },
+  );
+  return () => answer!();
+}
+const translation = {
+  agent: 'codex',
+  purpose: 'translate',
+  targetLanguage: 'fr',
+  segments: [{ id: 'a', sourceText: 'Hello', start: 0, end: 1 }],
+};
+const translate = () => mock.handlers.get(REPAIR_CHANNELS.translate)!(event, translation);
+
+it('stopping while the repair CLI is located prevents the spawn', async () => {
+  await setup();
+  const release = holdLocate();
+  const first = start();
+  await vi.waitFor(() => expect(mock.execFile).toHaveBeenCalledTimes(5));
+  // Pending before the await: a concurrent run is refused, a stop is honoured.
+  await expect(start()).rejects.toThrow('already running');
+  expect(mock.handlers.get(REPAIR_CHANNELS.stop)!(event).status).toBe('stopped');
+  release();
+  const { sessionId } = await first;
+  expect(mock.bridge).not.toHaveBeenCalled();
+  expect(mock.spawn).not.toHaveBeenCalled();
+  expect(mock.handlers.get(REPAIR_CHANNELS.state)!(event)).toMatchObject({
+    sessionId,
+    status: 'stopped',
+  });
+});
+
+it('stopping while the translation CLI is located prevents the spawn', async () => {
+  await setup();
+  const release = holdLocate();
+  const pending = translate();
+  await vi.waitFor(() => expect(mock.execFile).toHaveBeenCalledTimes(5));
+  await expect(start()).rejects.toThrow('already running');
+  mock.handlers.get(REPAIR_CHANNELS.stopTranslation)!(event);
+  release();
+  await expect(pending).rejects.toThrow('Agent translation was stopped');
+  expect(mock.spawn).not.toHaveBeenCalled();
+  // The cancelled launch is no longer pending, and a stale stop cancels nothing new.
+  const again = holdLocate();
+  const next = translate();
+  await vi.waitFor(() => expect(mock.execFile).toHaveBeenCalledTimes(6));
+  mock.handlers.get(REPAIR_CHANNELS.stopTranslation)!(event);
+  again();
+  await expect(next).rejects.toThrow('Agent translation was stopped');
+  expect(mock.spawn).not.toHaveBeenCalled();
+});
+
+it('disposing while a CLI is located prevents both launches from spawning', async () => {
+  await setup();
+  let release = holdLocate();
+  const repair = start();
+  await vi.waitFor(() => expect(mock.execFile).toHaveBeenCalledTimes(5));
+  dispose!();
+  release();
+  await repair;
+
+  await setup();
+  release = holdLocate();
+  const pending = translate();
+  await vi.waitFor(() => expect(mock.execFile).toHaveBeenCalledTimes(10));
+  dispose!();
+  dispose = undefined;
+  release();
+  await expect(pending).rejects.toThrow('Agent translation was stopped');
+  expect(mock.bridge).not.toHaveBeenCalled();
+  expect(mock.spawn).not.toHaveBeenCalled();
 });

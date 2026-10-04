@@ -630,7 +630,8 @@
   "designWorkspace": {
     "title": "设计",
     "save_failed": "保存语音配置文件失败",
-    "engine_cannot_design": "{{engine}} 需要参考音频片段，无法设计声音。请切换到支持声音设计的引擎（例如 OmniVoice），或改为克隆声音。"
+    "engine_cannot_design": "{{engine}} 需要参考音频片段，无法设计声音。请切换到支持声音设计的引擎（例如 OmniVoice），或改为克隆声音。",
+    "engine_cannot_reuse_sample": "{{engine}} 无法使用参考音频，因此不能用样本重新生成这个已保存的声音。请切换到支持声音克隆的引擎（例如 OmniVoice）。"
   },
   "dub": {
     "timing_label": "时间匹配",

@@ -713,6 +713,9 @@ export async function registerRepairAgents(
   let child: ChildProcessWithoutNullStreams | null = null;
   let preparing = false;
   let translationChild: ChildProcessWithoutNullStreams | null = null;
+  // A translation locating its CLI: busy like a running one, and cancellable
+  // by stopTranslation or disposal before anything is spawned.
+  let translationLaunch: { cancelled: boolean } | null = null;
   let translationTemp: string | null = null;
   let promptFile: string | null = null;
   let apiBridge: RepairApiBridge | null = null;
@@ -781,9 +784,10 @@ export async function registerRepairAgents(
     state = { ...state, workspaceAvailable: true, workspacePath: selected };
     return state;
   });
+  const busy = () => Boolean(child || translationChild || preparing || translationLaunch);
   ipcMain.handle(REPAIR_CHANNELS.start, async (event, request: RepairAgentRunRequest) => {
     trusted(event, getMainWindow());
-    if (child || translationChild || preparing) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
+    if (busy()) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
     if (workspaceRoot && !isVoiceStudioCheckout(workspaceRoot)) {
       workspaceRoot = null;
       state = { ...state, workspaceAvailable: false, workspacePath: undefined };
@@ -799,13 +803,12 @@ export async function registerRepairAgents(
     const sourceRoot = appOperationOnly ? null : workspaceRoot;
     if (!sourceRoot && !appOperationOnly)
       throw new Error('A writable VoiceStudio source checkout is required');
-    const command = commands.get(request.agent) ?? (await locate(request.agent));
-    if (!command) throw new Error('That repair agent is not installed');
-    // Locating may have awaited; a run started meanwhile still wins.
-    if (child || translationChild || preparing) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
 
+    // The session is pending from here, before any await: a stop or disposal
+    // while the CLI is still being located must prevent the spawn.
     const sessionId = randomUUID();
     preparing = true;
+    const cancelled = () => state.sessionId !== sessionId || state.status === 'stopped';
     state = {
       ...state,
       sessionId,
@@ -821,6 +824,9 @@ export async function registerRepairAgents(
       emit({ sessionId, type: 'output', text });
     };
     try {
+      const command = commands.get(request.agent) ?? (await locate(request.agent));
+      if (cancelled()) return { sessionId };
+      if (!command) throw new Error('That repair agent is not installed');
       apiBridge = await startRepairApiBridge(
         () => supervisor.baseUrl,
         () => supervisor.requestHeaders(),
@@ -838,7 +844,7 @@ export async function registerRepairAgents(
         await diagnosticContext(supervisor, recentMainErrors),
         Boolean(sourceRoot),
       );
-      if (state.status === 'stopped') {
+      if (cancelled()) {
         closeRepairBridge(apiBridge);
         apiBridge = null;
         return { sessionId };
@@ -929,11 +935,20 @@ export async function registerRepairAgents(
     timeoutMs = 10 * 60 * 1_000,
   ): Promise<DubAgentTranslationResult> => {
     validateDubTranslationRequest(request);
-    if (child || translationChild || preparing) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
+    if (busy()) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
     const definition = DEFINITIONS.find((item) => item.id === request.agent)!;
-    const command = commands.get(request.agent) ?? (await locate(definition.command));
+    // Pending before the await, so a concurrent run is refused and a stop or
+    // disposal while the CLI is located prevents the spawn.
+    const launch = { cancelled: false };
+    translationLaunch = launch;
+    let command: LaunchCommand | null;
+    try {
+      command = commands.get(request.agent) ?? (await locate(definition.command));
+    } finally {
+      if (translationLaunch === launch) translationLaunch = null;
+    }
+    if (launch.cancelled) throw new Error('Agent translation was stopped');
     if (!command) throw new Error('That agent is not installed');
-    if (child || translationChild || preparing) throw Object.assign(new Error('An agent is already running'), { name: 'AgentRateLimitError' });
 
     const prompt = promptOverride ?? dubTranslationPrompt(request);
     const sessionId = randomUUID();
@@ -1078,12 +1093,14 @@ export async function registerRepairAgents(
   );
   ipcMain.handle(REPAIR_CHANNELS.stopTranslation, (event) => {
     trusted(event, getMainWindow());
+    if (translationLaunch) translationLaunch.cancelled = true;
     if (!translationChild) return;
     terminateAgentProcess(translationChild);
   });
 
   return () => {
     if (preparing) state = { ...state, status: 'stopped' };
+    if (translationLaunch) translationLaunch.cancelled = true;
     llmBridge.close();
     delete process.env.VOICESTUDIO_LLM_AGENT_URL;
     delete process.env.VOICESTUDIO_LLM_AGENT_TOKEN;
