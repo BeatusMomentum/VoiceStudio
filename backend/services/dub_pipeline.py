@@ -1024,6 +1024,7 @@ def yt_download_sync(
     from core.url_safety import (
         check_public_url,
         guard_outbound_connections,
+        harden_ytdlp_options,
         ytdlp_url_guard_postprocessor,
     )
 
@@ -1118,7 +1119,9 @@ def yt_download_sync(
     client_idx = 0
     while True:
         try:
-            with guard_outbound_connections(), yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Native downloaders only and no live streams: everything must
+            # connect through the guard above, never through ffmpeg.
+            with guard_outbound_connections(), yt_dlp.YoutubeDL(harden_ytdlp_options(ydl_opts)) as ydl:
                 ydl.add_post_processor(ytdlp_url_guard_postprocessor(), when="before_dl")
                 info = ydl.extract_info(url, download=True)
                 path = ydl.prepare_filename(info)
@@ -1192,7 +1195,9 @@ def yt_download_sync(
                 "sleep_interval_subtitles": 1,
             }
             try:
-                with guard_outbound_connections(), yt_dlp.YoutubeDL(sub_opts) as ydl_sub:
+                with guard_outbound_connections(), yt_dlp.YoutubeDL(
+                    harden_ytdlp_options(sub_opts, media=False)
+                ) as ydl_sub:
                     ydl_sub.extract_info(url, download=True)
             except Exception as e:
                 logger.warning(
