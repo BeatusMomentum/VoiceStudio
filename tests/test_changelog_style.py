@@ -49,6 +49,10 @@ _REF_ALLOWLIST = (
     "Remote workers** sends individual jobs to GPUs",
     # owner-requested workspace promotion (engines + model store out of Settings), no issue
     "Model Catalogue** — a workspace of its own",
+    # owner-authored hardening from private reports, no public issue
+    "Remote workers open only the files a task sends as inputs",
+    "Remote worker registration signs a fresh single-use challenge",
+    "The desktop app attaches only to a local backend that identifies itself",
 )
 
 _HEADING = re.compile(r"^## \[([^\]]+)\](?:\s*[—–-]\s*(.*))?$")
