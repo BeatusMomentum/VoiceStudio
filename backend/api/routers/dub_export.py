@@ -34,7 +34,7 @@ from services.video_retime import (
     prepare_smart_fit_video,
 )
 
-from api.routers.dub_core import _get_job
+from api.routers.dub_core import _get_job, _safe_lang_or_400
 from schemas.requests import ProsodyMirrorRequest
 from core.browser_guard import reject_cross_site_get
 
@@ -71,8 +71,6 @@ def _unique_stamp() -> str:
     """Return a short unique suffix like '20260415T142301-ab12cd34' for export files."""
     return f"{time.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
 
-
-_SAFE_LANG = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 
 #: Seconds of silence on a `/tasks/stream` before a keepalive comment goes out.
 #: A task that is busy but quiet — ffmpeg on a long video, a slow TTS segment,
@@ -200,12 +198,6 @@ def _optional_dub_artifact(value: object, job_id: str) -> str | None:
         raise HTTPException(status_code=400, detail="Invalid job artifact path") from exc
     path = _discover_job_artifact(resolved, job_id)
     return str(path) if path is not None else None
-
-
-def _safe_lang_or_400(lang: str | None) -> str | None:
-    if lang is not None and not _SAFE_LANG.fullmatch(lang):
-        raise HTTPException(status_code=400, detail="Invalid language code")
-    return lang
 
 
 def _consume_native_save(authorization: str) -> str | None:

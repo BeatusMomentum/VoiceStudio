@@ -1,4 +1,5 @@
 import os
+import re
 import errno
 import uuid
 import asyncio
@@ -130,6 +131,17 @@ _unregister_proc   = dub_pipeline.unregister_proc
 _kill_job_procs    = dub_pipeline.kill_job_procs
 _get_job           = dub_pipeline.get_job
 _save_job          = dub_pipeline.save_job
+
+# Language codes name per-track files (``dubbed_{lang}.wav``,
+# ``seg_{lang}_{id}.wav``) and export filenames, so every route that accepts
+# one must pass it through this check before it reaches a path.
+_SAFE_LANG = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def _safe_lang_or_400(lang: str | None) -> str | None:
+    if lang is not None and not _SAFE_LANG.fullmatch(lang):
+        raise HTTPException(status_code=400, detail="Invalid language code")
+    return lang
 
 # Pasted subtitle text is a transcript, not a media file: a feature-length
 # film's .srt is ~150 KB. 2 MB of characters is ~13x the worst realistic case

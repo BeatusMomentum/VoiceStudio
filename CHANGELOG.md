@@ -146,6 +146,12 @@ metadata and the backend fallback mirror it.
 - The local API refuses requests sent by other websites or addressed by unrecognized host names; set `OMNIVOICE_ALLOWED_HOSTS` to reach VoiceStudio by a custom host name without an API key
 - URL imports accept only http(s) links and refuse private-network addresses unless `OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1` is set; voice-gallery and dubbing uploads accept media files only
 - Model downloads keep every file inside the model cache, mirrors never receive your Hugging Face token, mirror URLs must use HTTPS, and voice bundle imports and GGUF checksum checks are stricter
+- Remote workers open only the files a task sends as inputs, never a path named in its parameters
+- Remote worker registration signs a fresh single-use challenge from the app, so a recorded registration cannot be reused
+- The desktop app attaches only to a local backend that identifies itself as VoiceStudio, not to any service on its port
+- Dubbing and batch jobs accept only plain language codes when naming their output files
+- Saved voice, gallery and call-recording files are read only from inside their data folders, and uploads need a plain file extension
+- Engine install folders can no longer be set to a typed path over the HTTP API; they can still be cleared
 - Elevated Windows app removal stops before deleting data and points to a normal PowerShell window or Settings (#2578)
 - Contributor audits inspect committed files and exclude submodules, while still stopping on failed file attribution (#2556)
 

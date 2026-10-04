@@ -305,7 +305,10 @@ custom FFmpeg/FFprobe binaries, writes a private one-shot capability, and only
 that opaque authorization reaches the backend. `/export` therefore accepts an `authorization` token, never a
 `destination_path`; revealing an arbitrary exported path runs in the native
 process, while the HTTP fallback is limited to the server-owned data root.
-`/system/set-env` does not accept executable-path keys at all. Server mode and
+`/system/set-env` does not accept executable-path keys at all, and sidecar
+engine folders (`OMNIVOICE_*_DIR`, whose interpreter the backend runs) accept a
+new value only as a desktop `authorization` token; over HTTP they can only be
+cleared. Server mode and
 an API key do not weaken that native boundary.
 
 This is the fix for a real escalation (#1213): before it, server mode made the
