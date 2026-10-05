@@ -34,23 +34,33 @@ def test_a_raised_asr_budget_is_followed(post_timeout, monkeypatch):
 
 
 def test_generation_covers_the_queue_and_the_length_scaled_budget(post_timeout):
-    assert post_timeout("generate", "short") == QUEUE + 600.0 + GRACE
-    assert post_timeout("generate", "x" * 1600) == QUEUE + 610.0 + GRACE
+    # With the default CPU budget the backend grants up to the automatic ceiling
+    # for text whose normalized length the tool cannot see (#2609), so the tool
+    # waits for that ceiling whatever the typed length.
+    from core.generate_budget import CPU_AUTO_CAP_S
+
+    assert post_timeout("generate", "short") == QUEUE + CPU_AUTO_CAP_S + GRACE
+    assert post_timeout("generate", "x" * 1600) == QUEUE + CPU_AUTO_CAP_S + GRACE
 
 
 def test_the_larger_cpu_generation_budget_wins(post_timeout, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_CPU_GENERATE_TIMEOUT_S", "900")
     assert post_timeout("generate", "short") == QUEUE + 900.0 + GRACE
+    # An explicit CPU budget is authoritative and uncapped: no ceiling applies.
+    assert post_timeout("generate", "x" * 1600) == QUEUE + 900.0 + (1600 * 16 - 1200) / 40.0 + GRACE
 
 
 def test_a_raised_gpu_generation_budget_wins_when_larger(post_timeout, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_GENERATE_TIMEOUT_S", "1200")
+    monkeypatch.setenv("OMNIVOICE_CPU_GENERATE_TIMEOUT_S", "600")
     assert post_timeout("generate", "short") == QUEUE + 1200.0 + GRACE
 
 
 def test_a_shorter_queue_budget_is_followed(post_timeout, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_GPU_QUEUE_TIMEOUT_S", "60")
-    assert post_timeout("generate", "short") == 60.0 + 600.0 + GRACE
+    from core.generate_budget import CPU_AUTO_CAP_S
+
+    assert post_timeout("generate", "short") == 60.0 + CPU_AUTO_CAP_S + GRACE
 
 
 def test_an_explicit_mcp_timeout_still_wins(post_timeout, monkeypatch):

@@ -1794,11 +1794,14 @@ def _apply_routing_headers(headers, engine_notice, decision):
 
 
 @router.get("/generate/budget")
-def generate_budget():
-    """Active generate budgets, so the UI's backstop follows operator overrides."""
+def generate_budget(engine: Optional[str] = None):
+    """Active generate budgets, so the UI's backstop follows operator overrides.
+
+    ``engine`` (default: the active engine) selects the local route the
+    CPU-ceiling hint is reported for."""
     from services.model_manager import generate_budget_s
 
-    return generate_budget_s()
+    return generate_budget_s(engine)
 
 
 @router.post("/generate")
@@ -2724,7 +2727,10 @@ async def generate_speech(
                 # is compute time, not queue pressure (#1588).
                 logger.error("Streaming generation exceeded its compute budget")
                 from core.public_errors import stream_failure
-                failure = stream_failure("generation_timeout")
+                failure = stream_failure(
+                    "generation_timeout",
+                    device=_routing.get("effective_device"),
+                )
                 failure["retry_after"] = 30
                 yield _line({"type": "error", **failure})
             except ValueError as e:

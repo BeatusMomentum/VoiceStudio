@@ -149,9 +149,23 @@ laptop stay quiet.
 
 | Host | Base budget |
 | --- | --- |
-| Renders on the CPU | `OMNIVOICE_CPU_GENERATE_TIMEOUT_S` |
+| Renders on the CPU | `OMNIVOICE_CPU_GENERATE_TIMEOUT_S` (see below: with the default value it also scales with the input at CPU speed) |
 | CUDA/ROCm GPU below the engine's declared VRAM floor, when `OMNIVOICE_GENERATE_TIMEOUT_S` is not explicitly set | `OMNIVOICE_CPU_GENERATE_TIMEOUT_S` (whichever of the two is larger) |
 | Any other accelerated host, MPS included | `OMNIVOICE_GENERATE_TIMEOUT_S` |
+
+**CPU hosts scale much faster than the +1 s per 40 characters.** A CPU render is
+often 10-50x slower than on a GPU, so while `OMNIVOICE_CPU_GENERATE_TIMEOUT_S` is
+left at its default the budget grows at 4 s per input character (a 400-character
+passage gets about 27 minutes), up to a 2-hour ceiling that still catches a
+genuinely wedged engine. Each streamed chunk is budgeted from its own text, and
+loading the model is not part of this clock. Setting the CPU budget explicitly
+turns this scaling off and uses your value as the floor (plus the standard
++1 s per 40 characters) — an explicit setting is always authoritative.
+
+The desktop app and MCP tools never wait less than the backend does: because the
+backend budgets the text *after* number normalization (a six-digit number grows
+about 11x), a CPU host on the default budget reports its 2-hour ceiling and
+clients wait for that rather than guessing from the typed length.
 
 Both rows above can be overridden, and the two vars are independent:
 

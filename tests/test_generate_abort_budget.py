@@ -41,6 +41,11 @@ def test_client_budget_mirrors_backend_defaults(monkeypatch):
     assert client["progressExtensionBudgets"] == model_manager.PROGRESS_EXTENSION_BUDGETS
     assert client["freeChars"] == deadlines._FREE_CHARS
     assert client["charsPerSecond"] == deadlines._CHARS_PER_SECOND
+    from core import generate_budget as gb
+
+    assert client["cpuSecondsPerChar"] == gb.CPU_SECONDS_PER_CHAR
+    assert client["cpuAutoCap"] == gb.CPU_AUTO_CAP_S
+    assert client["textExpansionFactor"] == gb.TEXT_EXPANSION_FACTOR
     grace = re.search(r"sidecar_grace = ([\d.]+) if _include_sidecar_grace", manager.read_text())
     assert grace and client["sidecarGrace"] >= float(grace.group(1))
 
