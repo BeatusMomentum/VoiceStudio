@@ -59,6 +59,17 @@ const SHUTDOWN_INTENT_TIMEOUT_MS = 1000;
 /** Consecutive supervisor probe misses (2 s apart) before a ready backend is declared gone. */
 const SUPERVISE_MISSES = 3;
 /**
+ * Consecutive probes that got an HTTP answer which was not a healthy /health
+ * (about a minute at the supervisor's cadence) before the backend is reported
+ * as unhealthy. A listener that answers is alive, so this is never `crashed`
+ * and never "busy" — it is a different, accurate state, and it still clears
+ * itself as soon as a probe comes back healthy.
+ */
+const SUPERVISE_REJECTIONS = 15;
+const REMOTE_AUTH_CHECK_TIMEOUT_MS = 5000;
+/** Healthy supervise ticks (2 s apart) between credential re-checks of an auth_required remote. */
+const AUTH_RECHECK_TICKS = 15;
+/**
  * Stages a later successful /health probe must retire back to `ready` (#2430).
  * `unresponsive` is a live-but-busy backend, not a failure: the supervisor
  * already proved the process is alive, so the health loop owns clearing it.
@@ -555,7 +566,15 @@ export class BackendSupervisor extends EventEmitter<{
   private generation = 0;
   /** A generation owns at most one health loop, even if readiness is observed twice. */
   private supervisingGeneration: number | null = null;
+  /**
+   * How the latest probe failed. Only `refused` — no listener, or another
+   * service on the port — is evidence the backend is gone. A `timeout` means
+   * the kernel accepted the connection while the event loop was blocked (a
+   * long job can hold it for hours), and `rejected` means it answered unhealthy.
+   */
+  private lastProbeOutcome: 'ok' | 'timeout' | 'refused' | 'rejected' = 'ok';
   private shuttingDown = false;
+  private diagnosis: BackendStatus['diagnosis'];
   private setupIssue: BackendStatus['setupIssue'];
   private setupRequiredGib: number | undefined;
   private runtimeInterrupted = false;
@@ -622,6 +641,7 @@ export class BackendSupervisor extends EventEmitter<{
       status.setupProgress = this.setupProgress.snapshot();
     }
     if (this.message !== undefined) status.message = this.message;
+    if (this.diagnosis) status.diagnosis = this.diagnosis;
     if (this.exitCode !== undefined) status.exitCode = this.exitCode;
     if (this.exitSignal !== undefined) status.exitSignal = this.exitSignal;
     return status;
@@ -657,8 +677,7 @@ export class BackendSupervisor extends EventEmitter<{
       if (await this.probe()) {
         if (gen !== this.generation) return;
         this.runtimeInterrupted = false;
-        this.setStage('ready');
-        this.supervise(gen);
+        await this.markReady(gen, {}, true);
         return;
       }
       if (gen !== this.generation) return;
@@ -668,6 +687,10 @@ export class BackendSupervisor extends EventEmitter<{
           managed: false,
           message: `Could not reach the configured remote backend at ${this.remoteUrl}.`,
         });
+        // Nothing else probes a `failed` remote. Without this, a Retry made
+        // while the server is down leaves the status failed forever, even after
+        // the server comes back.
+        void this.recoverWhenRemoteReturns(gen);
         return;
       }
 
@@ -687,8 +710,7 @@ export class BackendSupervisor extends EventEmitter<{
         if (gen !== this.generation) return;
         if (attached) {
           this.runtimeInterrupted = false;
-          this.setStage('ready');
-          this.supervise(gen);
+          await this.markReady(gen, {}, true);
           return;
         }
       }
@@ -727,8 +749,7 @@ export class BackendSupervisor extends EventEmitter<{
           const attached = await this.probe();
           if (gen !== this.generation) return;
           if (attached) {
-            this.setStage('ready');
-            this.supervise(gen);
+            await this.markReady(gen, {}, true);
             return;
           }
           if (identifiedBackend) {
@@ -1078,9 +1099,14 @@ export class BackendSupervisor extends EventEmitter<{
 
   private setStage(
     stage: BackendStage,
-    patch: { managed?: boolean; message?: string | undefined } = {},
+    patch: {
+      managed?: boolean;
+      message?: string | undefined;
+      diagnosis?: BackendStatus['diagnosis'];
+    } = {},
   ): void {
     this.stage = stage;
+    this.diagnosis = patch.diagnosis;
     if ('managed' in patch) this.managed = patch.managed ?? false;
     if ('message' in patch) this.message = patch.message;
     this.emitStatus();
@@ -1244,8 +1270,7 @@ export class BackendSupervisor extends EventEmitter<{
         this.exitCode = undefined;
         this.exitSignal = undefined;
         this.pushLog('out', 'Attached to the replacement VoiceStudio backend.');
-        this.setStage('ready', { managed: false, message: undefined });
-        this.supervise(gen);
+        await this.markReady(gen, { managed: false, message: undefined }, true);
         return;
       }
       if (Date.now() >= deadline) break;
@@ -1277,6 +1302,7 @@ export class BackendSupervisor extends EventEmitter<{
   }
 
   private async probe(baseUrl = this.baseUrl, identityOnly = false): Promise<boolean> {
+    this.lastProbeOutcome = 'ok';
     try {
       // This runs for the entire desktop session. Use the canonical, tiny
       // liveness response instead of repeatedly serializing full hardware,
@@ -1294,18 +1320,106 @@ export class BackendSupervisor extends EventEmitter<{
       // Remote backends were chosen explicitly and may predate the marker.
       const marked = Boolean(res.headers.get('x-omnivoice-backend'));
       if (identityOnly) return marked;
-      if (!this.remoteUrl && !marked) return false;
-      if (!res.ok) return false;
+      if (!this.remoteUrl && !marked) {
+        this.lastProbeOutcome = 'refused';
+        return false;
+      }
+      if (!res.ok) {
+        this.lastProbeOutcome = 'rejected';
+        return false;
+      }
       const body: unknown = await res.json();
-      return (
+      const healthy =
         typeof body === 'object' &&
         body !== null &&
         (body as { status?: unknown }).status === 'ok' &&
-        typeof (body as { version?: unknown }).version === 'string'
-      );
-    } catch {
+        typeof (body as { version?: unknown }).version === 'string';
+      if (!healthy) this.lastProbeOutcome = 'rejected';
+      return healthy;
+    } catch (error) {
+      const name = (error as { name?: unknown } | null)?.name;
+      this.lastProbeOutcome = name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'refused';
       return false;
     }
+  }
+
+  /** Keep probing a configured remote that was unreachable; resume supervision when it answers. */
+  private async recoverWhenRemoteReturns(gen: number): Promise<void> {
+    while (gen === this.generation && this.stage === 'failed' && this.remoteUrl) {
+      await delay(SUPERVISE_POLL_MS);
+      if (gen !== this.generation || this.stage !== 'failed') return;
+      if (await this.probe()) {
+        if (gen !== this.generation || this.stage !== 'failed') return;
+        await this.markReady(gen, { message: undefined }, true);
+        return;
+      }
+    }
+  }
+
+  /**
+   * Whether a remote accepts this client's credentials. /health needs no admin
+   * session, so it can answer while every authenticated call fails (the session
+   * expired during an outage, or the key was rotated). Same check the remote
+   * probe applies when connecting: an authenticated /system/info. Three-way,
+   * because a timeout or a 5xx proves nothing about the session: only a 2xx is
+   * `valid` and only 401/403 is `rejected`.
+   */
+  private async remoteCredentials(): Promise<'valid' | 'rejected' | 'inconclusive'> {
+    if (!this.remoteUrl) return 'valid';
+    try {
+      const res = await fetch(`${this.baseUrl}/system/info`, {
+        headers: this.requestHeaders(),
+        signal: AbortSignal.timeout(REMOTE_AUTH_CHECK_TIMEOUT_MS),
+        redirect: 'follow',
+      });
+      if (res.ok) return 'valid';
+      return res.status === 401 || res.status === 403 ? 'rejected' : 'inconclusive';
+    } catch {
+      return 'inconclusive';
+    }
+  }
+
+  /**
+   * The one place a backend that just answered /health becomes `ready`. A local
+   * backend is trusted on /health alone; a remote must also prove its
+   * credentials are accepted, otherwise the workspace would resume while every
+   * authenticated API and WebSocket call fails.
+   *
+   *  - valid: `ready`.
+   *  - rejected: `failed` with the auth diagnosis.
+   *  - inconclusive: the CURRENT state is kept. A `failed`/`unresponsive` remote
+   *    is never promoted on an unverified session, and a first start reports
+   *    uncertain connectivity (`unresponsive`) instead of `ready`. The
+   *    supervisor re-checks on its next tick.
+   *
+   * Returns whether the stage is now `ready`.
+   */
+  private async markReady(
+    gen: number,
+    patch: { managed?: boolean; message?: string | undefined },
+    superviseAfter: boolean,
+  ): Promise<boolean> {
+    const credentials = await this.remoteCredentials();
+    if (gen !== this.generation) return false;
+    if (credentials === 'valid') {
+      this.setStage('ready', patch);
+    } else if (credentials === 'rejected') {
+      if (this.diagnosis !== 'auth_required' || this.stage !== 'failed') {
+        this.setStage('failed', {
+          managed: false,
+          message: `The remote backend at ${this.baseUrl} no longer accepts this app's credentials (its admin session expired or the key changed). Reconnect it with the API key.`,
+          diagnosis: 'auth_required',
+        });
+      }
+    } else if (this.stage !== 'failed' && this.stage !== 'unresponsive') {
+      this.setStage('unresponsive', {
+        managed: false,
+        message: `Cannot confirm that the remote backend at ${this.baseUrl} accepts this app's credentials: its authenticated check did not complete. Retrying automatically.`,
+        diagnosis: 'remote_unreachable',
+      });
+    }
+    if (superviseAfter) this.supervise(gen);
+    return credentials === 'valid';
   }
 
   /** Poll /health until ready, retiring the launch when the budget expires. */
@@ -1329,8 +1443,7 @@ export class BackendSupervisor extends EventEmitter<{
       // starting to attaching must retire this launch's readiness deadline.
       if (gen !== this.generation || this.stage !== waitingStage) return;
       if (ready) {
-        this.setStage('ready', { message: undefined });
-        this.supervise(gen);
+        await this.markReady(gen, { message: undefined }, true);
         return;
       }
       if (gen !== this.generation || (this.stage !== 'starting' && this.stage !== 'attaching')) {
@@ -1361,6 +1474,18 @@ export class BackendSupervisor extends EventEmitter<{
     if (this.supervisingGeneration === gen) return;
     this.supervisingGeneration = gen;
     let misses = 0;
+    // Consecutive refused connections, classified from the LATEST probes: a
+    // refusal followed by a timeout or an answer means the listener is back.
+    let refusals = 0;
+    // Consecutive answered-but-unhealthy probes, counted apart from refusals.
+    let rejections = 0;
+    // Healthy ticks since an auth_required remote was last re-validated.
+    let authRecheck = 0;
+    const noteMiss = (): number => {
+      refusals = this.lastProbeOutcome === 'refused' ? refusals + 1 : 0;
+      rejections = this.lastProbeOutcome === 'rejected' ? rejections + 1 : 0;
+      return ++misses;
+    };
     const release = (): void => {
       if (this.supervisingGeneration === gen) this.supervisingGeneration = null;
     };
@@ -1372,14 +1497,44 @@ export class BackendSupervisor extends EventEmitter<{
       }
       if (await this.probe()) {
         misses = 0;
+        refusals = 0;
+        rejections = 0;
         if (gen === this.generation && RECOVERABLE_STAGES.has(this.stage)) {
-          this.setStage('ready', { message: undefined });
+          // A remote parked on auth_required is re-validated only every Nth
+          // healthy tick: the rejection will repeat until credentials change
+          // (possibly outside this app), so checking each tick is wasted load,
+          // but never checking would leave it failed after they are fixed.
+          if (this.diagnosis !== 'auth_required' || ++authRecheck >= AUTH_RECHECK_TICKS) {
+            authRecheck = 0;
+            await this.markReady(gen, { message: undefined }, false);
+          }
         }
-      } else if (++misses >= SUPERVISE_MISSES && gen === this.generation) {
+      } else if (noteMiss() >= SUPERVISE_MISSES && gen === this.generation) {
         // The child-exit handler owns this bounded replacement handoff. It
         // will either attach or invalidate the generation before reporting a
         // crash, so this concurrent health loop must not race it.
         if (this.stage === 'attaching') {
+          if (gen === this.generation) void tick();
+          return;
+        }
+        // The listener keeps answering /health with something unhealthy. It is
+        // neither busy nor dead, so say what is true instead of waiting
+        // forever. `failed` is recoverable: the next healthy probe clears it,
+        // and nothing is killed or respawned here.
+        if (rejections >= SUPERVISE_REJECTIONS) {
+          if (this.stage !== 'failed') {
+            this.setStage('failed', {
+              message: `The backend at ${this.baseUrl} answers /health but reports that it is not healthy.`,
+              diagnosis: 'unhealthy',
+            });
+          }
+          if (gen === this.generation) void tick();
+          return;
+        }
+        // An answered-but-unhealthy probe is neither a stall nor a death, so it
+        // must not announce "busy" or fall through to the crash path below
+        // while the count above is still building.
+        if (this.lastProbeOutcome === 'rejected') {
           if (gen === this.generation) void tick();
           return;
         }
@@ -1393,9 +1548,30 @@ export class BackendSupervisor extends EventEmitter<{
         // and dead-ends in-flight requests, all for a stall that the very next
         // probe clears. Announced once, then left to recover on its own.
         if (this.child && this.child.exitCode === null && this.child.signalCode === null) {
-          if (misses === SUPERVISE_MISSES) {
+          if (this.stage !== 'unresponsive') {
             this.setStage('unresponsive', {
               message: `Backend is running but busy on port ${this.port}; it is not answering health checks right now. This resolves on its own once the current job finishes.`,
+            });
+          }
+          if (gen === this.generation) void tick();
+          return;
+        }
+        // An attached or remote backend has no child handle, but a refused
+        // connection and a silent one differ: the kernel still accepts TCP for
+        // a live process whose event loop is blocked, so timeouts alone are
+        // never proof of death (#2601) — a long job can hold the loop for
+        // hours. Stay `unresponsive`, keep probing, and let the user reconnect
+        // from the status bar. Only consecutive refusals (the listener is
+        // gone) declare it crashed.
+        if (!this.managed && refusals < SUPERVISE_MISSES) {
+          if (this.stage !== 'unresponsive') {
+            this.setStage('unresponsive', {
+              message: this.remoteUrl
+                ? `Cannot confirm connectivity to the remote backend at ${this.baseUrl}: its health checks are timing out (a network problem, or the server is busy). Retrying automatically.`
+                : `The external backend at ${this.baseUrl} is running but busy; it is not answering health checks right now. This resolves on its own once the current job finishes.`,
+              // English above is for logs and bug reports; the renderer shows
+              // the localized catalog string for this code.
+              diagnosis: this.remoteUrl ? 'remote_unreachable' : undefined,
             });
           }
           if (gen === this.generation) void tick();

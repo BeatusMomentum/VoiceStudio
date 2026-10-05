@@ -153,6 +153,7 @@ metadata and the backend fallback mirror it.
 - Dubbing and batch jobs accept only plain language codes when naming their output files
 - Saved voice, gallery and call-recording files are read only from inside their data folders, and uploads need a plain file extension
 - Engine install folders can no longer be set to a typed path over the HTTP API; they can still be cleared
+- A busy attached backend shows as unresponsive instead of crashed, and background status polls no longer starve the backend worker pool (#2608)
 - Elevated Windows app removal stops before deleting data and points to a normal PowerShell window or Settings (#2578)
 - Contributor audits inspect committed files and exclude submodules, while still stopping on failed file attribution (#2556)
 

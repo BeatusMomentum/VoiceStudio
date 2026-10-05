@@ -73,7 +73,6 @@ def test_stream_is_closed_however_the_task_ends(outcome, monkeypatch):
         try:
             await asyncio.wait_for(manager.queue.join(), 2)
             assert manager.active_tasks['test']['status'] == ('cancelled' if outcome == 'cancelled' else 'failed')
-            await asyncio.sleep(0)
             # Closed while the worker is still alive and waiting for the next task.
             assert closed == [True]
         finally:

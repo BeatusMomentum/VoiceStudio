@@ -25,6 +25,7 @@ import { ExternalLink } from '@/components/external-link';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/features/clone/confirm-dialog';
 import { engineFamilyState, useEngines } from '@/hooks/use-engines';
+import { relaxWhenBackendBusy } from '@/lib/status-polling';
 import {
   modelInstallJobTarget,
   TERMINAL_MODEL_INSTALL_STATES,
@@ -597,7 +598,7 @@ export function ModelLibrary({
     queryFn: () => apiJson<LoadedModelsResponse>('/model/loaded'),
     enabled: !setup,
     staleTime: 5_000,
-    refetchInterval: 15_000,
+    refetchInterval: () => relaxWhenBackendBusy(15_000),
   });
   const models = catalogue.data?.models.filter((model) => {
     if (setup) return model.supported !== false;

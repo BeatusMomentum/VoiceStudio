@@ -1365,10 +1365,10 @@ def prepare_deliberate_shutdown_during_startup(request: Request):
     a false crash sentinel behind.  Keep this one tiny control route available
     from socket bind; its authorization remains identical to the system router.
     """
-    from api.dependencies import require_admin
+    from api.dependencies import check_admin
     from core import run_sentinel
 
-    require_admin(request)
+    check_admin(request)
     return {"prepared": run_sentinel.clear_sentinel()}
 
 
