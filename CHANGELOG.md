@@ -103,6 +103,12 @@ metadata and the backend fallback mirror it.
 - License notice: commercial use is free under the AGPL; the paid licence is for closed-source use, with Pro plans linked (#2578)
 
 ### Fixed
+- Dubbing keeps the previous track when subtitles are imported or the render is cancelled before it finishes, and asks you to generate again for the new subtitles (#2585)
+- Cancelled or failed dubs no longer leave new speech under old segment fingerprints, so a later partial regeneration never reuses the wrong words (#2585)
+- A regenerated dub drops quality-check marks measured on the previous track (#2585)
+- Transcription no longer overwrites subtitles imported while it runs (#2585)
+- A dub that finishes just as it is cancelled reports done instead of cancelled (#2585)
+- First-run setup tracks a package's download when uv spells its name with underscores on one line and hyphens on another (#2585)
 - Fix it with an agent finds Claude Code and other agent CLIs installed in user folders (~/.local/bin, Homebrew, npm global) when launched from Finder or a desktop entry, and rechecks each time the panel opens (#2602) — thanks @flatlinebb on Discord!
 - YouTube downloads no longer fail with Errno 22 or Broken pipe when the app's stdout is closed; yt-dlp progress and messages now go to the log (#2602) — thanks @marioteka and @shizzy_prod on Discord!
 - Offline NLLB translation accepts every language in the dubbing pickers (Nepali, Catalan, Latvian, Georgian, Punjabi, Norwegian and about 50 more) for both target and auto-detected source (#2602) — thanks @lamomg on Discord!

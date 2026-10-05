@@ -2852,6 +2852,7 @@
   "dubIntegrity": {
     "missingSpeech": "Sprache fehlt oder ist nicht lesbar. Erzeuge das betroffene Segment vor dem Export erneut.",
     "timingOverflow": "Die Sprache überschreitet ihr Zeitfenster. Kürze die Übersetzung oder wähle ein festes Zeitfenster oder die Videostreckung.",
+    "sourceChanged": "Die Untertitel haben sich während der Erstellung dieser Synchronisation geändert. Die vorherige Spur wurde beibehalten; erzeuge sie erneut, um die neuen Untertitel zu verwenden.",
     "backgroundUnavailable": "Der Originalton konnte nicht erhalten werden. Prüfe Hintergrundtrennung und Dialogzeiten und versuche es erneut, oder exportiere ausdrücklich nur Sprache."
   },
   "dubStyle": {

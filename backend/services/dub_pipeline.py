@@ -332,6 +332,33 @@ def put_job(job_id: str, job: dict) -> None:
         _dub_jobs[job_id] = job
 
 
+def source_segments_revision(job: dict) -> int:
+    """How many times the job's source subtitles have been replaced.
+
+    Long work (ASR, dub rendering) reads ``job["segments"]`` once and commits
+    minutes later. Comparing this counter at commit time tells it whether an
+    SRT import, caption seed, cleanup or transcription replaced the subtitles
+    meanwhile, so it cannot publish over the newer ones.
+    """
+    try:
+        return int(job.get("segments_rev") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def replace_source_segments(job: dict, segments: list) -> None:
+    """Replace the job's source subtitles and advance their revision.
+
+    Every writer that substitutes the source cue list goes through here
+    (enforced by ``tests/test_dub_source_revision.py``). Annotations made in
+    place (QC marks) and a render publishing its own segments are not source
+    replacements and leave the revision alone.
+    """
+    with _dub_jobs_lock:
+        job["segments"] = segments
+        job["segments_rev"] = source_segments_revision(job) + 1
+
+
 def merge_job(job_id: str, updates: dict) -> bool:
     """Merge *updates* into an existing in-memory job. Does NOT persist.
 
