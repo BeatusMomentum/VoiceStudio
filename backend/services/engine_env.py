@@ -391,7 +391,8 @@ def build_engine_env(
         inject_hf_token = False
         env.pop("HF_TOKEN", None)
         env.pop("YOUR_HF_TOKEN", None)
-        env.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
+        # "0" or another false value would still let a cached token reach the mirror.
+        env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
 
     if inject_hf_token:
         try:

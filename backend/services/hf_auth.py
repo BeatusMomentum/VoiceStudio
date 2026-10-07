@@ -73,12 +73,21 @@ def env_allows_token(environ) -> bool:
 
 
 _IMPLICIT_ENV = "HF_HUB_DISABLE_IMPLICIT_TOKEN"
-# Mappings this module switched the variable on in, so a later call only ever
-# removes a value it set itself: one the user supplied, in the same or another
-# mapping, is never touched. Bounded; ad-hoc mappings are short-lived.
-_implicit_disabled_in: "dict[int, dict]" = {}
+# huggingface_hub reads these as true; anything else, including "0", leaves the
+# implicit token on.
+_TRUE_VALUES = frozenset({"1", "on", "yes", "true"})
+# Mappings this module changed the variable in, with the value it replaced
+# (None when unset), so a later call only ever restores what it changed: a
+# value the user supplied, in the same or another mapping, is never touched.
+# Bounded; ad-hoc mappings are short-lived.
+_implicit_disabled_in: "dict[int, tuple[dict, Optional[str]]]" = {}
 _IMPLICIT_TRACKED_MAX = 16
 _implicit_lock = threading.Lock()
+
+
+def implicit_token_disabled(value: object) -> bool:
+    """Whether a ``HF_HUB_DISABLE_IMPLICIT_TOKEN`` value turns the implicit token off."""
+    return str(value or "").strip().lower() in _TRUE_VALUES
 
 
 def apply_process_token_policy(environ: Optional[dict] = None) -> None:
@@ -97,13 +106,20 @@ def apply_process_token_policy(environ: Optional[dict] = None) -> None:
     env = os.environ if environ is None else environ
     with _implicit_lock:
         if not env_allows_token(env):
-            if not env.get(_IMPLICIT_ENV):
+            if not implicit_token_disabled(env.get(_IMPLICIT_ENV)):
+                # An unset or false-valued setting ("0") would let a cached token reach the mirror.
+                _implicit_disabled_in[id(env)] = (env, env.get(_IMPLICIT_ENV))
                 env[_IMPLICIT_ENV] = "1"
-                _implicit_disabled_in[id(env)] = env
                 while len(_implicit_disabled_in) > _IMPLICIT_TRACKED_MAX:
                     _implicit_disabled_in.pop(next(iter(_implicit_disabled_in)))
-        elif _implicit_disabled_in.pop(id(env), None) is env:
-            env.pop(_IMPLICIT_ENV, None)
+        else:
+            changed = _implicit_disabled_in.pop(id(env), None)
+            if changed is not None and changed[0] is env:
+                previous = changed[1]
+                if previous is None:
+                    env.pop(_IMPLICIT_ENV, None)
+                else:
+                    env[_IMPLICIT_ENV] = previous
     # Not imported yet: it will read both variables from the environment.
     constants = sys.modules.get("huggingface_hub.constants") if environ is None else None
     if constants is not None and not host_gets_auth(constants.ENDPOINT):
@@ -112,6 +128,7 @@ def apply_process_token_policy(environ: Optional[dict] = None) -> None:
 
 __all__ = [
     "CANONICAL_ENDPOINT",
+    "implicit_token_disabled",
     "HF_AUTH_HOSTS",
     "apply_process_token_policy",
     "canonical_whoami",

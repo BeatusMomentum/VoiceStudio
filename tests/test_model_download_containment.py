@@ -550,3 +550,29 @@ def test_process_policy_only_removes_what_it_set_in_that_mapping(monkeypatch):
     ours.pop("HF_ENDPOINT")
     hf_auth.apply_process_token_policy(ours)
     assert "HF_HUB_DISABLE_IMPLICIT_TOKEN" not in ours
+
+
+def test_false_valued_implicit_token_setting_is_overridden_for_a_mirror_and_restored(monkeypatch):
+    from services import hf_auth
+
+    monkeypatch.setattr(hf_auth, "_implicit_disabled_in", {})
+    env = {"HF_ENDPOINT": "https://hf-mirror.com", "HF_HUB_DISABLE_IMPLICIT_TOKEN": "0"}
+    hf_auth.apply_process_token_policy(env)
+    assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1"
+    env.pop("HF_ENDPOINT")
+    hf_auth.apply_process_token_policy(env)
+    assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "0"
+
+    for truthy in ("1", "true", "TRUE", " on ", "Yes"):
+        kept = {"HF_ENDPOINT": "https://hf-mirror.com", "HF_HUB_DISABLE_IMPLICIT_TOKEN": truthy}
+        hf_auth.apply_process_token_policy(kept)
+        assert kept["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == truthy
+
+
+def test_engine_env_forces_the_implicit_token_off_for_a_mirror_even_when_set_false():
+    from services import engine_env
+
+    env = engine_env.build_engine_env(
+        base_env={"HF_ENDPOINT": "https://hf-mirror.com", "HF_HUB_DISABLE_IMPLICIT_TOKEN": "0"}
+    )
+    assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1"
