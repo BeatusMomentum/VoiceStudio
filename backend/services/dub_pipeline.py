@@ -252,10 +252,12 @@ def discard_reference_run(run_dir: Optional[str], job: Optional[dict] = None) ->
                 if entry.is_file(follow_symlinks=False):
                     voice_leases.remove_if_unused(entry.path)
             except OSError:
+                # Best effort: a file that vanished or is still locked stays for the next sweep.
                 pass
         try:
             os.rmdir(run_dir)
         except OSError:
+            # Not empty yet (a leased file was kept) or already gone; either is fine.
             pass
 
 
