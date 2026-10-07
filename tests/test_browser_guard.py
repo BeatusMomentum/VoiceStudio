@@ -176,6 +176,7 @@ def test_side_effectful_get_routes_carry_the_cross_site_dependency():
         "/profile-images/search",
         "/api/settings/hf-token/state",
         "/api/settings/storage",
+        "/api/settings/perf/offload-after-generation",
         "/system/tailscale/status",
     }
     guarded = set()

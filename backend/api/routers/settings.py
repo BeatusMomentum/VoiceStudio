@@ -231,7 +231,8 @@ def _offload_after_generation_state() -> dict:
     }
 
 
-@router.get("/perf/offload-after-generation")
+# The device probe can start torch/GPU initialisation, so refuse cross-site loads.
+@router.get("/perf/offload-after-generation", dependencies=[Depends(reject_cross_site_get)])
 def get_offload_after_generation():
     """Whether the in-process TTS model moves to system RAM after generation."""
     return _offload_after_generation_state()

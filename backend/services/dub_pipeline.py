@@ -241,6 +241,14 @@ def discard_reference_run(run_dir: Optional[str], job: Optional[dict] = None) ->
     from core import voice_leases
 
     with _dub_jobs_lock:
+        # Never follow a link out of the job folder: neither the run folder
+        # nor its refs/ parent may be a symlink, and the run must resolve to a
+        # direct child of the real refs/ folder.
+        refs_dir = os.path.dirname(os.path.normpath(run_dir))
+        if os.path.islink(run_dir) or os.path.islink(refs_dir):
+            return
+        if os.path.dirname(os.path.realpath(run_dir)) != os.path.realpath(refs_dir):
+            return
         root = os.path.normcase(os.path.realpath(run_dir)) + os.sep
         if job is not None and any(p.startswith(root) for p in _job_reference_paths(job)):
             return
