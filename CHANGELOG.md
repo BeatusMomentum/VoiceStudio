@@ -52,6 +52,14 @@ metadata and the backend fallback mirror it.
 - The microphone level meter releases the audio device if it fails to start (#2654) — thanks @rudycelekli!
 - Stopping or failing a long-form render always releases the stream connection (#2652) — thanks @rudycelekli!
 - Spelled-out text keeps emoji and rare characters whole (#2650) — thanks @rudycelekli!
+- Dubbing keeps the previous track when subtitles are imported or the render is cancelled before it finishes, and asks you to generate again for the new subtitles (#2585)
+- Cancelled, superseded or failed dubs leave segment previews and cached speech untouched, so previews and partial regeneration never use rejected audio (#2585)
+- A regenerated dub drops quality-check marks measured on the previous track (#2585)
+- Transcription no longer overwrites subtitles imported, or a dub published, while it runs (#2585)
+- Subtitles imported during transcription keep their matched voice references instead of audio from the discarded pass (#2585)
+- Re-transcribing replaces the previous transcript's voice references instead of reusing them on different lines (#2585)
+- A dub that finishes just as it is cancelled reports done instead of cancelled (#2585)
+- First-run setup tracks a package's download when uv spells its name with underscores on one line and hyphens on another (#2585)
 
 ## [0.5.7] — 2026-10-05
 

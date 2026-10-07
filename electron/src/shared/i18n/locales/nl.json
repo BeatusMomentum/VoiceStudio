@@ -2856,6 +2856,7 @@
   "dubIntegrity": {
     "missingSpeech": "Spraak ontbreekt of is onleesbaar. Genereer het betreffende segment opnieuw voordat je exporteert.",
     "timingOverflow": "De spraak overschrijdt het tijdvak. Verkort de vertaling of kies een strikt tijdvak of het uitrekken van de video.",
+    "sourceChanged": "De ondertitels zijn gewijzigd terwijl deze nasynchronisatie werd gemaakt. Het vorige spoor is behouden; genereer opnieuw om de nieuwe ondertitels te gebruiken.",
     "backgroundUnavailable": "Het oorspronkelijke geluid kon niet behouden blijven. Controleer de achtergrondscheiding en dialoogtijden en probeer opnieuw, of kies expliciet voor alleen spraak exporteren."
   },
   "dubStyle": {
