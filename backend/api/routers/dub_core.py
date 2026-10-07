@@ -128,7 +128,7 @@ _kill_job_procs    = dub_pipeline.kill_job_procs
 _get_job           = dub_pipeline.get_job
 _save_job          = dub_pipeline.save_job
 replace_source_segments = dub_pipeline.replace_source_segments
-source_segments_revision = dub_pipeline.source_segments_revision
+segments_revision = dub_pipeline.segments_revision
 
 # Pasted subtitle text is a transcript, not a media file: a feature-length
 # film's .srt is ~150 KB. 2 MB of characters is ~13x the worst realistic case
@@ -1219,6 +1219,9 @@ async def dub_transcribe_stream(
     # every subsequent /generate run on CPU. Set on a successful offload,
     # cleared by the normal restore, honoured by gen()'s `finally` on EVERY exit.
     _tts_offloaded: dict = {"v": False}
+    # This pass's voice-reference folder; gen()'s `finally` deletes it unless
+    # the pass committed, so discarded and aborted passes leave no clips.
+    _ref_run: dict = {"dir": None, "committed": False}
 
     def _log_bg_failure(f, what):
         """Retrieve a fire-and-forget future's exception so it isn't swallowed."""
@@ -1274,8 +1277,9 @@ async def dub_transcribe_stream(
         touch_activity("transcribe", "dub")
 
         job = _get_job(job_id)
-        # Subtitles imported while this pass runs win over its result.
-        start_rev = source_segments_revision(job) if job else 0
+        # Subtitles imported or a dub published while this pass runs win over
+        # its result.
+        start_rev = segments_revision(job) if job else 0
 
         # The durable job is written before the terminal SSE events below. If
         # the renderer, proxy, or backend connection drops in that narrow
@@ -2051,8 +2055,20 @@ async def dub_transcribe_stream(
         final_segs = deduplicate_chunk_segments(final_segs)
         # Everything this pass derives is committed together at the end, so an
         # SRT import that lands while references are extracted is never mixed
-        # with, or overwritten by, this transcript.
-        commit: dict = {}
+        # with, or overwritten by, this transcript. The clone maps are replaced
+        # wholesale: references cut for the previous transcript are keyed by
+        # that transcript's segment ids and must not attach to this one's.
+        commit: dict = {"segment_clones": {}, "speaker_clones": {}, "cast_sources": {}}
+
+        def _ref_run_dir(fallback_dir: str) -> str:
+            # One private folder per pass (see REFERENCE_RUNS_DIRNAME): an SRT
+            # import landing mid-extraction keeps clips that this pass would
+            # otherwise overwrite under the same names.
+            if _ref_run["dir"] is None:
+                _ref_run["dir"] = dub_pipeline.new_reference_run_dir(
+                    _safe_job_dir(job_id) or fallback_dir
+                )
+            return _ref_run["dir"]
 
         # Auto-speaker-clone: sample each detected speaker's voice from the
         # Demucs-isolated vocals track and assign `auto:speaker_N` as the
@@ -2090,8 +2106,7 @@ async def dub_transcribe_stream(
                 # new job's clone refs into a directory the user can delete by
                 # removing that older history entry — after which every
                 # single-segment regen silently rendered in the default voice.
-                _clone_dir = _safe_job_dir(job_id) or os.path.dirname(vocals_for_clone)
-                os.makedirs(_clone_dir, exist_ok=True)
+                _clone_dir = _ref_run_dir(os.path.dirname(vocals_for_clone))
                 fut_clones = loop.run_in_executor(
                     _cpu_pool, lambda: extract_speaker_clones(
                         vocals_for_clone, final_segs,
@@ -2139,8 +2154,7 @@ async def dub_transcribe_stream(
                     # live in THIS job's dir, or a cache-hit job's clips die
                     # with the older job they were written next to (both
                     # reviewers, on the first version of this fix).
-                    _seg_clone_dir = _safe_job_dir(job_id) or os.path.dirname(vocals_for_clone)
-                    os.makedirs(_seg_clone_dir, exist_ok=True)
+                    _seg_clone_dir = _ref_run_dir(os.path.dirname(vocals_for_clone))
                     fut_seg_refs = loop.run_in_executor(
                         _cpu_pool, lambda: extract_segment_refs(
                             vocals_for_clone, final_segs,
@@ -2204,9 +2218,14 @@ async def dub_transcribe_stream(
         except Exception as e:
             logger.warning("speaker_clone extraction skipped: %s", e)
 
+        previous_ref_run = None
         with dub_pipeline._dub_jobs_lock:
-            superseded = source_segments_revision(job) != start_rev
+            superseded = segments_revision(job) != start_rev
             if not superseded:
+                previous_ref_run = job.get("ref_run")
+                commit["ref_run"] = (
+                    os.path.basename(_ref_run["dir"]) if _ref_run["dir"] else None
+                )
                 replace_source_segments(job, final_segs)
                 job.update(commit)
                 job["source_lang"] = job.get("source_lang_override") or _detected_source_lang(
@@ -2224,6 +2243,15 @@ async def dub_transcribe_stream(
                 "Transcription result for %s discarded: subtitles were replaced while it ran",
                 log_safe(job_id),
             )
+        else:
+            _ref_run["committed"] = True
+            # The job no longer references the previous pass's clips.
+            _job_dir = _safe_job_dir(job_id)
+            if _job_dir and previous_ref_run and previous_ref_run != commit["ref_run"]:
+                dub_pipeline.discard_reference_run(os.path.join(
+                    _job_dir, dub_pipeline.REFERENCE_RUNS_DIRNAME,
+                    os.path.basename(str(previous_ref_run)),
+                ))
 
         # Restore TTS model to GPU now that ASR is done. unload() blocks
         # (gc.collect + CUDA cache drop) — run it on the GPU pool so the
@@ -2292,6 +2320,8 @@ async def dub_transcribe_stream(
             yield _sse_event("done", {})
         finally:
             _asr_work.stop()
+            if _ref_run["dir"] and not _ref_run["committed"]:
+                dub_pipeline.discard_reference_run(_ref_run["dir"])
             # Last-resort VRAM release (see _loaded_asr above): covers crashes,
             # early terminal-error returns, and client disconnects
             # (GeneratorExit bypasses the except, never this finally).
@@ -2355,9 +2385,13 @@ async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    # Subtitles imported while this pass runs win over its result.
-    start_rev = source_segments_revision(job)
-    detected: dict = {}
+    # Subtitles imported or a dub published while this pass runs win over its
+    # result.
+    start_rev = segments_revision(job)
+    # Committed with the segments. This pass cuts no voice references, and the
+    # previous transcript's are keyed by its segment ids, which the new
+    # segments reuse for other lines.
+    detected: dict = {"segment_clones": {}, "speaker_clones": {}, "cast_sources": {}}
     # Same as the streaming preflight: the only use of the TTS core here is the
     # last-resort `_model._asr_pipe` fallback below, which exists solely under
     # OMNIVOICE_PRELOAD_TTS_ASR — and when it is off, that branch raises "fallback
@@ -2504,7 +2538,7 @@ async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
         from services.segmentation import deduplicate_chunk_segments
         segments_result = deduplicate_chunk_segments(segments_result)
         with dub_pipeline._dub_jobs_lock:
-            if source_segments_revision(job) == start_rev:
+            if segments_revision(job) == start_rev:
                 replace_source_segments(job, segments_result)
                 job.update(detected)
                 _save_job(job_id, job)

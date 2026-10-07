@@ -39,7 +39,11 @@ from services.watermark import mark_synthetic
 from services.speaker_clone import auto_profile_id
 from services.segment_bundle import extract_segment_wavs
 from api.routers.dub_core import _get_job, _save_job
-from services.dub_pipeline import _dub_jobs_lock, source_segments_revision
+from services.dub_pipeline import (
+    _dub_jobs_lock,
+    publish_rendered_segments,
+    source_segments_revision,
+)
 from omnivoice.utils.voice_design import heal_design_instruct
 
 logger = logging.getLogger("omnivoice.dub")
@@ -229,7 +233,7 @@ def _sync_job_segments(job: dict, req: DubRequest) -> None:
         # still that import's text, never because the text happens to match.
         vouched.append(vouch_cue_source(row, seg.text, seg.cue_source_id))
         merged.append(row)
-    job["segments"] = merged
+    publish_rendered_segments(job, merged)
 
     # P1.2 — per-language text, additively. `job["segments"]` stays the flat
     # single-slot map every existing consumer reads (last generated language);
@@ -657,6 +661,49 @@ async def dub_generate(job_id: str, req: DubRequest):
             if source_segments_revision(job) != admitted_rev:
                 return f"data: {json.dumps({'type': 'error', 'error_code': 'dub_source_changed', 'error': _SOURCE_CHANGED_MESSAGE})}\n\n"
             return None
+
+        def _install_staged_segments() -> None:
+            """Move this render's fresh speech into the shared segment cache.
+
+            Called only from the publication commit, with ``_dub_jobs_lock``
+            held, so previews and partial regeneration never see speech from a
+            render that was cancelled, superseded or failed before its track
+            was published.
+            """
+            # P1.3 — fingerprints live per language so each track's staleness
+            # is judged against ITS OWN last generate. The flat
+            # job["seg_hashes"] is kept as a mirror of the CURRENT track's map:
+            # every existing consumer (the `done` event, dub-history restore,
+            # older frontends) already treats it as "the hashes of the language
+            # generated last".
+            hashes = _seg_hashes_by_lang(job).setdefault(lang_code, {})
+            quality_map = job.setdefault("seg_num_step", {})
+            for (_si, _sr, _sid, _fp, _nstep) in _pending_seg_writes:
+                staged = _staged.get(_sid)
+                if staged is None:
+                    # The durable write failed; the cache still holds the
+                    # speech its existing fingerprint describes.
+                    continue
+                try:
+                    os.replace(staged[0], staged[1])
+                except OSError as e:
+                    # E.g. a preview holding the file open on Windows. The
+                    # cache entry and its fingerprint stay as they were.
+                    logger.warning("seg cache install failed for %s: %s", _sid, e)
+                    continue
+                if _fp is not None:
+                    hashes[_sid] = _fp
+                else:
+                    hashes.pop(_sid, None)
+                quality_map[_sid] = _nstep
+            job["seg_hashes"] = dict(hashes)
+            # Duration-planner calibration: per-language (chars, natural dur)
+            # records. update() (not replace) so partial regens keep
+            # accumulating samples from earlier runs of this track.
+            if _natural_dur_records:
+                job.setdefault("seg_natural_durs_by_lang", {}).setdefault(
+                    lang_code, {},
+                ).update(_natural_dur_records)
 
         # Throttle the device cache flush. empty_cache() is a synchronous
         # device stall, so calling it every segment (as the old code did)
@@ -1684,60 +1731,18 @@ async def dub_generate(job_id: str, req: DubRequest):
         yield f"data: {json.dumps({'type': 'assembling'})}\n\n"
 
         # ── Batch metadata phase ──────────────────────────────────────
-        # Per-segment WAVs were staged during the loop to keep RAM bounded.
-        # Install them into the cache together with their fingerprints, so the
-        # speech survives a later assembly error exactly as before, while a
-        # cancelled or superseded run leaves the cache untouched.
+        # Per-segment WAVs were staged during the loop to keep RAM bounded and
+        # stay staged through assembly: the cache behind previews and partial
+        # regeneration receives them, with their fingerprints, only when the
+        # track is published (_install_staged_segments). Stop early when the
+        # render can no longer publish, instead of assembling a track for
+        # nothing.
         _t_diskw_0 = time.perf_counter()
-        installed: dict[str, str] = {}
         with _dub_jobs_lock:
             blocked = _publication_blocked()
-            if blocked is None:
-                # P1.3 — fingerprints live per language so each track's
-                # staleness is judged against ITS OWN last generate. The flat
-                # job["seg_hashes"] is kept as a mirror of the CURRENT track's
-                # map: every existing consumer (the `done` event, dub-history
-                # restore, older frontends) already treats it as "the hashes of
-                # the language generated last".
-                hashes = _seg_hashes_by_lang(job).setdefault(lang_code, {})
-                quality_map = job.setdefault("seg_num_step", {})
-                for (_si, _sr, _sid, _fp, _nstep) in _pending_seg_writes:
-                    staged = _staged.get(_sid)
-                    if staged is None:
-                        # The durable write failed; the cache still holds the
-                        # speech its existing fingerprint describes.
-                        continue
-                    try:
-                        os.replace(staged[0], staged[1])
-                    except OSError as e:
-                        # E.g. a preview holding the file open on Windows.
-                        # Assemble from the staged copy; the cache entry and its
-                        # fingerprint stay as they were.
-                        logger.warning("seg cache install failed for %s: %s", _sid, e)
-                        continue
-                    installed[staged[0]] = staged[1]
-                    if _fp is not None:
-                        hashes[_sid] = _fp
-                    else:
-                        hashes.pop(_sid, None)
-                    quality_map[_sid] = _nstep
-                job["seg_hashes"] = dict(hashes)
-                # Duration-planner calibration: per-language (chars, natural
-                # dur) records. update() (not replace) so partial regens keep
-                # accumulating samples from earlier runs of this track.
-                if _natural_dur_records:
-                    job.setdefault("seg_natural_durs_by_lang", {}).setdefault(
-                        lang_code, {},
-                    ).update(_natural_dur_records)
-                # Single job flush instead of one per 8 segments.
-                _save_job(job_id, job)
         if blocked is not None:
             yield blocked
             return
-        all_segment_wavs = [
-            (start, end, installed.get(path, path) if isinstance(path, str) else path, rate)
-            for (start, end, path, rate) in all_segment_wavs
-        ]
         _t_diskw = time.perf_counter() - _t_diskw_0
 
         sr = backend.sample_rate
@@ -2084,13 +2089,15 @@ async def dub_generate(job_id: str, req: DubRequest):
                 except OSError:
                     pass
         # ── Publication ───────────────────────────────────────────────
-        # The finished track replaces the previous one only if nothing has
-        # cancelled or superseded this render; otherwise the previous track,
-        # its metadata and the job's subtitles stay exactly as they were.
+        # The finished track and its segment speech replace the previous ones
+        # only if nothing has cancelled or superseded this render; otherwise
+        # the previous track, its segment cache, its metadata and the job's
+        # subtitles stay exactly as they were.
         with _dub_jobs_lock:
             blocked = _publication_blocked()
             if blocked is None:
                 os.replace(track_tmp, track_path)
+                _install_staged_segments()
                 # Per-track metadata. For stretch_video, the dub wav is at the new
                 # (longer) timeline, so we record its actual duration here too — the
                 # mux step needs this to know whether to use the original video as-is

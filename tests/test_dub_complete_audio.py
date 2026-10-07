@@ -184,7 +184,22 @@ def assembling(render_dub, monkeypatch):
     previous = render_dub.path / 'dubbed_en.wav'
     previous.write_bytes(b'previous successful output')
     render_dub.job['dubbed_tracks']['en'] = {'path': str(previous)}
-    return SimpleNamespace(hooks=hooks, previous=previous)
+    # The previous track's segment cache, as previews read it.
+    cached = render_dub.path / 'seg_en_a.wav'
+    cached.write_bytes(b'speech of the previous track')
+    render_dub.job['seg_hashes_by_lang'] = {'en': {'a': 'previous-fingerprint'}}
+    render_dub.job['seg_hashes'] = {'a': 'previous-fingerprint'}
+    render_dub.job['seg_order'] = ['a']
+    return SimpleNamespace(hooks=hooks, previous=previous, cached=cached)
+
+
+def _assert_previous_segment_cache(render_dub, assembling):
+    """Previews and partial regeneration still see only the previous track."""
+    assert assembling.cached.read_bytes() == b'speech of the previous track'
+    assert render_dub.job['seg_hashes_by_lang'] == {'en': {'a': 'previous-fingerprint'}}
+    assert render_dub.job['seg_hashes'] == {'a': 'previous-fingerprint'}
+    assert render_dub.job['seg_order'] == ['a']
+    assert 'seg_num_step' not in render_dub.job
 
 
 def test_subtitles_replaced_during_assembly_keep_previous_track(render_dub, assembling):
@@ -195,9 +210,8 @@ def test_subtitles_replaced_during_assembly_keep_previous_track(render_dub, asse
     assert assembling.previous.read_bytes() == b'previous successful output'
     assert render_dub.job['dubbed_tracks']['en'] == {'path': str(assembling.previous)}
     assert render_dub.job['segments'][0]['text'] == 'imported cue'
-    # Speech installed before assembly is cached with its own fingerprint.
-    assert (render_dub.path / 'seg_en_a.wav').exists()
-    assert render_dub.job['seg_hashes']['a']
+    _assert_previous_segment_cache(render_dub, assembling)
+    assert not list(render_dub.path.glob('.render-*'))
 
 
 def test_cancel_during_assembly_keeps_previous_track(render_dub, assembling, monkeypatch):
@@ -210,6 +224,18 @@ def test_cancel_during_assembly_keeps_previous_track(render_dub, assembling, mon
     assert not any(e['type'] == 'done' for e in events)
     assert assembling.previous.read_bytes() == b'previous successful output'
     assert render_dub.job['dubbed_tracks']['en'] == {'path': str(assembling.previous)}
+    _assert_previous_segment_cache(render_dub, assembling)
+    assert not list(render_dub.path.glob('.render-*'))
+
+
+def test_published_render_installs_its_segment_speech(render_dub, assembling):
+    events = render_dub.run(timing_strategy='strict_slot')
+    assert any(e['type'] == 'done' for e in events)
+    assert assembling.cached.read_bytes() != b'speech of the previous track'
+    assert sf.info(assembling.cached).frames == 12000
+    fingerprint = render_dub.job['seg_hashes_by_lang']['en']['a']
+    assert fingerprint != 'previous-fingerprint'
+    assert render_dub.job['seg_hashes'] == {'a': fingerprint}
     assert not list(render_dub.path.glob('.render-*'))
 
 

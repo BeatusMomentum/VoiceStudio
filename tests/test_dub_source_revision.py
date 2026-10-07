@@ -5,19 +5,24 @@ import io
 import struct
 import wave
 from pathlib import Path
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+
+import pytest
 
 from fastapi import UploadFile
 
-ROUTERS = Path(__file__).resolve().parents[1] / "backend" / "api" / "routers"
+BACKEND = Path(__file__).resolve().parents[1] / "backend"
 
-# `_sync_job_segments` publishes a render's own segments; it is not a source
-# replacement and must not invalidate a concurrent render of another language.
-_ALLOWED_WRITERS = {("dub_generate.py", "_sync_job_segments")}
+# The revision helpers are the only code allowed to assign job["segments"].
+_ALLOWED_WRITERS = {("dub_pipeline.py", "_replace_segments")}
 
 
 def _segment_writes(tree: ast.AST):
-    """(function, line) for every `<name>["segments"] = ...` in a module."""
+    """(function, line) for every replacement of a dict's ``"segments"`` entry.
+
+    Covers ``x["segments"] = ...`` (plain, augmented, annotated) and
+    ``x.update({"segments": ...})`` / ``x.update(segments=...)``.
+    """
     for func in ast.walk(tree):
         if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -31,22 +36,56 @@ def _segment_writes(tree: ast.AST):
                     and isinstance(target.slice, ast.Constant)
                     and target.slice.value == "segments"
                     and isinstance(target.value, ast.Name)
-                    and target.value.id == "job"
                 ):
                     yield func.name, node.lineno
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "update"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "job"
+            ):
+                keys = [kw.arg for kw in node.keywords]
+                for arg in node.args:
+                    if isinstance(arg, ast.Dict):
+                        keys += [k.value for k in arg.keys if isinstance(k, ast.Constant)]
+                if "segments" in keys:
+                    yield func.name, node.lineno
+
+
+def _dub_modules():
+    return [
+        *sorted((BACKEND / "api" / "routers").glob("dub_*.py")),
+        BACKEND / "services" / "dub_pipeline.py",
+    ]
 
 
 def test_source_subtitles_are_only_replaced_through_the_revision_helper():
     offenders = []
-    for path in sorted(ROUTERS.glob("dub_*.py")):
+    for path in _dub_modules():
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for func, line in _segment_writes(tree):
             if (path.name, func) not in _ALLOWED_WRITERS:
                 offenders.append(f"{path.name}:{line} in {func}")
     assert not offenders, (
         "Replace job subtitles with services.dub_pipeline.replace_source_segments "
-        f"so running renders and transcriptions see the change: {offenders}"
+        "(or publish_rendered_segments for a finished render) so running renders "
+        f"and transcriptions see the change: {offenders}"
     )
+
+
+def test_render_publication_is_seen_by_transcription_but_not_by_other_renders():
+    from api.routers.dub_generate import _sync_job_segments
+    from schemas.requests import DubRequest
+    from services.dub_pipeline import segments_revision, source_segments_revision
+
+    job = {"segments": [{"id": "a", "start": 0.0, "end": 1.0, "text": "hello"}]}
+    _sync_job_segments(job, DubRequest(
+        segments=[dict(start=0, end=1, text="hola")], segment_ids=["a"], language_code="es",
+    ))
+    assert job["segments"][0]["text"] == "hola"
+    assert segments_revision(job) == 1
+    assert source_segments_revision(job) == 0
 
 
 def _make_wav(path: Path, seconds: float = 1.0, sr: int = 16000) -> None:
@@ -61,20 +100,25 @@ def _make_wav(path: Path, seconds: float = 1.0, sr: int = 16000) -> None:
 _SRT = b"1\n00:00:00,000 --> 00:00:00,900\nImported correction\n"
 
 
-def test_srt_import_during_transcription_survives_its_commit(tmp_path, monkeypatch):
+@pytest.fixture
+def transcription(tmp_path, monkeypatch, asr_model_installed):
+    """Run one streamed transcription with ``during_refine`` called while it
+    refines the voice references it extracted (the long tail of the pass).
+
+    ``asr_model_installed`` matters: without it the hermetic CI environment,
+    which has no ASR weights, ends the stream at the model-missing preflight
+    and the pass never reaches reference extraction.
+    """
     from api.routers import dub_core as dc
     from services import speaker_clone as sc
 
     job_id = "t_import_during_asr"
+    job_dir = tmp_path / "job"
+    job_dir.mkdir()
     audio = tmp_path / "a.wav"
     _make_wav(audio)
-    dc._dub_jobs[job_id] = {"audio_path": str(audio), "vocals_path": None, "scene_cuts": []}
-
-    fake_model = MagicMock()
-    fake_model._asr_pipe = MagicMock()
-
-    async def _ok_model():
-        return fake_model
+    job = {"audio_path": str(audio), "vocals_path": None, "scene_cuts": []}
+    dc._dub_jobs[job_id] = job
 
     class _FakeASR:
         id = "fake"
@@ -89,43 +133,171 @@ def test_srt_import_during_transcription_survives_its_commit(tmp_path, monkeypat
         def unload(self):
             pass
 
-    monkeypatch.setattr(dc, "get_model", _ok_model)
     monkeypatch.setattr("services.asr_backend.get_active_asr_backend", lambda *a, **k: _FakeASR())
     monkeypatch.setattr(dc, "offload_tts_for_asr", lambda *a, **k: None)
-    monkeypatch.setattr(
-        sc, "extract_segment_refs",
-        lambda *a, **k: {"0": {"ref_audio": "asr_ref.wav", "ref_text": "asr words"}},
-    )
+    monkeypatch.setattr(dc, "_safe_job_dir", lambda _jid: str(job_dir))
+    monkeypatch.setattr(dc, "_save_job", lambda *_: None)
 
-    imported = {}
+    def _extract(_vocals, segments, out_dir, seg_ids=None):
+        # Same file name every pass, as the real extractor writes.
+        ref = Path(out_dir) / "seg_ref_0.wav"
+        ref.write_bytes(b"clip of this pass")
+        return {"0": {"ref_audio": str(ref), "ref_text": "asr words"}}
 
-    def _refine_while_user_imports(refs, _backend):
-        # The user imports corrected subtitles while references are refined.
-        upload = UploadFile(file=io.BytesIO(_SRT), filename="fixed.srt")
-        imported.update(asyncio.run(dc.dub_import_srt(job_id, upload)))
+    monkeypatch.setattr(sc, "extract_segment_refs", _extract)
+    hooks = []
+    hook_errors = []
+
+    def _refine(refs, _backend):
+        for hook in hooks:
+            try:
+                hook()
+            except Exception as exc:  # the pass swallows it; the test must not
+                hook_errors.append(exc)
+                raise
         return refs
 
-    monkeypatch.setattr(sc, "refine_ref_texts", _refine_while_user_imports)
+    monkeypatch.setattr(sc, "refine_ref_texts", _refine)
 
-    async def _collect():
-        resp = await dc.dub_transcribe_stream(job_id)
-        parts = []
-        async for chunk in resp.body_iterator:
-            parts.append(chunk.decode() if isinstance(chunk, (bytes, bytearray)) else str(chunk))
-        return "".join(parts)
+    def run():
+        async def _collect():
+            resp = await dc.dub_transcribe_stream(job_id)
+            parts = []
+            async for chunk in resp.body_iterator:
+                parts.append(chunk.decode() if isinstance(chunk, (bytes, bytearray)) else str(chunk))
+            return "".join(parts)
+
+        body = asyncio.run(_collect())
+        assert not hook_errors, hook_errors
+        assert "event: error" not in body, body
+        return body
+
+    def import_srt():
+        upload = UploadFile(file=io.BytesIO(_SRT), filename="fixed.srt")
+        return asyncio.run(dc.dub_import_srt(job_id, upload))
 
     try:
-        body = asyncio.run(_collect())
-        job = dc._dub_jobs[job_id]
+        yield SimpleNamespace(job=job, job_dir=job_dir, hooks=hooks, run=run, import_srt=import_srt)
     finally:
         dc._dub_jobs.pop(job_id, None)
+
+
+def test_srt_import_during_transcription_survives_its_commit(transcription):
+    imported = {}
+    transcription.hooks.append(lambda: imported.update(transcription.import_srt()))
+    body = transcription.run()
+    job = transcription.job
 
     assert imported["segments"][0]["text"] == "Imported correction"
     texts = [segment["text"] for segment in job["segments"]]
     assert texts == ["Imported correction"]
     # Nothing from the discarded transcript is attached to the imported cues.
-    assert "asr_ref.wav" not in str(job.get("segment_clones"))
+    assert "clip of this pass" not in str(job.get("segment_clones"))
     assert not job.get("transcription_complete")
     final = body[body.rfind("event: final"):]
     assert "Imported correction" in final and "asr words" not in final, final
     assert body.rfind("event: done") > body.rfind("event: final")
+
+
+def test_dub_published_during_transcription_survives_its_commit(transcription):
+    from api.routers.dub_generate import _sync_job_segments
+    from schemas.requests import DubRequest
+
+    transcription.job["segments"] = [{"id": 0, "start": 0.0, "end": 0.9, "text": "hello"}]
+
+    def publish_edited_dub():
+        _sync_job_segments(transcription.job, DubRequest(
+            segments=[dict(start=0, end=0.9, text="edited line")],
+            segment_ids=["0"], language_code="es",
+        ))
+
+    transcription.hooks.append(publish_edited_dub)
+    body = transcription.run()
+    assert [s["text"] for s in transcription.job["segments"]] == ["edited line"]
+    assert not transcription.job.get("transcription_complete")
+    final = body[body.rfind("event: final"):]
+    assert "edited line" in final and "asr words" not in final, final
+
+
+def test_transcription_never_overwrites_references_of_imported_cues(transcription):
+    """Cues imported mid-pass keep the clips they were matched to.
+
+    The import carries the previous transcript's references over to the new
+    cues. A pass writing its own clips under the same names in the same
+    folder replaced that audio, so the imported cues cloned this discarded
+    pass's speech instead.
+    """
+    job, job_dir = transcription.job, transcription.job_dir
+    # A job transcribed before per-pass folders: references sit in the job dir.
+    legacy = job_dir / "seg_ref_0.wav"
+    legacy.write_bytes(b"clip the user's cues use")
+    job["segments"] = [{"id": 0, "start": 0.0, "end": 0.9, "text": "earlier", "speaker_id": "Speaker 1"}]
+    job["segment_clones"] = {"0": {"ref_audio": str(legacy), "ref_text": "earlier"}}
+
+    imported = {}
+    transcription.hooks.append(lambda: imported.update(transcription.import_srt()))
+    transcription.run()
+
+    assert job["segments"][0]["text"] == "Imported correction"
+    assert job["segment_clones"]["0"]["ref_audio"] == str(legacy)
+    assert legacy.read_bytes() == b"clip the user's cues use"
+    # The discarded pass leaves no clips behind.
+    assert not list((job_dir / "refs").glob("*/*"))
+
+
+def test_each_committed_pass_owns_its_references(transcription):
+    job, job_dir = transcription.job, transcription.job_dir
+    legacy = job_dir / "voice_Speaker_1.wav"
+    legacy.write_bytes(b"pre-upgrade clip")
+
+    transcription.run()
+    first = job["segment_clones"]["0"]["ref_audio"]
+    assert Path(first).parent.parent == job_dir / "refs"
+    assert Path(first).read_bytes() == b"clip of this pass"
+    assert job["ref_run"] == Path(first).parent.name
+
+    job["transcription_complete"] = False  # the user asks for a fresh pass
+    transcription.run()
+    second = job["segment_clones"]["0"]["ref_audio"]
+    assert Path(second).parent != Path(first).parent
+    assert Path(second).read_bytes() == b"clip of this pass"
+    # The previous pass's folder goes; files outside per-pass folders stay.
+    assert not Path(first).parent.exists()
+    assert legacy.read_bytes() == b"pre-upgrade clip"
+
+
+def test_transcription_tests_neutralize_the_asr_model_preflight():
+    """A dev machine with ASR weights hides a missing preflight stub; CI has
+    none, so such a test ends at ``asr_model_missing`` there and fails far
+    from the cause."""
+    import re
+
+    calls = re.compile(r"dub_transcribe(_stream)?\(|[\"']/dub/transcribe")
+    offenders = []
+    for root in (Path(__file__).parent, BACKEND / "tests"):
+        for path in sorted(root.rglob("test_*.py")):
+            text = path.read_text(encoding="utf-8")
+            if calls.search(text) and not re.search(r"asr_model_installed|asr_model_missing_error", text):
+                offenders.append(str(path.relative_to(BACKEND.parent)))
+    assert not offenders, (
+        "Use the asr_model_installed fixture (tests/conftest.py) or stub "
+        f"asr_model_missing_error in: {offenders}"
+    )
+
+
+def test_blocking_transcription_drops_the_previous_transcripts_references(transcription):
+    """Its segments reuse the previous transcript's ids for other lines."""
+    from api.routers import dub_core as dc
+
+    job = transcription.job
+    job["segments"] = [{"id": 0, "start": 0.0, "end": 0.9, "text": "earlier"}]
+    job["segment_clones"] = {"0": {"ref_audio": "earlier.wav", "ref_text": "earlier"}}
+    job["speaker_clones"] = {"Speaker 1": {"ref_audio": "earlier_speaker.wav"}}
+    job["cast_sources"] = {"Speaker 1": {"duration": 4.0}}
+
+    result = asyncio.run(dc.dub_transcribe("t_import_during_asr"))
+
+    assert [s["text"] for s in result["segments"]] == ["asr words"]
+    assert job["segment_clones"] == {}
+    assert job["speaker_clones"] == {}
+    assert job["cast_sources"] == {}
