@@ -252,6 +252,7 @@ def persist_hub_token(token: str) -> None:
         try:
             path.chmod(0o600)
         except OSError:
+            # Filesystems without POSIX modes (e.g. some Windows volumes) skip this.
             pass
         return
     save(token=token, token_name=name)

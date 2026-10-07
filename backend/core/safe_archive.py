@@ -104,6 +104,7 @@ def copy_member(
         try:
             os.remove(dest_path)
         except OSError:
+            # Best effort: the original error is the one worth reporting.
             pass
         raise
 

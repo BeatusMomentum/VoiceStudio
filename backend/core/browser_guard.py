@@ -282,28 +282,32 @@ class BrowserGuardMiddleware:
         # must load them to sign in. The cross-site check still applies.
         self.is_public_path = is_public_path or (lambda _path: False)
 
-    async def __call__(self, scope, receive, send):
+    def _refusal(self, scope, connection, method) -> "str | None":
+        """The refusal detail for this request, or None to let it through."""
+        is_http = scope["type"] == "http"
+        check_host = not (is_http and self.is_public_path(scope.get("path", "")))
+        if check_host and not host_allowed(_header(scope, b"host")) and _network_authorized_only(connection):
+            return HOST_DETAIL
+        if (not is_http or method not in SAFE_HTTP_METHODS) and is_cross_site(connection):
+            return CROSS_SITE_DETAIL
+        return None
+
+    async def __call__(self, scope, receive, send) -> None:
         if scope["type"] not in ("http", "websocket"):
-            return await self.app(scope, receive, send)
+            await self.app(scope, receive, send)
+            return
         from starlette.requests import HTTPConnection
 
         connection = HTTPConnection(scope)
         method = str(scope.get("method", "GET")).upper()
         if scope["type"] == "http" and method == "OPTIONS":
-            return await self.app(scope, receive, send)
+            await self.app(scope, receive, send)
+            return
 
-        detail = None
-        host_checked = not (scope["type"] == "http" and self.is_public_path(scope.get("path", "")))
-        if (
-            host_checked
-            and not host_allowed(_header(scope, b"host"))
-            and _network_authorized_only(connection)
-        ):
-            detail = HOST_DETAIL
-        elif (scope["type"] == "websocket" or method not in SAFE_HTTP_METHODS) and is_cross_site(connection):
-            detail = CROSS_SITE_DETAIL
+        detail = self._refusal(scope, connection, method)
         if detail is None:
-            return await self.app(scope, receive, send)
+            await self.app(scope, receive, send)
+            return
 
         if scope["type"] == "websocket":
             await receive()  # consume websocket.connect
@@ -311,4 +315,4 @@ class BrowserGuardMiddleware:
             return
         from starlette.responses import JSONResponse
 
-        return await JSONResponse({"detail": detail}, status_code=403)(scope, receive, send)
+        await JSONResponse({"detail": detail}, status_code=403)(scope, receive, send)

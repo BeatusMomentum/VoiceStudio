@@ -351,3 +351,30 @@ def test_guarded_ytdlp_subprocess_never_connects_to_a_private_host(tmp_path):
     assert result.returncode != 0
     assert "private network address" in result.stderr
     assert hits == []
+
+
+def test_batch_refuses_a_non_media_upload_before_the_speech_model_check(monkeypatch):
+    """CI has no speech-to-text model; the answer must not depend on that."""
+    import services.asr_backend as asr
+
+    monkeypatch.setattr(
+        asr,
+        "asr_model_missing_error",
+        lambda *a, **k: {"code": "asr_model_missing", "message": "missing"},
+    )
+    response = _client().post(
+        "/batch/enqueue",
+        files={"video": ("evil.conf", b"--exec touch /tmp/x\n", "application/octet-stream")},
+    )
+    assert response.status_code == 415
+
+
+def test_policy_check_sees_private_answers_inside_the_connect_guard(monkeypatch):
+    """Inside the guard, ``socket.getaddrinfo`` hides private answers; the policy
+    check must still see them and give the clear refusal, not pass the URL on."""
+    monkeypatch.setattr(url_safety.socket, "getaddrinfo", url_safety.socket.getaddrinfo)
+    for answers in (("192.168.1.10",), (PUBLIC_IP, "192.168.1.10")):
+        monkeypatch.setattr(url_safety, "_real_getaddrinfo", _answers(*answers))
+        with url_safety.guard_outbound_connections():
+            with pytest.raises(UnsafeURLError, match=ALLOW_PRIVATE_ENV):
+                check_public_url("http://media.lan:9000/x")

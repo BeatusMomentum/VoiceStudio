@@ -116,6 +116,7 @@ def _extract_bundle_audio(zf: zipfile.ZipFile, profile_id: str) -> "tuple[str | 
             try:
                 os.remove(os.path.join(VOICES_DIR, filename))
             except OSError:
+                # Best effort cleanup; the bundle is already being refused.
                 pass
         raise HTTPException(status_code=exc.status, detail=f"Invalid .omnivoice bundle: {exc.detail}") from exc
     return written.get("ref_audio"), written.get("locked_audio")

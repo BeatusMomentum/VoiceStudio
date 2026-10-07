@@ -26,7 +26,6 @@ from typing import Callable, Optional
 
 import httpx
 
-from services.hf_auth import HF_AUTH_HOSTS as _HF_AUTH_HOSTS  # noqa: F401
 from services.hf_auth import host_gets_auth as _host_gets_auth
 
 _DEFAULT_CONNECTIONS = 8

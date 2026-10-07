@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import threading
 import asyncio
 import importlib
 import io
@@ -268,7 +269,7 @@ def test_engine_env_withholds_token_from_mirror(monkeypatch):
 def test_process_policy_follows_mirror_setting(monkeypatch):
     from services import hf_auth
 
-    monkeypatch.setattr(hf_auth, "_implicit_disabled_here", False)
+    monkeypatch.setattr(hf_auth, "_implicit_disabled_here", threading.Event())
     env = {"HF_ENDPOINT": "https://hf-mirror.com"}
     hf_auth.apply_process_token_policy(env)
     assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1"
@@ -294,7 +295,7 @@ def settings_mod(monkeypatch, tmp_path):
     monkeypatch.setattr(ue, "set_user_env", lambda k, v, path=None: store.__setitem__(k, v))
     monkeypatch.setattr(ue, "unset_user_env", lambda k, path=None: store.pop(k, None))
     monkeypatch.setattr(prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
-    monkeypatch.setattr(hf_auth, "_implicit_disabled_here", False)
+    monkeypatch.setattr(hf_auth, "_implicit_disabled_here", threading.Event())
     for key in ("HF_ENDPOINT", "OMNIVOICE_HF_ENDPOINT_MODE", "HF_HUB_DISABLE_IMPLICIT_TOKEN"):
         monkeypatch.delenv(key, raising=False)
     yield importlib.import_module("api.routers.settings")

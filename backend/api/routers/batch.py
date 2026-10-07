@@ -945,6 +945,12 @@ async def enqueue_batch_job(
     for lang in lang_list:
         _safe_lang_or_400(lang)
 
+    # Refuse a non-media upload before any environment check, so the answer
+    # does not depend on which models or engines happen to be installed.
+    ext = media_upload_suffix(video.filename, ".mp4")
+    if ext is None:
+        raise HTTPException(415, "Choose an audio or video file.")
+
     # Validate the snapshot before persisting a potentially large upload.
     # Resolve it again in the worker so deleting or editing a queued profile
     # cannot silently fall back to the engine's default voice.
@@ -984,9 +990,6 @@ async def enqueue_batch_job(
     # Save the uploaded video
     batch_dir = os.path.join(DATA_DIR, "batch")
     os.makedirs(batch_dir, exist_ok=True)
-    ext = media_upload_suffix(video.filename, ".mp4")
-    if ext is None:
-        raise HTTPException(415, "Choose an audio or video file.")
     video_path = os.path.join(batch_dir, f"{job_id}{ext}")
 
     await _save_upload(video, video_path)

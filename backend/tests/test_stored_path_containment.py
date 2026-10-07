@@ -220,11 +220,11 @@ def test_gallery_does_not_serve_or_delete_files_outside_its_folder(gallery_clien
 
     voice_id = _gallery_row(str(outside))
     assert gallery_client.get(f"/gallery/voices/{voice_id}/preview").status_code == 404
-    assert gallery_client.delete(f"/gallery/voices/{voice_id}").status_code == 200
+    deleted = gallery_client.delete(f"/gallery/voices/{voice_id}")
+    assert deleted.status_code == 200
     other = _gallery_row(str(outside))
-    assert gallery_client.post(
-        "/gallery/voices/batch-delete", json={"ids": [other]},
-    ).json()["deleted"] == 1
+    batch = gallery_client.post("/gallery/voices/batch-delete", json={"ids": [other]})
+    assert batch.json()["deleted"] == 1
     assert outside.read_bytes() == b"RIFF keep"
 
 

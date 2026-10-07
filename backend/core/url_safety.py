@@ -164,8 +164,11 @@ def check_public_url(url: str) -> str:
     host, port = _split_http_url(url)
     if private_url_imports_allowed():
         return url
+    # Inside the connect guard, socket.getaddrinfo hides private answers (and
+    # raises when only private ones exist); this policy check needs them all.
+    resolve = _real_getaddrinfo if _guard_active() else socket.getaddrinfo
     try:
-        answers = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        answers = resolve(host, port, type=socket.SOCK_STREAM)
     except (OSError, UnicodeError):
         return url
     if any(not is_public_address(answer[4][0]) for answer in answers):
@@ -247,7 +250,7 @@ def check_downloaded_media(path: str) -> None:
 
 _real_getaddrinfo = socket.getaddrinfo
 _install_lock = threading.Lock()
-_installed = False
+_installed = threading.Event()
 _process_wide = False
 _thread_state = threading.local()
 
@@ -295,11 +298,10 @@ def _guarded_getaddrinfo(host, port, *args, **kwargs):
 
 
 def _install() -> None:
-    global _installed
     with _install_lock:
-        if not _installed:
+        if not _installed.is_set():
             socket.getaddrinfo = _guarded_getaddrinfo
-            _installed = True
+            _installed.set()
 
 
 @contextlib.contextmanager
@@ -339,7 +341,7 @@ YTDLP_NATIVE_OPTIONS = {
     "concurrent_fragment_downloads": 1,
 }
 
-_downloader_guard_installed = False
+_downloader_guard_installed = threading.Event()
 
 
 def _refuse_external_downloads() -> bool:
@@ -355,12 +357,11 @@ def _install_ytdlp_downloader_guard() -> None:
     unavailable makes it decrypt natively instead; anything that still reaches
     an external downloader fails rather than connecting unguarded.
     """
-    global _downloader_guard_installed
     from yt_dlp.downloader.external import ExternalFD, FFmpegFD
     from yt_dlp.utils import DownloadError
 
     with _install_lock:
-        if _downloader_guard_installed:
+        if _downloader_guard_installed.is_set():
             return
         real_download = ExternalFD.real_download
         ffmpeg_available = FFmpegFD.available.__func__
@@ -377,7 +378,7 @@ def _install_ytdlp_downloader_guard() -> None:
 
         ExternalFD.real_download = guarded_real_download
         FFmpegFD.available = classmethod(guarded_available)
-        _downloader_guard_installed = True
+        _downloader_guard_installed.set()
 
 
 def _media_file_hook(status: dict) -> None:

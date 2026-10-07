@@ -6,6 +6,7 @@ endpoint selection) and CDN redirect targets get no ``Authorization`` header.
 """
 from __future__ import annotations
 
+import threading
 from typing import Optional, Union
 from urllib.parse import urlsplit
 
@@ -72,7 +73,7 @@ def env_allows_token(environ) -> bool:
 
 
 _IMPLICIT_ENV = "HF_HUB_DISABLE_IMPLICIT_TOKEN"
-_implicit_disabled_here = False
+_implicit_disabled_here = threading.Event()
 
 
 def apply_process_token_policy(environ: Optional[dict] = None) -> None:
@@ -85,7 +86,6 @@ def apply_process_token_policy(environ: Optional[dict] = None) -> None:
     in-process endpoint is fixed when huggingface_hub is imported, so the
     in-process switch is only ever turned on, never back off.
     """
-    global _implicit_disabled_here
     import os
     import sys
 
@@ -93,10 +93,10 @@ def apply_process_token_policy(environ: Optional[dict] = None) -> None:
     if not env_allows_token(env):
         if not env.get(_IMPLICIT_ENV):
             env[_IMPLICIT_ENV] = "1"
-            _implicit_disabled_here = True
-    elif _implicit_disabled_here:
+            _implicit_disabled_here.set()
+    elif _implicit_disabled_here.is_set():
         env.pop(_IMPLICIT_ENV, None)
-        _implicit_disabled_here = False
+        _implicit_disabled_here.clear()
     # Not imported yet: it will read both variables from the environment.
     constants = sys.modules.get("huggingface_hub.constants") if environ is None else None
     if constants is not None and not host_gets_auth(constants.ENDPOINT):
