@@ -9,7 +9,6 @@
 """
 from __future__ import annotations
 
-import threading
 import asyncio
 import importlib
 import io
@@ -269,7 +268,7 @@ def test_engine_env_withholds_token_from_mirror(monkeypatch):
 def test_process_policy_follows_mirror_setting(monkeypatch):
     from services import hf_auth
 
-    monkeypatch.setattr(hf_auth, "_implicit_disabled_here", threading.Event())
+    monkeypatch.setattr(hf_auth, "_implicit_disabled_in", {})
     env = {"HF_ENDPOINT": "https://hf-mirror.com"}
     hf_auth.apply_process_token_policy(env)
     assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1"
@@ -295,7 +294,7 @@ def settings_mod(monkeypatch, tmp_path):
     monkeypatch.setattr(ue, "set_user_env", lambda k, v, path=None: store.__setitem__(k, v))
     monkeypatch.setattr(ue, "unset_user_env", lambda k, path=None: store.pop(k, None))
     monkeypatch.setattr(prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
-    monkeypatch.setattr(hf_auth, "_implicit_disabled_here", threading.Event())
+    monkeypatch.setattr(hf_auth, "_implicit_disabled_in", {})
     for key in ("HF_ENDPOINT", "OMNIVOICE_HF_ENDPOINT_MODE", "HF_HUB_DISABLE_IMPLICIT_TOKEN"):
         monkeypatch.delenv(key, raising=False)
     yield importlib.import_module("api.routers.settings")
@@ -531,3 +530,23 @@ def test_gguf_entries_without_checksum_requirement_still_pass(gguf):
     manifest.write_text(f"{'0' * 64}  omnivoice-tts-darwin-arm64\n")
     ok, reason = backend._make_backend_class().is_available()
     assert ok is True, reason
+
+
+def test_process_policy_only_removes_what_it_set_in_that_mapping(monkeypatch):
+    from services import hf_auth
+
+    monkeypatch.setattr(hf_auth, "_implicit_disabled_in", {})
+    ours = {"HF_ENDPOINT": "https://hf-mirror.com"}
+    hf_auth.apply_process_token_policy(ours)
+    assert ours["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1"
+
+    # Another mapping where the user chose the value and the endpoint is official:
+    # the earlier switch must not make this call delete the user's setting.
+    users = {"HF_HUB_DISABLE_IMPLICIT_TOKEN": "1"}
+    hf_auth.apply_process_token_policy(users)
+    assert users == {"HF_HUB_DISABLE_IMPLICIT_TOKEN": "1"}
+
+    # The mapping we changed is still cleaned up when its endpoint is official again.
+    ours.pop("HF_ENDPOINT")
+    hf_auth.apply_process_token_policy(ours)
+    assert "HF_HUB_DISABLE_IMPLICIT_TOKEN" not in ours

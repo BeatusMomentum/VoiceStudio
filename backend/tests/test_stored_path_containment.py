@@ -72,6 +72,7 @@ def test_upload_suffix_keeps_plain_extensions(name, expected):
 
 @pytest.mark.parametrize("name", [
     "clip.wav:stream", "clip.w\\..\\x", "clip.wav\x00", "clip.wa v", "clip." + "a" * 17,
+    "dir.d/clip", "clip.", "C:\\a.b\\clip",
 ])
 def test_upload_suffix_rejects_unusable_extensions(name):
     assert upload_suffix(name) is None

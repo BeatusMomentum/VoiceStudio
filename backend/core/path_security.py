@@ -211,7 +211,11 @@ def upload_suffix(filename: object, default: str = "") -> str | None:
     path separator, an NTFS ``:stream``, control characters), so callers
     decide between a 415 and a neutral fallback.
     """
-    ext = os.path.splitext(str(filename or ""))[1]
-    if not ext:
+    name = str(filename or "")
+    if "." not in name:
         return default
+    # Everything after the last dot, separators included, so a name that
+    # smuggles a path (``a.w\\..\\x``) is refused the same way on every OS:
+    # ``os.path.splitext`` treats a backslash as a separator only on Windows.
+    ext = "." + name.rsplit(".", 1)[1]
     return ext if _UPLOAD_SUFFIX.fullmatch(ext) else None

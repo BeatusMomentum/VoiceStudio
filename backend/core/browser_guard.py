@@ -282,15 +282,19 @@ class BrowserGuardMiddleware:
         # must load them to sign in. The cross-site check still applies.
         self.is_public_path = is_public_path or (lambda _path: False)
 
+    def _host_check_applies(self, scope) -> bool:
+        return not (scope["type"] == "http" and self.is_public_path(scope.get("path", "")))
+
     def _refusal(self, scope, connection, method) -> "str | None":
         """The refusal detail for this request, or None to let it through."""
-        is_http = scope["type"] == "http"
-        check_host = not (is_http and self.is_public_path(scope.get("path", "")))
-        if check_host and not host_allowed(_header(scope, b"host")) and _network_authorized_only(connection):
+        if (
+            self._host_check_applies(scope)
+            and not host_allowed(_header(scope, b"host"))
+            and _network_authorized_only(connection)
+        ):
             return HOST_DETAIL
-        if (not is_http or method not in SAFE_HTTP_METHODS) and is_cross_site(connection):
-            return CROSS_SITE_DETAIL
-        return None
+        unsafe = scope["type"] != "http" or method not in SAFE_HTTP_METHODS
+        return CROSS_SITE_DETAIL if unsafe and is_cross_site(connection) else None
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] not in ("http", "websocket"):

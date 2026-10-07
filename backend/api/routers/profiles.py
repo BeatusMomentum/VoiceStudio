@@ -23,6 +23,7 @@ from core.media_types import media_upload_suffix
 from core.path_security import UnsafePath, resolve_within
 from core.profile_images import MAX_IMAGE_BYTES, normalize_portrait
 from starlette.datastructures import UploadFile as StarletteUploadFile
+from core.path_security import upload_suffix
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.profiles")
@@ -1048,8 +1049,8 @@ async def record_consent(
     if not row:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    ext = os.path.splitext(consent_audio.filename or "")[1]
-    if not _CONSENT_EXT_RE.match(ext):
+    ext = upload_suffix(consent_audio.filename)
+    if not ext or not _CONSENT_EXT_RE.fullmatch(ext):
         ext = ".wav"
     audio_filename = f"{profile_id}_consent{ext}"
     audio_path = _voices_path(audio_filename)

@@ -73,7 +73,12 @@ def env_allows_token(environ) -> bool:
 
 
 _IMPLICIT_ENV = "HF_HUB_DISABLE_IMPLICIT_TOKEN"
-_implicit_disabled_here = threading.Event()
+# Mappings this module switched the variable on in, so a later call only ever
+# removes a value it set itself: one the user supplied, in the same or another
+# mapping, is never touched. Bounded; ad-hoc mappings are short-lived.
+_implicit_disabled_in: "dict[int, dict]" = {}
+_IMPLICIT_TRACKED_MAX = 16
+_implicit_lock = threading.Lock()
 
 
 def apply_process_token_policy(environ: Optional[dict] = None) -> None:
@@ -90,13 +95,15 @@ def apply_process_token_policy(environ: Optional[dict] = None) -> None:
     import sys
 
     env = os.environ if environ is None else environ
-    if not env_allows_token(env):
-        if not env.get(_IMPLICIT_ENV):
-            env[_IMPLICIT_ENV] = "1"
-            _implicit_disabled_here.set()
-    elif _implicit_disabled_here.is_set():
-        env.pop(_IMPLICIT_ENV, None)
-        _implicit_disabled_here.clear()
+    with _implicit_lock:
+        if not env_allows_token(env):
+            if not env.get(_IMPLICIT_ENV):
+                env[_IMPLICIT_ENV] = "1"
+                _implicit_disabled_in[id(env)] = env
+                while len(_implicit_disabled_in) > _IMPLICIT_TRACKED_MAX:
+                    _implicit_disabled_in.pop(next(iter(_implicit_disabled_in)))
+        elif _implicit_disabled_in.pop(id(env), None) is env:
+            env.pop(_IMPLICIT_ENV, None)
     # Not imported yet: it will read both variables from the environment.
     constants = sys.modules.get("huggingface_hub.constants") if environ is None else None
     if constants is not None and not host_gets_auth(constants.ENDPOINT):
