@@ -157,14 +157,14 @@ def test_id_wins_over_a_profile_named_like_that_id(client, engine, profiles):
 def test_openai_alias_and_default_keep_their_meaning(client, engine, profiles):
     profiles("Alloy")
     profiles("DEFAULT")
-    for voice in ("alloy", "default"):
+    # Any spelling of an alias or "default" is the engine default: never a
+    # profile match, and never forwarded to the engine as a preset name.
+    for voice in ("alloy", "default", "Alloy", " NOVA ", "Default", {"id": "Shimmer"}):
         res = _speak(client, voice)
         assert res.status_code == 200, res.text
-        assert "ref_audio" not in engine.calls[-1]
-    # A capitalised alias spelling is not a name match either.
-    res = _speak(client, "Alloy")
-    assert res.status_code == 200, res.text
-    assert "ref_audio" not in engine.calls[-1]
+        kw = engine.calls[-1]
+        assert "ref_audio" not in kw, voice
+        assert "voice" not in kw, voice
 
 
 def test_unknown_voice_still_forwards_as_engine_preset(client, engine, profiles):

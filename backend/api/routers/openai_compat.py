@@ -691,11 +691,12 @@ async def create_speech(req: SpeechRequest):
     if req.description:
         kw["description"] = req.description
 
-    # Voice handling: an OpenAI alias or "default" uses the engine default; a
-    # voice-profile id, then a profile name (#2617), resolves the reference
-    # clip; anything else is forwarded as an engine preset (e.g. KittenTTS).
+    # Voice handling: an OpenAI alias or "default", in any case or spacing,
+    # uses the engine default; a voice-profile id, then a profile name
+    # (#2617), resolves the reference clip; anything else is forwarded as an
+    # engine preset (e.g. KittenTTS).
     voice = req.voice
-    if voice not in _OPENAI_VOICE_ALIASES and voice != "default":
+    if not _name_is_reserved(voice):
         row = _resolve_voice_profile(voice)
         if row:
             from core.config import VOICES_DIR
