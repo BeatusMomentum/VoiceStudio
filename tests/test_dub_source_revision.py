@@ -142,7 +142,8 @@ def transcription(tmp_path, monkeypatch, asr_model_installed):
         # Same file name every pass, as the real extractor writes.
         ref = Path(out_dir) / "seg_ref_0.wav"
         ref.write_bytes(b"clip of this pass")
-        return {"0": {"ref_audio": str(ref), "ref_text": "asr words"}}
+        key = str((seg_ids or [0])[0])
+        return {key: {"ref_audio": str(ref), "ref_text": "asr words"}}
 
     monkeypatch.setattr(sc, "extract_segment_refs", _extract)
     hooks = []
@@ -251,14 +252,14 @@ def test_each_committed_pass_owns_its_references(transcription):
     legacy.write_bytes(b"pre-upgrade clip")
 
     transcription.run()
-    first = job["segment_clones"]["0"]["ref_audio"]
+    (first,) = (c["ref_audio"] for c in job["segment_clones"].values())
     assert Path(first).parent.parent == job_dir / "refs"
     assert Path(first).read_bytes() == b"clip of this pass"
     assert job["ref_run"] == Path(first).parent.name
 
     job["transcription_complete"] = False  # the user asks for a fresh pass
     transcription.run()
-    second = job["segment_clones"]["0"]["ref_audio"]
+    (second,) = (c["ref_audio"] for c in job["segment_clones"].values())
     assert Path(second).parent != Path(first).parent
     assert Path(second).read_bytes() == b"clip of this pass"
     # The previous pass's folder goes; files outside per-pass folders stay.
@@ -301,3 +302,90 @@ def test_blocking_transcription_drops_the_previous_transcripts_references(transc
     assert job["segment_clones"] == {}
     assert job["speaker_clones"] == {}
     assert job["cast_sources"] == {}
+
+
+def test_import_racing_a_finishing_transcription_keeps_the_clips_it_saves(
+    transcription, monkeypatch,
+):
+    """An import that selects the current transcript's clips must find them on
+    disk after a re-transcription that finished meanwhile cleans up.
+
+    The import is held right after selecting its references. Before the fix
+    it held them outside the job lock, so the transcription committed, deleted
+    the previous pass's folder, and the import then saved references to the
+    deleted clips. Now selection and save are one locked step, which the
+    transcription's commit and cleanup wait for.
+    """
+    import threading
+
+    from api.routers import dub_core as dc
+    from services import dub_pipeline
+
+    job = transcription.job
+    transcription.run()  # first pass: the clips the import will select
+    (selected_clip,) = (Path(c["ref_audio"]) for c in job["segment_clones"].values())
+    assert selected_clip.exists()
+    job["transcription_complete"] = False
+
+    selected, cleaned_up = threading.Event(), threading.Event()
+    real_carry = dc._carry_srt_voice_metadata
+    real_discard = dub_pipeline.discard_reference_run
+
+    def carry_then_wait(*args, **kwargs):
+        result = real_carry(*args, **kwargs)
+        selected.set()
+        # Resume once the transcription has cleaned up, or, when it cannot
+        # (it waits for this import's lock), after a grace period.
+        cleaned_up.wait(timeout=2)
+        return result
+
+    def discard_and_signal(*args, **kwargs):
+        real_discard(*args, **kwargs)
+        cleaned_up.set()
+
+    monkeypatch.setattr(dc, "_carry_srt_voice_metadata", carry_then_wait)
+    monkeypatch.setattr(dub_pipeline, "discard_reference_run", discard_and_signal)
+
+    importer_errors = []
+
+    def import_in_background():
+        def _run():
+            try:
+                transcription.import_srt()
+            except Exception as exc:
+                importer_errors.append(exc)
+        importer = threading.Thread(target=_run)
+        importer.start()
+        transcription.importer = importer
+        assert selected.wait(timeout=10)
+
+    transcription.hooks.append(import_in_background)
+    transcription.run()
+    transcription.importer.join(timeout=10)
+
+    assert not importer_errors, importer_errors
+    assert [s["text"] for s in job["segments"]] == ["Imported correction"]
+    saved = Path(job["segment_clones"]["0"]["ref_audio"])
+    assert saved == selected_clip
+    assert saved.read_bytes() == b"clip of this pass"
+
+
+def test_reference_cleanup_keeps_a_folder_the_job_still_points_into(tmp_path):
+    from services.dub_pipeline import (
+        REFERENCE_RUNS_DIRNAME,
+        discard_reference_run,
+        new_reference_run_dir,
+    )
+
+    run_dir = Path(new_reference_run_dir(str(tmp_path)))
+    clip = run_dir / "seg_ref_0.wav"
+    clip.write_bytes(b"clip")
+    job = {"segment_clones": {"0": {"ref_audio": str(clip)}}, "speaker_clones": {}}
+
+    discard_reference_run(str(run_dir), job)
+    assert clip.read_bytes() == b"clip"
+
+    job["segment_clones"] = {}
+    discard_reference_run(str(run_dir), job)
+    assert not run_dir.exists()
+    assert (tmp_path / REFERENCE_RUNS_DIRNAME).is_dir()

@@ -315,23 +315,23 @@ async def dub_import_srt(job_id: str, file: UploadFile = File(...)):
     else:
         segments = result.segments
 
-    prior_segments = [
-        segment for segment in (job.get("segments") or []) if isinstance(segment, dict)
-    ]
-    segments, segment_clones = _carry_srt_voice_metadata(
-        segments,
-        prior_segments,
-        job.get("segment_clones"),
-        job.get("speaker_clones"),
-    )
-    cast_sources = None
-    if segment_clones:
-        from services.speaker_clone import build_cast_sources
+    from services.speaker_clone import build_cast_sources
 
-        cast_sources = build_cast_sources(segments, None, segment_clones)
-    # One locked commit, so a render or transcription finishing meanwhile sees
-    # either the old subtitles or all of the imported ones.
+    # Select the references to keep and save them in one locked step. Selected
+    # outside the lock, they could come from a transcript that a finishing
+    # transcription replaces, and whose reference folder it then deletes,
+    # before this import saves them. Under the lock a render or transcription
+    # finishing meanwhile sees either the old subtitles or all imported ones.
     with dub_pipeline._dub_jobs_lock:
+        prior_segments = [
+            segment for segment in (job.get("segments") or []) if isinstance(segment, dict)
+        ]
+        segments, segment_clones = _carry_srt_voice_metadata(
+            segments,
+            prior_segments,
+            job.get("segment_clones"),
+            job.get("speaker_clones"),
+        )
         replace_source_segments(job, segments)
         job["segment_clones"] = segment_clones
         # A pooled speaker clone is keyed only by a display label. Replacement
@@ -339,8 +339,8 @@ async def dub_import_srt(job_id: str, file: UploadFile = File(...)):
         # retain matched pooled references as segment-specific clones above and
         # drop the global map before rebuilding the cast.
         job["speaker_clones"] = {}
-        if cast_sources is not None:
-            job["cast_sources"] = cast_sources
+        if segment_clones:
+            job["cast_sources"] = build_cast_sources(segments, None, segment_clones)
         else:
             job.pop("cast_sources", None)
         # `source_lang` stays whatever the user (or the upload step) set; we
@@ -2251,7 +2251,7 @@ async def dub_transcribe_stream(
                 dub_pipeline.discard_reference_run(os.path.join(
                     _job_dir, dub_pipeline.REFERENCE_RUNS_DIRNAME,
                     os.path.basename(str(previous_ref_run)),
-                ))
+                ), job)
 
         # Restore TTS model to GPU now that ASR is done. unload() blocks
         # (gc.collect + CUDA cache drop) — run it on the GPU pool so the
@@ -2321,7 +2321,7 @@ async def dub_transcribe_stream(
         finally:
             _asr_work.stop()
             if _ref_run["dir"] and not _ref_run["committed"]:
-                dub_pipeline.discard_reference_run(_ref_run["dir"])
+                dub_pipeline.discard_reference_run(_ref_run["dir"], _get_job(job_id))
             # Last-resort VRAM release (see _loaded_asr above): covers crashes,
             # early terminal-error returns, and client disconnects
             # (GeneratorExit bypasses the except, never this finally).

@@ -210,12 +210,28 @@ def new_reference_run_dir(base_dir: str) -> str:
     return run_dir
 
 
-def discard_reference_run(run_dir: Optional[str]) -> None:
+def _job_reference_paths(job: dict) -> set[str]:
+    paths = set()
+    for key in ("segment_clones", "speaker_clones"):
+        clones = job.get(key)
+        if not isinstance(clones, dict):
+            continue
+        for info in clones.values():
+            ref = info.get("ref_audio") if isinstance(info, dict) else None
+            if isinstance(ref, str) and ref:
+                paths.add(os.path.normcase(os.path.realpath(ref)))
+    return paths
+
+
+def discard_reference_run(run_dir: Optional[str], job: Optional[dict] = None) -> None:
     """Delete one transcription's reference folder, sparing files in use.
 
-    Only folders created by :func:`new_reference_run_dir` are touched. A file
-    a running render still holds (``core.voice_leases``) survives, and with it
-    the folder; it goes with the job directory instead.
+    Only folders created by :func:`new_reference_run_dir` are touched. Runs
+    under ``_dub_jobs_lock``, the lock an SRT import holds while it selects and
+    saves the references it keeps, and checks ``job`` at deletion time: a
+    folder any of its saved references still points into is kept whole. A
+    file a running render holds (``core.voice_leases``) survives too, and with
+    it the folder; it goes with the job directory instead.
     """
     if not run_dir:
         return
@@ -223,20 +239,24 @@ def discard_reference_run(run_dir: Optional[str]) -> None:
         return
     from core import voice_leases
 
-    try:
-        entries = list(os.scandir(run_dir))
-    except OSError:
-        return
-    for entry in entries:
+    with _dub_jobs_lock:
+        root = os.path.normcase(os.path.realpath(run_dir)) + os.sep
+        if job is not None and any(p.startswith(root) for p in _job_reference_paths(job)):
+            return
         try:
-            if entry.is_file(follow_symlinks=False):
-                voice_leases.remove_if_unused(entry.path)
+            entries = list(os.scandir(run_dir))
+        except OSError:
+            return
+        for entry in entries:
+            try:
+                if entry.is_file(follow_symlinks=False):
+                    voice_leases.remove_if_unused(entry.path)
+            except OSError:
+                pass
+        try:
+            os.rmdir(run_dir)
         except OSError:
             pass
-    try:
-        os.rmdir(run_dir)
-    except OSError:
-        pass
 
 
 def job_dir_referenced_by_others(job_id: str) -> "list[str]":
