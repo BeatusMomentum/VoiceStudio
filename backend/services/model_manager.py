@@ -308,6 +308,12 @@ class _ResilientGpuPool(Executor):
                         elapsed if self._avg_job_s <= 0
                         else 0.7 * self._avg_job_s + 0.3 * elapsed
                     )
+                    idle = self._running == 0 and self._queued == 0
+                if idle:
+                    # Opt-in offload to RAM (#2618) arms its grace timer here:
+                    # the one place that sees the pool drain, whichever route
+                    # dispatched the last job. Never raises.
+                    _note_gpu_pool_idle()
 
         with self._stats_lock:
             self._queued += 1
@@ -3718,10 +3724,11 @@ def unload_shared_model() -> bool:
     GIL-atomic, so the worst a race costs is a redundant reload. Idempotent —
     returns False when nothing was resident.
     """
-    global model
+    global model, _ram_offload
     if model is None:
         return False
     model = None
+    _ram_offload = None
     release_tts_side_caches()
     free_vram()
     return True
@@ -3810,8 +3817,9 @@ def offload_tts_for_asr():
         pass
     try:
         logger.info("Offloading TTS model to CPU to free VRAM for ASR...")
-        model.to("cpu")
-        free_vram()
+        with _placement_lock:
+            model.to("cpu")
+            free_vram()
         logger.info("TTS model offloaded. VRAM freed for ASR.")
     except Exception as e:
         logger.warning("TTS offload failed: %s", e)
@@ -3819,7 +3827,7 @@ def offload_tts_for_asr():
 
 def restore_tts_after_asr():
     """Move TTS model back to the GPU after ASR completes."""
-    global model
+    global model, _ram_offload
     torch = _lazy_torch()
     if model is None:
         return
@@ -3833,8 +3841,10 @@ def restore_tts_after_asr():
         device = get_best_device()
         if device in ("cuda", "xpu"):
             logger.info("Restoring TTS model to %s...", device)
-            model.to(device)
-            free_vram()
+            with _placement_lock:
+                model.to(device)
+                _ram_offload = None  # back on the device, whoever moved it off
+                free_vram()
     except Exception as e:
         logger.warning("TTS restore to %s failed: %s", get_best_device(), e)
 
@@ -3874,6 +3884,15 @@ def _stranded_tts_target():
     m = model
     if m is None:
         return None
+    # Offloaded to RAM by the opt-in post-generation offload (#2618): restore
+    # to the recorded device. Checked BEFORE the parameter probe so a caller
+    # arriving mid-move (some weights still on the GPU) still waits for the
+    # move and restores, instead of generating on a half-moved model. Also
+    # the only way MPS gets restored — the unified-memory bail below is for
+    # the ASR offload, which releases the model there instead of moving it.
+    offloaded = _ram_offload
+    if offloaded is not None and offloaded[0] == id(m):
+        return offloaded[1]
     dev = _first_param_device(m)
     if dev is None or getattr(dev, "type", None) != "cpu":
         return None
@@ -3889,28 +3908,48 @@ def _stranded_tts_target():
 
 
 def ensure_tts_on_device() -> bool:
-    """Move the TTS model back onto its target device if it was stranded on CPU.
+    """Move the TTS model back onto its target device if it was stranded on CPU
+    (an unbalanced ASR offload, #1191) or offloaded to RAM after generation
+    (#2618).
 
     Returns True when a move actually happened. Never raises — a failed move
-    just leaves the model on CPU, which is exactly the pre-fix behaviour
-    (slow), never a failed generation.
+    leaves the model consistently on CPU (slow), never a failed generation.
     """
-    target = _stranded_tts_target()
-    m = model
-    if target is None or m is None:
-        return False
-    try:
-        logger.warning(
-            "TTS model found stranded on CPU (an ASR offload was never restored) — "
-            "moving it back to %s; generation would otherwise run 10-50x slower (#1191).",
-            target,
-        )
-        m.to(target)
-        free_vram()
-        return True
-    except Exception as e:  # noqa: BLE001
-        logger.warning("TTS placement self-heal to %s failed (staying on CPU): %s", target, e)
-        return False
+    global _ram_offload
+    if _stranded_tts_target() is None:
+        return False  # hot path: one probe, no lock
+    with _placement_lock:
+        target = _stranded_tts_target()  # re-check: a peer may have moved it
+        m = model
+        if target is None or m is None:
+            return False
+        planned = _ram_offload is not None and _ram_offload[0] == id(m)
+        try:
+            if planned:
+                logger.info("Restoring the TTS model from system RAM to %s for this generation.", target)
+            else:
+                logger.warning(
+                    "TTS model found stranded on CPU (an ASR offload was never restored) — "
+                    "moving it back to %s; generation would otherwise run 10-50x slower (#1191).",
+                    target,
+                )
+            m.to(target)
+            if planned:
+                _ram_offload = None
+            free_vram()
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.warning("TTS placement restore to %s failed (staying on CPU): %s", target, e)
+            # A move that fails part-way (the GPU filled up meanwhile) leaves
+            # weights split across devices, which fails every generate. Put
+            # it all back on CPU so generation still works, just slower; a
+            # planned offload keeps its record so the next generation retries.
+            try:
+                m.to("cpu")
+                free_vram()
+            except Exception:  # noqa: BLE001
+                logger.debug("TTS fallback move to CPU failed", exc_info=True)
+            return False
 
 
 async def _heal_tts_placement() -> None:
@@ -3943,6 +3982,168 @@ async def _heal_tts_placement() -> None:
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("TTS placement self-heal could not run: %s", e)
+
+# ── Opt-in: offload the TTS model to RAM after generation (#2618) ─────────
+# For users who share the GPU with something else VRAM-heavy (a local LLM, a
+# game, an image model): once generation finishes and the GPU pool has been
+# idle for a short grace period, the resident in-process TTS model moves to
+# system RAM, and the next generation moves it back (ensure_tts_on_device(),
+# reached from get_model()'s placement heal and OmniVoiceBackend._ensure_loaded).
+# A RAM -> VRAM move takes seconds; a cold reload from disk takes much longer,
+# which is the point of offloading rather than unloading. Default OFF, so
+# default behaviour is unchanged. CUDA (NVIDIA + ROCm), XPU, NPU and MPS move
+# the model; on CPU the model already lives in RAM and this is a no-op.
+
+OFFLOAD_AFTER_GENERATION_PREF = "offload_tts_after_generation"
+OFFLOAD_AFTER_GENERATION_ENV = "OMNIVOICE_OFFLOAD_AFTER_GENERATION"
+_OFFLOAD_GRACE_ENV = "OMNIVOICE_OFFLOAD_AFTER_GENERATION_GRACE_S"
+_OFFLOAD_GRACE_DEFAULT_S = 3.0
+
+# Serialises every move of the shared model (ASR offload/restore, this
+# feature's offload, the placement restore). A GPU-pool slot is not exclusion
+# on a multi-worker CUDA pool, and moving weights under a running generate is
+# the one way an offload could break a generation.
+_placement_lock = threading.RLock()
+# (id(model), device) while the model sits in RAM because of this feature;
+# the device is where the next generation restores it. Cleared on restore and
+# on unload, and keyed by identity so a reloaded model never inherits it.
+_ram_offload: "tuple[int, str] | None" = None
+_offload_timer: "threading.Timer | None" = None
+_offload_timer_lock = threading.Lock()
+
+
+def _truthy_setting(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def offload_after_generation_enabled() -> bool:
+    """Env ``OMNIVOICE_OFFLOAD_AFTER_GENERATION`` > prefs.json > False.
+    Resolved per call so a Settings change applies without a restart."""
+    try:
+        from core import prefs
+
+        return _truthy_setting(prefs.resolve(
+            OFFLOAD_AFTER_GENERATION_PREF, env=OFFLOAD_AFTER_GENERATION_ENV, default=False,
+        ))
+    except Exception:  # noqa: BLE001 — an unreadable setting means "off"
+        return False
+
+
+def _offload_grace_s() -> float:
+    try:
+        return max(0.0, float(os.environ.get(_OFFLOAD_GRACE_ENV, _OFFLOAD_GRACE_DEFAULT_S)))
+    except ValueError:
+        return _OFFLOAD_GRACE_DEFAULT_S
+
+
+def offload_tts_to_ram() -> bool:
+    """Move the resident TTS model from its accelerator to system RAM.
+
+    Returns True when the model moved. No-op (False) when nothing is loaded or
+    the model is already on CPU — which is every CPU-only host. Never raises.
+    """
+    global _ram_offload
+    m = model
+    if m is None:
+        return False
+    with _placement_lock:
+        if model is not m or _ram_offload is not None:
+            return False
+        dev = _first_param_device(m)
+        if dev is None or getattr(dev, "type", "cpu") in ("cpu", "meta"):
+            return False
+        index = getattr(dev, "index", None)
+        target = dev.type if index is None else f"{dev.type}:{index}"
+        # Record BEFORE moving: a generation arriving mid-move then restores
+        # (after waiting on the lock) instead of trusting a half-moved model.
+        _ram_offload = (id(m), target)
+        try:
+            m.to("cpu")
+            free_vram()
+            logger.info("Generation finished: TTS model moved from %s to system RAM.", target)
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Offloading the TTS model to RAM failed (keeping it on %s): %s", target, e)
+            try:
+                m.to(target)
+                _ram_offload = None
+            except Exception:  # noqa: BLE001 — record stays, so the next generate restores
+                logger.debug("TTS move back after a failed offload failed", exc_info=True)
+            return False
+
+
+def _generation_jobs_active() -> bool:
+    """True while a dub/batch/audiobook (or other background task) is queued
+    or running. Their GPU jobs come in waves with idle gaps between them, so
+    the pool alone can't tell "finished" from "between segments"."""
+    try:
+        from core import job_store
+
+        if job_store.list_jobs(status="active", limit=1):
+            return True
+    except Exception:  # noqa: BLE001 — unknown means busy: never offload blind
+        return True
+    batch = sys.modules.get("api.routers.batch")
+    lister = getattr(batch, "list_batch_jobs", None)
+    if callable(lister):
+        try:
+            return bool(lister(status="active", limit=1))
+        except Exception:  # noqa: BLE001
+            return True
+    return False
+
+
+def _pool_is_idle(*, own_jobs: int = 0) -> bool:
+    stats = gpu_pool_stats()
+    return int(stats.get("queued") or 0) == 0 and int(stats.get("running") or 0) <= own_jobs
+
+
+def _offload_job() -> bool:
+    """Runs on the GPU pool, so it is ordered behind work queued before it."""
+    if not offload_after_generation_enabled() or not _pool_is_idle(own_jobs=1):
+        return False
+    return offload_tts_to_ram()
+
+
+def _offload_when_idle() -> None:
+    """Grace-timer callback: offload only if the pool is still idle, no
+    generation job is pending, and the model is resident on an accelerator."""
+    try:
+        if model is None or _ram_offload is not None:
+            return
+        if not offload_after_generation_enabled() or is_shutting_down():
+            return
+        if not _pool_is_idle() or _generation_jobs_active():
+            return
+        dev = _first_param_device(model)
+        if dev is None or getattr(dev, "type", "cpu") in ("cpu", "meta"):
+            return
+        _get_gpu_pool().submit(_offload_job).add_done_callback(_swallow_abandoned)
+    except Exception:  # noqa: BLE001 — an offload attempt must never surface
+        logger.debug("post-generation TTS offload skipped", exc_info=True)
+
+
+def _note_gpu_pool_idle() -> None:
+    """The GPU pool just drained: (re)arm the grace timer. Each drain restarts
+    it, so back-to-back generations never pay a move between them."""
+    global _offload_timer
+    try:
+        if model is None or _ram_offload is not None:
+            return
+        if not offload_after_generation_enabled():
+            return
+        timer = threading.Timer(_offload_grace_s(), _offload_when_idle)
+        timer.daemon = True
+        with _offload_timer_lock:
+            if _offload_timer is not None:
+                _offload_timer.cancel()
+            _offload_timer = timer
+        timer.start()
+    except Exception:  # noqa: BLE001 — called from the pool's finally block
+        logger.debug("could not arm the post-generation offload", exc_info=True)
+
 
 _diar_pipeline = None
 

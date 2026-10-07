@@ -1547,6 +1547,13 @@ class OmniVoiceBackend(TTSBackend):
 
     def _ensure_loaded(self):
         if self._model is not None:
+            # The cached instance skips get_model(), and with it the placement
+            # heal: put the shared model back on its device if the opt-in
+            # post-generation offload (#2618) or an unbalanced ASR offload
+            # (#1191) left it in RAM. One parameter probe when it is in place.
+            from services.model_manager import ensure_tts_on_device
+
+            ensure_tts_on_device()
             return
         # Reuse model_manager's cached instance so we don't double-load.
         from services.model_manager import get_model
