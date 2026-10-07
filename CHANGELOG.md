@@ -12,9 +12,31 @@ metadata and the backend fallback mirror it.
 
 - MCP speech tools stay connected through cold starts and slow, progressing renders (#2612)
 
+### Added
+
+- Settings → About credits the speech models VoiceStudio can install, with links to their upstream terms and the required Higgs Audio and Llama notices (#2587)
+
+### Changed
+
+- The Pro page lists only what Pro adds; recipes, watch folders, remote compute and voice cloning stay free (#2587)
+- Pro, export and enterprise text, in all 21 languages, makes clear that the app licence doesn't grant rights to models or generated audio (#2587)
+- Desktop installers include the app's licence notices (#2587)
+
+### Docs
+
+- Model licence records list which models are non-commercial or still unreviewed, and the docs no longer claim MIT terms for bundled demo audio or commercial terms for OmniVoice (#2587)
+
 ### Fixed
 
 - MCP speech tools wait through model loading and progress-extended CPU renders instead of timing out before the backend (#2609)
+- Dubbing keeps the previous track when subtitles are imported or the render is cancelled before it finishes, and asks you to generate again for the new subtitles (#2585)
+- Cancelled, superseded or failed dubs leave segment previews and cached speech untouched, so previews and partial regeneration never use rejected audio (#2585)
+- A regenerated dub drops quality-check marks measured on the previous track (#2585)
+- Transcription no longer overwrites subtitles imported, or a dub published, while it runs (#2585)
+- Subtitles imported during transcription keep their matched voice references instead of audio from the discarded pass (#2585)
+- Re-transcribing replaces the previous transcript's voice references instead of reusing them on different lines (#2585)
+- A dub that finishes just as it is cancelled reports done instead of cancelled (#2585)
+- First-run setup tracks a package's download when uv spells its name with underscores on one line and hyphens on another (#2585)
 
 ## [0.5.7] — 2026-10-05
 
