@@ -116,6 +116,18 @@ for (const icon of ['brand/icon.png', 'brand/icon.ico', 'brand/32x32.png']) {
   assert(entry && existsSync(resolve(root, entry.from)), `Runtime icon: ${icon}`);
 }
 assert.equal(typeof config.afterPack, 'function', 'Native helper must be built before signing');
+// electron-builder UNIONS an explicit per-target `arch` with the --x64/--arm64
+// CLI flag, so `--win --arm64` over `{ target: 'nsis', arch: ['x64'] }` also
+// packages x64, and its native helper needs a toolchain the runner lacks. The
+// CLI matrix alone picks the architecture; the default is the host's.
+for (const platform of ['win', 'mac', 'linux']) {
+  for (const target of [config[platform]?.target ?? []].flat()) {
+    assert(
+      typeof target === 'string' || target.arch === undefined,
+      `${platform} target ${target.target} must not pin arch; CLI flags choose it`,
+    );
+  }
+}
 if (artifactRequested) {
   if (process.platform === 'linux') {
     await verifyLinuxLibraries(resolve(artifactResources, 'native/voicestudio-desktop-bridge'));
