@@ -291,8 +291,13 @@ same and wins over the toggle).
   first. That takes a few seconds, much less than the ~8 s reload after
   **Unload**.
 - Nothing moves while another generation is running or queued, or while a
-  dub, batch or audiobook job is active. A run of back-to-back generations pays
-  for one move at the end, not one per generation.
+  dub, batch or audiobook job is active; during such a job the check repeats
+  every 10 s, so the model still moves once the job finishes. A run of
+  back-to-back generations pays for one move at the end, not one per
+  generation.
+- With `OMNIVOICE_FLASHINFER` on, its fused weights and captured CUDA graphs
+  are released with the move and rebuilt when the model is back on the GPU.
+  The dub's transcription offload does the same.
 - NVIDIA (CUDA), AMD (ROCm), Intel XPU and Apple Silicon (MPS) are supported.
   On Apple Silicon memory is unified: the move frees the GPU's working set for
   other GPU apps, not total RAM. On CPU the model already lives in RAM, so the

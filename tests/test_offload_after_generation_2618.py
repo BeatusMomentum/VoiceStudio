@@ -17,6 +17,8 @@ is done. Contract pinned here:
 from __future__ import annotations
 
 import os
+import sys
+import threading
 import time
 
 os.environ.setdefault("OMNIVOICE_MODEL", "test")
@@ -65,13 +67,13 @@ def mm(monkeypatch):
     import services.model_manager as _mm
 
     monkeypatch.setattr(_mm, "_ram_offload", None)
+    monkeypatch.setattr(_mm, "_inference_active", 0)
+    monkeypatch.setattr(_mm, "_placement_exclusive", False)
     monkeypatch.setattr(_mm, "free_vram", lambda: None)
     monkeypatch.setattr(_mm, "_generation_jobs_active", lambda: False)
     monkeypatch.delenv("OMNIVOICE_OFFLOAD_AFTER_GENERATION", raising=False)
     yield _mm
-    with _mm._offload_timer_lock:
-        if _mm._offload_timer is not None:
-            _mm._offload_timer.cancel()
+    _mm._offload_timer.cancel()
 
 
 @pytest.fixture
@@ -149,7 +151,8 @@ def test_no_model_loaded_is_a_noop(mm, monkeypatch, enabled):
     monkeypatch.setattr(mm, "model", None, raising=False)
     assert mm.offload_tts_to_ram() is False
     mm._note_gpu_pool_idle()
-    assert mm._offload_timer is None or not mm._offload_timer.is_alive()
+    pending = mm._offload_timer.pending
+    assert pending is None or not pending.is_alive()
 
 
 # ── Never under load ──────────────────────────────────────────────────────
@@ -208,9 +211,9 @@ def test_back_to_back_drains_rearm_a_single_timer(mm, host, enabled, monkeypatch
     host("cuda:0")
     monkeypatch.setenv("OMNIVOICE_OFFLOAD_AFTER_GENERATION_GRACE_S", "30")
     mm._note_gpu_pool_idle()
-    first = mm._offload_timer
+    first = mm._offload_timer.pending
     mm._note_gpu_pool_idle()
-    second = mm._offload_timer
+    second = mm._offload_timer.pending
     assert first is not second
     assert first.finished.is_set()  # cancelled
     assert second.is_alive()
@@ -288,3 +291,178 @@ def test_settings_endpoint_round_trips(monkeypatch):
     pinned = c.get(url).json()
     assert pinned["enabled"] is False and pinned["env_pinned"] is True
     assert c.put(url, json={"enabled": "nope"}).status_code == 422
+
+
+# ── Review round: inference vs. offload, FlashInfer state, job polling ────
+
+
+class _BlockingTTS(_FakeTTS):
+    """``.to(device)`` blocks on ``gate`` so a test can hold a move open."""
+
+    def __init__(self, device, block_on):
+        super().__init__(device)
+        self.block_on = block_on
+        self.gate = threading.Event()
+        self.entered = threading.Event()
+
+    def to(self, device):
+        if device == self.block_on:
+            self.entered.set()
+            assert self.gate.wait(10)
+        return super().to(device)
+
+
+def test_offload_never_moves_weights_under_a_running_inference(mm, host):
+    """The idle check and the move are atomic against inference: while any
+    inference holds the model, the offload backs off instead of moving it."""
+    fake = host("cuda:0")
+    inside = threading.Event()
+    release = threading.Event()
+
+    def _generate():
+        with mm.tts_inference():
+            inside.set()
+            assert release.wait(10)
+            assert fake.where == "cuda:0"  # nobody moved it mid-inference
+
+    t = threading.Thread(target=_generate)
+    t.start()
+    assert inside.wait(5)
+    assert mm.offload_tts_to_ram() is False  # in use: no move
+    assert fake.moves == [] and mm._ram_offload is None
+    release.set()
+    t.join(5)
+    assert mm.offload_tts_to_ram() is True  # idle again: moves
+
+
+def test_inference_arriving_mid_offload_waits_then_restores(mm, host, monkeypatch):
+    """A generation that passed get_model() just before the offload started
+    must not run on a half-moved model: it waits for the move, then restores."""
+    host("cuda:0")
+    fake = _BlockingTTS("cuda:0", block_on="cpu")
+    monkeypatch.setattr(mm, "model", fake, raising=False)
+    seen = []
+    offload = threading.Thread(target=mm.offload_tts_to_ram)
+    offload.start()
+    assert fake.entered.wait(5)  # offload holds exclusive placement, mid-move
+
+    def _generate():
+        with mm.tts_inference():
+            seen.append(fake.where)
+
+    gen = threading.Thread(target=_generate)
+    gen.start()
+    time.sleep(0.2)
+    assert seen == []  # blocked behind the move
+    fake.gate.set()
+    offload.join(5)
+    gen.join(5)
+    assert seen == ["cuda:0"]  # restored before it ran
+    assert mm._ram_offload is None
+
+
+def test_offload_rechecks_idle_under_exclusive_placement(mm, host):
+    fake = host("cuda:0")
+    assert mm.offload_tts_to_ram(still_idle=lambda: False) is False
+    assert fake.moves == []
+
+
+def test_nested_inference_shares_the_slot(mm, host):
+    host("cuda:0")
+    with mm.tts_inference():
+        with mm.tts_inference():
+            assert mm._inference_active == 2
+    assert mm._inference_active == 0
+
+
+def test_asr_offload_waits_for_inference_then_skips(mm, host, monkeypatch):
+    fake = host("cuda:0")
+    monkeypatch.setattr(mm, "_ASR_PLACEMENT_WAIT_S", 0.1)
+    with mm.tts_inference():
+        mm.offload_tts_for_asr()
+    assert fake.moves == []  # never moved under the running generation
+    mm.offload_tts_for_asr()
+    assert fake.where == "cpu"
+
+
+class _FlashInferTTS(_FakeTTS):
+    def __init__(self, device="cuda:0"):
+        super().__init__(device)
+        self._fi_runner = object()
+        self._fi_graph_cache = {("bucket",): "graph bound to old storage"}
+        self._fi_enable_cuda_graph = True
+        self._fi_graph_buckets = None
+        self._fi_overhead_budget = 512
+        self._fi_orig_attn_impl = "sdpa"
+
+
+@pytest.fixture
+def fake_apply(monkeypatch):
+    import types
+
+    calls = []
+
+    def apply_flashinfer(m, enable_cuda_graph=False, cuda_graph_buckets=None, overhead_budget=512):
+        calls.append((m.where, enable_cuda_graph, cuda_graph_buckets, overhead_budget))
+        m._fi_runner = object()
+        m._fi_graph_cache = {}
+        m._fi_enable_cuda_graph = enable_cuda_graph
+
+    mod = types.ModuleType("omnivoice.models.omnivoice_flashinfer")
+    mod.apply_flashinfer = apply_flashinfer
+    monkeypatch.setitem(sys.modules, "omnivoice.models.omnivoice_flashinfer", mod)
+    return calls
+
+
+@pytest.mark.parametrize("path", ["after_generation", "asr"])
+def test_flashinfer_state_is_torn_down_and_rebuilt_across_a_move(mm, host, monkeypatch, fake_apply, path):
+    """Captured CUDA graphs and fused weights are not parameters, so .to()
+    leaves them on the GPU bound to the old storage. Both offload paths drop
+    them before the move and rebuild them once the model is back on CUDA."""
+    host("cuda:0")
+    fake = _FlashInferTTS()
+    monkeypatch.setattr(mm, "model", fake, raising=False)
+    if path == "asr":
+        mm.offload_tts_for_asr()
+    else:
+        assert mm.offload_tts_to_ram() is True
+    assert fake.where == "cpu"
+    assert "_fi_runner" not in vars(fake) and "_fi_graph_cache" not in vars(fake)
+    if path == "asr":
+        mm.restore_tts_after_asr()
+    else:
+        assert mm.ensure_tts_on_device() is True
+    assert fake.where.split(":")[0] == "cuda"
+    assert [(w.split(":")[0], *rest) for w, *rest in fake_apply] == [("cuda", True, None, 512)]
+    assert fake._fi_graph_cache == {}  # fresh: no graph from the old storage
+    assert "_fi_suspended" not in vars(fake)
+
+
+def test_finished_background_job_still_gets_offloaded(mm, host, enabled, monkeypatch):
+    """While a dub/batch is active the check re-arms itself, so the setting
+    applies after the job ends even without another GPU drain."""
+    host("cuda:0")
+    monkeypatch.setattr(mm, "gpu_pool_stats", lambda *a, **k: {"queued": 0, "running": 0, "workers": 1})
+    submitted = []
+
+    class _Pool:
+        def submit(self, fn):
+            submitted.append(fn)
+
+            class _F:
+                def add_done_callback(self, cb):
+                    pass
+
+            return _F()
+
+    monkeypatch.setattr(mm, "_get_gpu_pool", lambda: _Pool())
+    monkeypatch.setattr(mm, "_generation_jobs_active", lambda: True)
+    mm._offload_when_idle()
+    timer = mm._offload_timer.pending
+    assert timer is not None and timer.is_alive()
+    assert timer.interval == mm._OFFLOAD_JOB_POLL_S
+    assert submitted == []
+    mm._offload_timer.cancel()
+    monkeypatch.setattr(mm, "_generation_jobs_active", lambda: False)
+    mm._offload_when_idle()  # the re-armed check, after the job finished
+    assert len(submitted) == 1
