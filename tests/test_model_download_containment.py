@@ -563,10 +563,16 @@ def test_false_valued_implicit_token_setting_is_overridden_for_a_mirror_and_rest
     hf_auth.apply_process_token_policy(env)
     assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "0"
 
-    for truthy in ("1", "true", "TRUE", " on ", "Yes"):
+    for truthy in ("1", "true", "TRUE", "on", "Yes"):
         kept = {"HF_ENDPOINT": "https://hf-mirror.com", "HF_HUB_DISABLE_IMPLICIT_TOKEN": truthy}
         hf_auth.apply_process_token_policy(kept)
         assert kept["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == truthy
+
+    # huggingface_hub does not trim, so a padded value is false there: override it.
+    for padded in (" on ", " 1", "1 "):
+        env = {"HF_ENDPOINT": "https://hf-mirror.com", "HF_HUB_DISABLE_IMPLICIT_TOKEN": padded}
+        hf_auth.apply_process_token_policy(env)
+        assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1"
 
 
 def test_engine_env_forces_the_implicit_token_off_for_a_mirror_even_when_set_false():
@@ -576,3 +582,13 @@ def test_engine_env_forces_the_implicit_token_off_for_a_mirror_even_when_set_fal
         base_env={"HF_ENDPOINT": "https://hf-mirror.com", "HF_HUB_DISABLE_IMPLICIT_TOKEN": "0"}
     )
     assert env["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1"
+
+
+def test_implicit_token_parser_matches_huggingface_hub():
+    """The policy must call a value disabled only when the Hub does."""
+    from huggingface_hub import constants
+
+    from services import hf_auth
+
+    for value in ("1", "true", "TRUE", "on", "ON", "Yes", "YES", " on ", " 1", "1 ", "0", "false", "", "2"):
+        assert hf_auth.implicit_token_disabled(value) == constants._is_true(value), value

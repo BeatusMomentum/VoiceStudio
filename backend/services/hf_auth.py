@@ -73,8 +73,8 @@ def env_allows_token(environ) -> bool:
 
 
 _IMPLICIT_ENV = "HF_HUB_DISABLE_IMPLICIT_TOKEN"
-# huggingface_hub reads these as true; anything else, including "0", leaves the
-# implicit token on.
+# huggingface_hub reads these as true (case-insensitively, untrimmed); anything
+# else, including "0" or " 1", leaves the implicit token on.
 _TRUE_VALUES = frozenset({"1", "on", "yes", "true"})
 # Mappings this module changed the variable in, with the value it replaced
 # (None when unset), so a later call only ever restores what it changed: a
@@ -87,7 +87,8 @@ _implicit_lock = threading.Lock()
 
 def implicit_token_disabled(value: object) -> bool:
     """Whether a ``HF_HUB_DISABLE_IMPLICIT_TOKEN`` value turns the implicit token off."""
-    return str(value or "").strip().lower() in _TRUE_VALUES
+    # No trimming: huggingface_hub compares ``value.upper()`` exactly, so " on " is false there.
+    return str(value or "").lower() in _TRUE_VALUES
 
 
 def apply_process_token_policy(environ: Optional[dict] = None) -> None:
