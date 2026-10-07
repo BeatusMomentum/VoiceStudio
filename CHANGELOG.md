@@ -20,6 +20,9 @@ metadata and the backend fallback mirror it.
 ### Fixed
 
 - MCP speech tools wait through model loading and progress-extended CPU renders instead of timing out before the backend (#2609)
+- On Windows, the GPU report finds your graphics card again, and CPU-only hosts with integrated graphics are no longer told to fix an NVIDIA driver (#2620) — thanks @creatorliao!
+- Stretch Video exports that keep the original background no longer fail with HTTP 409 when subtitle cues sit close together or have no length (#2616) — thanks @quan0pek!
+- Failed desktop saves and exports show the app's explanation instead of a bare "HTTP 409" (#2616) — thanks @quan0pek!
 - Failed model downloads stop every parallel range writer instead of leaving them writing in the background (#2642) — thanks @rudycelekli!
 - A finished call's status can no longer be overwritten by a delayed save, so call history shows the true outcome (#2640) — thanks @rudycelekli!
 - Cancelling a dub keeps track of processes started while it was being stopped (#2632) — thanks @rudycelekli!
