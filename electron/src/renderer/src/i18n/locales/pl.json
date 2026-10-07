@@ -2956,6 +2956,7 @@
   "dubIntegrity": {
     "missingSpeech": "Brak mowy lub nie można jej odczytać. Przed eksportem wygeneruj ponownie dany segment.",
     "timingOverflow": "Mowa przekracza przydzielony czas. Skróć tłumaczenie albo wybierz ścisły przedział czasu lub wydłużenie filmu.",
+    "sourceChanged": "Napisy zmieniły się podczas generowania tego dubbingu. Poprzednią ścieżkę zachowano; wygeneruj ponownie, aby użyć nowych napisów.",
     "backgroundUnavailable": "Nie udało się zachować oryginalnego dźwięku. Sprawdź oddzielenie tła i czasy dialogów, a następnie spróbuj ponownie lub wybierz eksport samej mowy."
   },
   "dubStyle": {
