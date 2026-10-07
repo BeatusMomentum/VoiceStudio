@@ -62,7 +62,9 @@ class AutoExtractRequest(BaseModel):
 
 def _fold(text: str) -> str:
     """Case-insensitive, normalization-insensitive key for source terms."""
-    return unicodedata.normalize("NFC", text or "").casefold()
+    # NFKC also folds compatibility forms (full-width Latin letters, the "fi"
+    # ligature), which LLM output in CJK-adjacent projects often contains.
+    return unicodedata.normalize("NFKC", text or "").casefold()
 
 
 def _row_to_dict(r) -> dict:
