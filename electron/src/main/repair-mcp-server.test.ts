@@ -103,4 +103,13 @@ describe('repair MCP api_request', () => {
     expect(replies[0].error.code).toBe(-32600);
     expect(replies[1].result.content[0].text).toBe('HTTP 200\nhello €');
   }, 20_000);
+
+  it('caps request lines in UTF-8 bytes, not UTF-16 units', async () => {
+    // 3M three-byte characters: 9 MB of input, but only 3M string units.
+    const wide = '€'.repeat(3_000_000);
+    expect(wide.length).toBeLessThan(8_000_000);
+    const replies = await call([wide, apiCall('/small')]);
+    expect(replies[0].error.code).toBe(-32600);
+    expect(replies[1].result.content[0].text).toBe('HTTP 200\nhello €');
+  }, 20_000);
 });
