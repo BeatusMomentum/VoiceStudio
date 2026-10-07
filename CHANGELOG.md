@@ -15,6 +15,14 @@ metadata and the backend fallback mirror it.
 ### Fixed
 
 - MCP speech tools wait through model loading and progress-extended CPU renders instead of timing out before the backend (#2609)
+- Dubbing keeps the previous track when subtitles are imported or the render is cancelled before it finishes, and asks you to generate again for the new subtitles (#2585)
+- Cancelled, superseded or failed dubs leave segment previews and cached speech untouched, so previews and partial regeneration never use rejected audio (#2585)
+- A regenerated dub drops quality-check marks measured on the previous track (#2585)
+- Transcription no longer overwrites subtitles imported, or a dub published, while it runs (#2585)
+- Subtitles imported during transcription keep their matched voice references instead of audio from the discarded pass (#2585)
+- Re-transcribing replaces the previous transcript's voice references instead of reusing them on different lines (#2585)
+- A dub that finishes just as it is cancelled reports done instead of cancelled (#2585)
+- First-run setup tracks a package's download when uv spells its name with underscores on one line and hyphens on another (#2585)
 
 ## [0.5.7] — 2026-10-05
 
@@ -136,12 +144,6 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - License notice: commercial use is free under the AGPL; the paid licence is for closed-source use, with Pro plans linked (#2578)
 
 ### Fixed
-- Dubbing keeps the previous track when subtitles are imported or the render is cancelled before it finishes, and asks you to generate again for the new subtitles (#2585)
-- Cancelled or failed dubs no longer leave new speech under old segment fingerprints, so a later partial regeneration never reuses the wrong words (#2585)
-- A regenerated dub drops quality-check marks measured on the previous track (#2585)
-- Transcription no longer overwrites subtitles imported while it runs (#2585)
-- A dub that finishes just as it is cancelled reports done instead of cancelled (#2585)
-- First-run setup tracks a package's download when uv spells its name with underscores on one line and hyphens on another (#2585)
 
 - Voice cloning finds a speech-to-text model installed through Model Catalogue instead of asking you to install one (#2442, #2498) — thanks @drakeo338, @Bad-ptr!
 - A reference over 20 s with no speech-to-text model says it is too long and to trim it to 3-10 s (#2442) — thanks @drakeo338, @Bad-ptr!
