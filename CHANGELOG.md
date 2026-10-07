@@ -14,22 +14,17 @@ metadata and the backend fallback mirror it.
 
 ### Added
 
-- Track model licence evidence and unresolved commercial-use reviews, with CI coverage for catalogue dependencies and backend repository defaults (#2587)
-- About credits supported speech models and conversions, with upstream terms and required Higgs Audio and Llama notices (#2587)
+- Settings → About credits the speech models VoiceStudio can install, with links to their upstream terms and the required Higgs Audio and Llama notices (#2587)
 
 ### Changed
 
-- Keep existing recipes, watch folders and remote compute out of Pro benefit lists, and stop describing voice cloning as a paid unlock (#2587)
-- Keep private licensing-service operations out of the public client protocol draft (#2587)
-- Clarify in Pro, export and enterprise text that the application licence does not grant model or generated-output rights, in all 21 languages (#2587)
-- Remove unsupported automatic MIT licence claims from bundled demo metadata and generation scripts (#2587)
-- Correct historical OmniVoice commercial-licence claims and require the rights gate as well as technical smoke tests for engine acceptance (#2587)
-- Include the application licence notice and T3 Code MIT notice in desktop installers (#2587)
-- Remove the unused Remotion player integration and dependency while keeping the existing media playback providers (#2587)
+- The Pro page lists only what Pro adds; recipes, watch folders, remote compute and voice cloning stay free (#2587)
+- Pro, export and enterprise text, in all 21 languages, makes clear that the app licence doesn't grant rights to models or generated audio (#2587)
+- Desktop installers include the app's licence notices (#2587)
 
 ### Docs
 
-- Record the locked PyAV wheels' FFmpeg build flags, bundled codecs and unresolved redistribution terms (#2587)
+- Model licence records list which models are non-commercial or still unreviewed, and the docs no longer claim MIT terms for bundled demo audio or commercial terms for OmniVoice (#2587)
 
 ### Fixed
 
