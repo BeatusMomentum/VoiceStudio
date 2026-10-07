@@ -1,4 +1,4 @@
-import { formatTimestamp } from './timeFormat';
+import { formatTimestamp } from './timeFormat.js';
 
 export function formatTime(s) {
   return formatTimestamp(s, { decimals: 1 });
