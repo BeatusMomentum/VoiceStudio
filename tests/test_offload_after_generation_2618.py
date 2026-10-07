@@ -66,6 +66,12 @@ class _FakeTTS:
 def mm(monkeypatch):
     import services.model_manager as _mm
 
+    # Every module global these tests read starts known, whatever ran before:
+    # a test that exits the app lifespan leaves the shutdown flag set and the
+    # GPU pool torn down, and the offload stands down during shutdown.
+    _mm.reset_shutdown_flag()
+    _mm._reset_gpu_pool()
+    _mm._offload_timer.cancel()
     monkeypatch.setattr(_mm, "_ram_offload", None)
     monkeypatch.setattr(_mm, "_inference_active", 0)
     monkeypatch.setattr(_mm, "_placement_exclusive", False)
