@@ -617,7 +617,9 @@
   },
   "designWorkspace": {
     "title": "Concevoir",
-    "save_failed": "Échec de l'enregistrement du profil vocal"
+    "save_failed": "Échec de l'enregistrement du profil vocal",
+    "engine_cannot_design": "{{engine}} ne peut pas concevoir de voix, car il a besoin d'un extrait de référence. Choisissez un moteur compatible avec la conception de voix, comme OmniVoice, ou clonez plutôt une voix.",
+    "engine_cannot_reuse_sample": "{{engine}} ne peut pas utiliser d'audio de référence ; il ne peut donc pas régénérer cette voix enregistrée à partir de son échantillon. Choisissez un moteur compatible avec le clonage de voix, comme OmniVoice."
   },
   "dub": {
     "timing_label": "Synchronisation",
@@ -649,6 +651,9 @@
     "remove_cookie_file": "Supprimer le fichier de cookies",
     "remove_video": "Supprimer la vidéo",
     "remove_video_confirm": "Supprimer cette vidéo, sa transcription et les modifications non enregistrées ? Cette action est irréversible.",
+    "remove_audio": "Retirer l'audio",
+    "remove_audio_confirm": "Retirer cet audio, sa transcription et les modifications non enregistrées ? Cette action est irréversible.",
+    "remove_interrupted_confirm": "Retirer cette source et abandonner l'exécution interrompue ? Sa transcription, le résultat partiel et les modifications non enregistrées seront perdus. Cette action est irréversible.",
     "cookie_transport_error": "L’export de cookies nécessite HTTPS ou l’application de bureau locale.",
     "cookie_size_error": "L’export de cookies doit faire 1 Mo maximum.",
     "save": "Enregistrer",
@@ -2119,7 +2124,8 @@
     "all_size": "Tous ~{{size}} Go",
     "download_all_remaining_title": "Télécharger tous les modèles recommandés restants",
     "reco_disk_free": "{{free}} Go libres sur le disque modèle",
-    "reco_low_disk": "Pas assez d'espace pour le bundle complet : il nécessite ~{{need}} Go mais seul {{free}} Go est gratuit. Installez uniquement les modèles requis ou libérez d'abord de l'espace.",
+    "reco_low_disk": "Espace insuffisant pour le pack complet : il télécharge ~{{need}} Go et laisse ensuite {{headroom}} Go libres ({{total}} Go au total), mais seulement {{free}} Go sont libres. Installez uniquement les modèles requis ou libérez d'abord de l'espace.",
+    "pack_low_disk": "Espace insuffisant pour ce pack : il télécharge ~{{need}} Go et laisse ensuite {{headroom}} Go libres ({{total}} Go au total), mais seulement {{free}} Go sont libres. Libérez de l'espace ou déplacez d'abord le dossier des modèles vers un disque plus grand.",
     "req_tag": "demande",
     "reco_install_one": "Installer {{label}}"
   },
@@ -2130,6 +2136,8 @@
     "setup_space": "Libérez au moins {{gib}} Gio sur le disque de l’application, puis réessayez.",
     "setup_access": "Autorisez l’écriture dans le dossier de données de l’application, puis réessayez.",
     "setup_unsupported_platform": "Ce Mac Intel ne peut pas exécuter le backend IA local — PyTorch ne fournit pas de wheels macOS Intel. Connectez plutôt un backend distant ci-dessous ; aucune installation locale n'est nécessaire.",
+    "setup_wrong_architecture": "Ceci est la version Intel (x64) de VoiceStudio exécutée via Rosetta sur un Mac Apple Silicon : le backend IA local ne peut donc pas s'installer. Quittez l'app, installez par-dessus le DMG Apple Silicon (arm64), puis rouvrez-la — vos voix et projets sont conservés.",
+    "download_apple_silicon": "Télécharger la version Apple Silicon",
     "ready": "Moteur prêt",
     "show_log": "Afficher le journal",
     "hide_log": "Masquer le journal",
@@ -2138,6 +2146,9 @@
     "attaching": "Connexion au moteur en cours d’exécution…",
     "crashed": "Le moteur local s’est arrêté de manière inattendue.",
     "unresponsive": "Le moteur local est occupé et ne répond pas pour le moment ; il reprendra de lui-même.",
+    "unresponsive_remote": "Impossible de confirmer la connexion au moteur distant ; nouvelle tentative automatique.",
+    "unhealthy": "Le moteur répond, mais signale qu'il n'est pas en bon état. Consultez Réglages → Journaux → Backend, puis réessayez.",
+    "auth_required": "Le moteur distant n'accepte plus la connexion de cette application. Reconnectez-vous avec sa clé d'API.",
     "failed": "Impossible de démarrer le moteur local.",
     "idle": "En attente du moteur local…",
     "log_label": "Journal du moteur",

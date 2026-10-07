@@ -615,7 +615,9 @@
   },
   "designWorkspace": {
     "title": "디자인",
-    "save_failed": "음성 프로필을 저장하지 못했습니다."
+    "save_failed": "음성 프로필을 저장하지 못했습니다.",
+    "engine_cannot_design": "{{engine}}은(는) 참조 클립이 필요해서 음성을 디자인할 수 없습니다. OmniVoice처럼 음성 디자인을 지원하는 엔진으로 전환하거나, 대신 음성을 복제하세요.",
+    "engine_cannot_reuse_sample": "{{engine}}은(는) 참조 오디오를 사용할 수 없어 저장된 이 음성을 샘플로 다시 생성할 수 없습니다. OmniVoice처럼 음성 복제를 지원하는 엔진으로 전환하세요."
   },
   "dub": {
     "timing_label": "타이밍",
@@ -645,6 +647,9 @@
     "remove_cookie_file": "쿠키 파일 제거",
     "remove_video": "동영상 삭제",
     "remove_video_confirm": "이 동영상과 자막, 저장하지 않은 편집 내용을 삭제할까요? 되돌릴 수 없습니다.",
+    "remove_audio": "오디오 제거",
+    "remove_audio_confirm": "이 오디오와 대본, 저장하지 않은 편집 내용을 제거할까요? 되돌릴 수 없습니다.",
+    "remove_interrupted_confirm": "이 소스를 제거하고 중단된 실행을 폐기할까요? 대본, 부분 출력, 저장하지 않은 편집 내용이 사라집니다. 되돌릴 수 없습니다.",
     "cookie_transport_error": "쿠키 내보내기에는 HTTPS 또는 로컬 데스크톱 앱이 필요합니다.",
     "cookie_size_error": "쿠키 내보내기 파일은 1MB 이하여야 합니다.",
     "save": "저장",
@@ -2117,7 +2122,8 @@
     "all_size": "전체 ~{{size}}GB",
     "download_all_remaining_title": "남은 추천 모델 모두 다운로드",
     "reco_disk_free": "모델 디스크에 {{free}}GB 여유 공간",
-    "reco_low_disk": "전체 번들을 설치할 공간이 부족합니다: 약 {{need}}GB가 필요하지만 {{free}}GB만 남아 있습니다. 필요한 모델만 설치하거나, 먼저 공간을 확보하세요.",
+    "reco_low_disk": "전체 번들을 설치할 공간이 부족합니다: 약 {{need}} GB를 다운로드하고 이후 {{headroom}} GB를 비워 두어야 하지만(총 {{total}} GB), 여유 공간은 {{free}} GB뿐입니다. 필수 모델만 설치하거나 먼저 공간을 확보하세요.",
+    "pack_low_disk": "이 팩을 설치할 공간이 부족합니다: 약 {{need}} GB를 다운로드하고 이후 {{headroom}} GB를 비워 두어야 하지만(총 {{total}} GB), 여유 공간은 {{free}} GB뿐입니다. 먼저 공간을 확보하거나 모델 폴더를 더 큰 드라이브로 옮기세요.",
     "req_tag": "필수",
     "reco_install_one": "{{label}} 설치"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "앱 드라이브에 최소 {{gib}} GiB의 여유 공간을 확보한 후 다시 시도하세요.",
     "setup_access": "앱 데이터 폴더에 쓰기 권한을 허용한 후 다시 시도하세요.",
     "setup_unsupported_platform": "이 Intel Mac에서는 로컬 AI 백엔드를 실행할 수 없습니다 — PyTorch에 macOS Intel용 휠이 없습니다. 아래에서 원격 백엔드에 연결하세요. 로컬 설치는 필요하지 않습니다.",
+    "setup_wrong_architecture": "Apple Silicon Mac에서 Rosetta를 통해 실행 중인 VoiceStudio Intel(x64) 빌드이므로 로컬 AI 백엔드를 설치할 수 없습니다. 앱을 종료하고 Apple Silicon(arm64) DMG를 덮어 설치한 뒤 다시 여세요. 음성과 프로젝트는 그대로 유지됩니다.",
+    "download_apple_silicon": "Apple Silicon 빌드 다운로드",
     "ready": "엔진 준비 완료",
     "show_log": "로그 표시",
     "hide_log": "로그 숨기기",
@@ -2136,6 +2144,9 @@
     "attaching": "실행 중인 엔진에 연결 중…",
     "crashed": "로컬 엔진이 예기치 않게 중지되었습니다.",
     "unresponsive": "로컬 엔진이 현재 바빠 응답하지 않습니다. 작업이 끝나면 자동으로 복구됩니다.",
+    "unresponsive_remote": "원격 엔진과의 연결을 확인할 수 없습니다. 자동으로 다시 시도합니다.",
+    "unhealthy": "엔진이 응답하지만 정상 상태가 아니라고 보고합니다. 설정 → 로그 → 백엔드를 확인한 뒤 다시 시도하세요.",
+    "auth_required": "원격 엔진이 더 이상 이 앱의 로그인을 받아들이지 않습니다. API 키로 다시 연결하세요.",
     "failed": "로컬 엔진을 시작할 수 없습니다.",
     "idle": "로컬 엔진 대기 중…",
     "log_label": "엔진 로그",

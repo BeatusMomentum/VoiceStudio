@@ -628,7 +628,9 @@
   },
   "designWorkspace": {
     "title": "设计",
-    "save_failed": "保存语音配置文件失败"
+    "save_failed": "保存语音配置文件失败",
+    "engine_cannot_design": "{{engine}} 需要参考音频片段，无法设计声音。请切换到支持声音设计的引擎（例如 OmniVoice），或改为克隆声音。",
+    "engine_cannot_reuse_sample": "{{engine}} 无法使用参考音频，因此不能用样本重新生成这个已保存的声音。请切换到支持声音克隆的引擎（例如 OmniVoice）。"
   },
   "dub": {
     "timing_label": "时间匹配",
@@ -660,6 +662,9 @@
     "remove_cookie_file": "移除 Cookie 文件",
     "remove_video": "移除视频",
     "remove_video_confirm": "要移除此视频、转录文本和未保存的编辑吗？此操作无法撤销。",
+    "remove_audio": "移除音频",
+    "remove_audio_confirm": "要移除此音频、其转录文本和未保存的编辑吗?此操作无法撤销。",
+    "remove_interrupted_confirm": "要移除此来源并放弃中断的运行吗?其转录文本、部分输出和未保存的编辑都将丢失。此操作无法撤销。",
     "cookie_transport_error": "Cookie 导出文件只能通过 HTTPS 或本地桌面应用发送。",
     "cookie_size_error": "Cookie 导出文件必须小于或等于 1 MB。",
     "save": "保存",
@@ -2117,7 +2122,8 @@
     "all_size": "全部 ~{{size}} GB",
     "download_all_remaining_title": "下载所有剩余推荐模型",
     "reco_disk_free": "模型磁盘剩余 {{free}} GB",
-    "reco_low_disk": "空间不足以安装完整组合：约需 {{need}} GB，但只剩 {{free}} GB。请只安装必需模型，或先腾出空间。",
+    "reco_low_disk": "空间不足,无法安装完整套件:需要下载约 {{need}} GB,并在安装后保留 {{headroom}} GB 可用空间(共 {{total}} GB),但当前仅有 {{free}} GB 可用。请只安装必需的模型,或先释放空间。",
+    "pack_low_disk": "空间不足,无法安装此模型包:需要下载约 {{need}} GB,并在安装后保留 {{headroom}} GB 可用空间(共 {{total}} GB),但当前仅有 {{free}} GB 可用。请先释放空间,或将模型文件夹移到更大的磁盘。",
     "req_tag": "必需",
     "reco_install_one": "安装 {{label}}"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "请在应用所在磁盘上释放至少 {{gib}} GiB 空间，然后重试。",
     "setup_access": "请允许写入应用数据文件夹，然后重试。",
     "setup_unsupported_platform": "此 Intel Mac 无法运行本地 AI 后端——PyTorch 不提供 macOS Intel 构建。请在下方连接远程后端，无需本地安装。",
+    "setup_wrong_architecture": "这是通过 Rosetta 在 Apple Silicon Mac 上运行的 VoiceStudio Intel (x64) 版本，因此无法安装本地 AI 后端。请退出应用，覆盖安装 Apple Silicon (arm64) 版 DMG 后重新打开——你的声音和项目都会保留。",
+    "download_apple_silicon": "下载 Apple Silicon 版本",
     "retry": "重试",
     "ready": "引擎已就绪",
     "show_log": "显示日志",
@@ -2136,6 +2144,9 @@
     "attaching": "正在连接运行中的引擎…",
     "crashed": "本地引擎意外停止。",
     "unresponsive": "本地引擎正忙，暂时没有响应，任务结束后会自动恢复。",
+    "unresponsive_remote": "无法确认与远程引擎的连接，正在自动重试。",
+    "unhealthy": "引擎有响应，但报告自身状态不正常。请查看 设置 → 日志 → 后端，然后重试。",
+    "auth_required": "远程引擎不再接受此应用的登录。请使用其 API 密钥重新连接。",
     "failed": "无法启动本地引擎。",
     "idle": "正在等待本地引擎…",
     "log_label": "引擎日志",

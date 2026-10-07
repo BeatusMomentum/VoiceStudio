@@ -615,7 +615,9 @@
   },
   "designWorkspace": {
     "title": "Desain",
-    "save_failed": "Gagal menyimpan profil suara"
+    "save_failed": "Gagal menyimpan profil suara",
+    "engine_cannot_design": "{{engine}} tidak dapat mendesain suara karena memerlukan klip referensi. Beralihlah ke mesin yang mendukung Desain Suara, seperti OmniVoice, atau kloning suara sebagai gantinya.",
+    "engine_cannot_reuse_sample": "{{engine}} tidak dapat menggunakan audio referensi, sehingga tidak dapat membuat ulang suara tersimpan ini dari sampelnya. Beralihlah ke mesin yang mendukung kloning suara, seperti OmniVoice."
   },
   "dub": {
     "timing_label": "Pengaturan waktu",
@@ -647,6 +649,9 @@
     "remove_cookie_file": "Hapus berkas kuki",
     "remove_video": "Hapus video",
     "remove_video_confirm": "Hapus video ini, transkripnya, dan perubahan yang belum disimpan? Tindakan ini tidak dapat dibatalkan.",
+    "remove_audio": "Hapus audio",
+    "remove_audio_confirm": "Hapus audio ini, transkripnya, dan suntingan yang belum disimpan? Tindakan ini tidak dapat dibatalkan.",
+    "remove_interrupted_confirm": "Hapus sumber ini dan buang proses yang terhenti? Transkrip, keluaran parsial, dan suntingan yang belum disimpan akan hilang. Tindakan ini tidak dapat dibatalkan.",
     "cookie_transport_error": "Ekspor kuki memerlukan HTTPS atau aplikasi desktop lokal.",
     "cookie_size_error": "Ekspor kuki harus berukuran 1 MB atau kurang.",
     "save": "Simpan",
@@ -2117,7 +2122,8 @@
     "all_size": "Semua ~{{size}} GB",
     "download_all_remaining_title": "Unduh semua model rekomendasi yang tersisa",
     "reco_disk_free": "{{free}} GB kosong di disk model",
-    "reco_low_disk": "Ruang tidak cukup untuk bundel lengkap: diperlukan sekitar {{need}} GB, tetapi hanya {{free}} GB yang tersedia. Instal model wajib saja atau kosongkan ruang terlebih dahulu.",
+    "reco_low_disk": "Ruang tidak cukup untuk paket lengkap: paket ini mengunduh ~{{need}} GB dan menyisakan {{headroom}} GB kosong setelahnya (total {{total}} GB), tetapi hanya {{free}} GB yang kosong. Instal model yang diperlukan saja, atau kosongkan ruang terlebih dahulu.",
+    "pack_low_disk": "Ruang tidak cukup untuk paket ini: paket ini mengunduh ~{{need}} GB dan menyisakan {{headroom}} GB kosong setelahnya (total {{total}} GB), tetapi hanya {{free}} GB yang kosong. Kosongkan ruang atau pindahkan folder model ke drive yang lebih besar terlebih dahulu.",
     "req_tag": "permintaan",
     "reco_install_one": "Instal {{label}}"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "Kosongkan setidaknya {{gib}} GiB di drive aplikasi, lalu coba lagi.",
     "setup_access": "Izinkan akses tulis ke folder data aplikasi, lalu coba lagi.",
     "setup_unsupported_platform": "Mac Intel ini tidak dapat menjalankan backend AI lokal — PyTorch tidak menyediakan wheel macOS Intel. Hubungkan backend jarak jauh di bawah; instalasi lokal tidak diperlukan.",
+    "setup_wrong_architecture": "Ini adalah build Intel (x64) VoiceStudio yang berjalan melalui Rosetta di Mac Apple Silicon, sehingga backend AI lokal tidak dapat dipasang. Tutup aplikasi, pasang DMG Apple Silicon (arm64) di atasnya, lalu buka kembali — suara dan proyek Anda tetap tersimpan.",
+    "download_apple_silicon": "Unduh build Apple Silicon",
     "ready": "Mesin siap",
     "show_log": "Tampilkan log",
     "hide_log": "Sembunyikan log",
@@ -2136,6 +2144,9 @@
     "attaching": "Menghubungkan ke mesin yang sedang berjalan…",
     "crashed": "Mesin lokal berhenti secara tak terduga.",
     "unresponsive": "Mesin lokal sedang sibuk dan belum merespons — akan pulih sendiri.",
+    "unresponsive_remote": "Koneksi ke mesin jarak jauh tidak dapat dipastikan — mencoba lagi secara otomatis.",
+    "unhealthy": "Mesin merespons tetapi melaporkan dirinya tidak sehat. Periksa Pengaturan → Log → Backend, lalu coba lagi.",
+    "auth_required": "Mesin jarak jauh tidak lagi menerima sign-in aplikasi ini. Sambungkan kembali dengan kunci API-nya.",
     "failed": "Mesin lokal tidak dapat dimulai.",
     "idle": "Menunggu mesin lokal…",
     "log_label": "Log mesin",

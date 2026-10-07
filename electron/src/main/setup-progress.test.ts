@@ -66,6 +66,52 @@ describe('SetupProgressTracker', () => {
     expect(progress).not.toHaveProperty('activePackage');
   });
 
+  it.each([
+    ['torch', 'torchvision'],
+    ['torchvision', 'torch'],
+  ])('credits concurrent bytes to the right package when %s is announced first', (first, second) => {
+    const tracker = new SetupProgressTracker();
+    const sizes: Record<string, string> = { torch: '20 MiB', torchvision: '10 MiB' };
+    tracker.ingest(`Downloading ${first} (${sizes[first]})`);
+    tracker.ingest(`Downloading ${second} (${sizes[second]})`);
+
+    expect(tracker.ingest('torchvision ------ 5 MiB/10 MiB')).toMatchObject({
+      activePackage: 'torchvision',
+      downloadedBytes: 5 * 1024 ** 2,
+      totalBytes: 30 * 1024 ** 2,
+    });
+    expect(tracker.ingest('torch ------ 4 MiB/20 MiB')).toMatchObject({
+      activePackage: 'torch',
+      downloadedBytes: 9 * 1024 ** 2,
+      totalBytes: 30 * 1024 ** 2,
+    });
+  });
+
+  it.each([
+    ['nvidia-cublas', 'nvidia-cublas-cu12'],
+    ['ruamel', 'ruamel.yaml'],
+  ])('does not confuse %s with %s', (short, long) => {
+    const tracker = new SetupProgressTracker();
+    tracker.ingest(`Downloading ${short} (8 MiB)`);
+    tracker.ingest(`Downloading ${long} (2 MiB)`);
+    expect(tracker.ingest(`${long} 1 MiB/2 MiB`)).toMatchObject({
+      activePackage: long,
+      downloadedBytes: 1024 ** 2,
+      totalBytes: 10 * 1024 ** 2,
+    });
+  });
+
+  it('ignores progress for a package that was never announced', () => {
+    const tracker = new SetupProgressTracker();
+    tracker.ingest('Downloading torch (20 MiB)');
+    expect(tracker.ingest('torchaudio 3 MiB/9 MiB')).toBeNull();
+    expect(tracker.snapshot()).toMatchObject({
+      activePackage: 'torch',
+      totalBytes: 20 * 1024 ** 2,
+      downloadedBytes: 0,
+    });
+  });
+
   it('normalizes uv units and terminal escape sequences', () => {
     expect(parseByteSize('1.5', 'GiB')).toBe(1.5 * 1024 ** 3);
     expect(cleanProcessLine('\u001b[2K Downloaded torch\r')).toBe('Downloaded torch');

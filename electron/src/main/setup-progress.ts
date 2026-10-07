@@ -35,6 +35,10 @@ export function parseByteSize(value: string, unit: string): number {
   return Number(value) * (powers[unit] ?? 1);
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** Converts uv's human output into stable, renderer-safe progress data. */
 export class SetupProgressTracker {
   private readonly planned = new Map<string, number>();
@@ -96,7 +100,7 @@ export class SetupProgressTracker {
     if (bytePair) {
       const received = parseByteSize(bytePair[1], bytePair[2]);
       const total = parseByteSize(bytePair[3], bytePair[4]);
-      const name = [...this.planned.keys()].find((candidate) => line.includes(candidate));
+      const name = this.packageOnLine(line);
       if (name) {
         this.planned.set(name, total);
         this.received.set(name, Math.min(received, total));
@@ -116,6 +120,22 @@ export class SetupProgressTracker {
       this.updateRate(now, downloadedBytes, totalBytes);
     }
     return { ...this.progress };
+  }
+
+  /**
+   * The announced package a progress line belongs to. Names must match as a
+   * whole token: `torch` is a prefix of `torchvision`, `nvidia-cublas` of
+   * `nvidia-cublas-cu12`, `ruamel` of `ruamel.yaml`. A substring match would
+   * credit one package's bytes to another, and an unannounced package to
+   * whichever planned name it happens to contain.
+   */
+  private packageOnLine(line: string): string | undefined {
+    let best: string | undefined;
+    for (const candidate of this.planned.keys()) {
+      const token = new RegExp(`(?:^|\\s)${escapeRegExp(candidate)}(?=[\\s=@(]|$)`, 'i');
+      if (token.test(line) && (!best || candidate.length > best.length)) best = candidate;
+    }
+    return best;
   }
 
   private refreshDownloadState(): void {

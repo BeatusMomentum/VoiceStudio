@@ -5,9 +5,11 @@ import struct
 import logging
 import time
 import asyncio
+import contextlib
 import torch
 from fastapi import APIRouter, HTTPException
 
+from core import voice_leases
 from core.db import db_conn
 from core.config import DUB_DIR, VOICES_DIR, dub_seg_path
 from core.tasks import task_manager
@@ -567,6 +569,14 @@ async def dub_generate(job_id: str, req: DubRequest):
     _job_postprocess = _profile_defaults.get("postprocess_output", True)
 
     async def _stream(task_id):
+        # Every reference take the render resolves stays held until it ends,
+        # so the retired-voice sweep never deletes one mid-dub (#2535).
+        with voice_leases.VoiceFileLease() as voice_lease:
+            async with contextlib.aclosing(_render(task_id, voice_lease)) as events:
+                async for event in events:
+                    yield event
+
+    async def _render(task_id, voice_lease):
         total = len(req.segments)
         all_segment_wavs = []
         sync_scores = []
@@ -848,9 +858,9 @@ async def dub_generate(job_id: str, req: DubRequest):
                 ref_audio, ref_text, ref_single_use, profile_instruct, seed = _remote_voice(
                     job, seg.profile_id or None, seg_id, voice_match, _consistent_ref_memo
                 )
-                ref_audio = warn_if_ref_missing(
+                ref_audio = voice_lease.hold(warn_if_ref_missing(
                     ref_audio, job_id=job_id, seg_id=seg_id, where="remote dub render"
-                )
+                ))
                 seg_instruct = seg.instruct or req.instruct or profile_instruct
                 seg_speed = seg.speed if seg.speed is not None else req.speed
                 if seg.direction and seg.direction.strip():
@@ -1175,9 +1185,9 @@ async def dub_generate(job_id: str, req: DubRequest):
 
                 # Last gate before the engine: every resolution branch above
                 # produces a PATH, and none of them can know it still exists.
-                ref_audio = warn_if_ref_missing(
+                ref_audio = voice_lease.hold(warn_if_ref_missing(
                     ref_audio, job_id=job_id, seg_id=effective_seg_id, where="dub render",
-                )
+                ))
 
                 if prepare_only:
                     return {

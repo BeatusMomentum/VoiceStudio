@@ -980,6 +980,24 @@ def _delete_cookie_export(cookie_file: str | None) -> bool:
     return True
 
 
+class _YtdlpLogger:
+    """Route yt-dlp output to ``logger`` so a missing/broken stdio can't fail a download."""
+
+    def debug(self, msg):
+        # yt-dlp sends both debug and info messages here ("[debug] " prefixed).
+        if not str(msg).startswith("[debug] "):
+            logger.info("yt-dlp: %s", log_safe(msg))
+
+    def info(self, msg):
+        logger.info("yt-dlp: %s", log_safe(msg))
+
+    def warning(self, msg):
+        logger.warning("yt-dlp: %s", log_safe(msg))
+
+    def error(self, msg):
+        logger.error("yt-dlp: %s", log_safe(msg))
+
+
 def yt_download_sync(
     url: str,
     job_dir: str,
@@ -1041,6 +1059,13 @@ def yt_download_sync(
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
+        # `quiet` alone still lets yt-dlp draw its progress bar on stdout and
+        # print errors to stderr. In the packaged app those are dead or closed
+        # pipes (Windows `[Errno 22] Invalid argument`, macOS `[Errno 32]
+        # Broken pipe`), which fails a download that was otherwise fine. Send
+        # every yt-dlp message to our logger and never write progress to stdio.
+        "noprogress": True,
+        "logger": _YtdlpLogger(),
         "restrictfilenames": True,
         # Don't stamp the downloaded file's mtime with the video's upload date
         # (#642): on Windows an out-of-range/invalid timestamp makes the os.utime

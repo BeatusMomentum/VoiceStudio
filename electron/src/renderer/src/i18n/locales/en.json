@@ -309,6 +309,9 @@
     "ready": "Engine ready",
     "crashed": "The local engine stopped unexpectedly.",
     "unresponsive": "The local engine is busy and not answering right now — it recovers on its own.",
+    "unresponsive_remote": "Can't confirm the connection to the remote engine — retrying automatically.",
+    "unhealthy": "The engine is answering but reports that it isn't healthy. Check Settings → Logs → Backend, then retry.",
+    "auth_required": "The remote engine no longer accepts this app's sign-in. Reconnect with its API key.",
     "port_in_use": "Port {{port}} is already in use by another program. Close it, or set OMNIVOICE_PORT to a free port, then retry.",
     "failed": "The local engine could not start.",
     "retry": "Retry",
@@ -325,6 +328,8 @@
     "setup_space": "Free at least {{gib}} GiB on the app’s drive, then retry.",
     "setup_access": "Allow write access to the app’s data folder, then retry.",
     "setup_unsupported_platform": "This Intel Mac can't run the local AI backend — PyTorch ships no macOS Intel wheels. Connect a remote backend below instead; no local install is needed.",
+    "setup_wrong_architecture": "This is the Intel (x64) build of VoiceStudio running through Rosetta on an Apple Silicon Mac, so the local AI backend can't install. Quit, install the Apple Silicon (arm64) DMG over this app, and reopen — your voices and projects are kept.",
+    "download_apple_silicon": "Download the Apple Silicon build",
     "proxy_bypass_help": "Fully quit VoiceStudio, set HTTP_PROXY/HTTPS_PROXY to your proxy URL and NO_PROXY to excluded hosts in a terminal, then launch VoiceStudio from that terminal. Retrying in the current app cannot load new environment variables.",
     "hint_spawn_blocked": "Your operating system or security software refused to launch the local engine. Add VoiceStudio’s runtime folder to your antivirus exclusions (Windows: Windows Security → Virus & threat protection → Manage settings → Exclusions), make sure it is not inside a cloud-synced folder such as OneDrive, then retry.",
     "hint_slow_start": "The engine was still starting when the wait ran out. Slow computers — especially ones without a dedicated GPU — and the first launch after an install (antivirus scans every new file) can need several minutes. Close memory-heavy apps and retry; later starts are much faster.",
@@ -787,7 +792,9 @@
   },
   "designWorkspace": {
     "title": "Design",
-    "save_failed": "Failed to save voice profile"
+    "save_failed": "Failed to save voice profile",
+    "engine_cannot_design": "{{engine}} can't design voices because it needs a reference clip. Switch to an engine that supports Voice Design, such as OmniVoice, or clone a voice instead.",
+    "engine_cannot_reuse_sample": "{{engine}} can't use reference audio, so it can't re-render this saved voice from its sample. Switch to an engine that supports voice cloning, such as OmniVoice."
   },
   "dub": {
     "timing_label": "Timing",
@@ -817,6 +824,9 @@
     "remove_cookie_file": "Remove cookie file",
     "remove_video": "Remove video",
     "remove_video_confirm": "Remove this video, its transcript and unsaved edits? This cannot be undone.",
+    "remove_audio": "Remove audio",
+    "remove_audio_confirm": "Remove this audio, its transcript and unsaved edits? This cannot be undone.",
+    "remove_interrupted_confirm": "Remove this source and discard the interrupted run? Its transcript, partial output and unsaved edits will be lost. This cannot be undone.",
     "cookie_transport_error": "Cookie exports require HTTPS or the local desktop app.",
     "cookie_size_error": "The cookie export must be 1 MB or smaller.",
     "save": "Save",
@@ -2220,7 +2230,8 @@
     "all_size": "All ~{{size}} GB",
     "download_all_remaining_title": "Download all remaining recommended models",
     "reco_disk_free": "{{free}} GB free on the model disk",
-    "reco_low_disk": "Not enough space for the full bundle: it needs ~{{need}} GB but only {{free}} GB is free. Install just the required models, or free up space first.",
+    "reco_low_disk": "Not enough space for the full bundle: it downloads ~{{need}} GB and keeps {{headroom}} GB free afterwards ({{total}} GB in total), but only {{free}} GB is free. Install just the required models, or free up space first.",
+    "pack_low_disk": "Not enough space for this pack: it downloads ~{{need}} GB and keeps {{headroom}} GB free afterwards ({{total}} GB in total), but only {{free}} GB is free. Free up space or move the models folder to a larger drive first.",
     "req_tag": "req",
     "reco_install_one": "Install {{label}}"
   },

@@ -615,7 +615,9 @@
   },
   "designWorkspace": {
     "title": "Ontwerpen",
-    "save_failed": "Kan stemprofiel niet opslaan"
+    "save_failed": "Kan stemprofiel niet opslaan",
+    "engine_cannot_design": "{{engine}} kan geen stemmen ontwerpen, omdat het een referentieclip nodig heeft. Kies een engine die stemontwerp ondersteunt, zoals OmniVoice, of kloon in plaats daarvan een stem.",
+    "engine_cannot_reuse_sample": "{{engine}} kan geen referentieaudio gebruiken en deze opgeslagen stem dus niet opnieuw maken uit het voorbeeld. Kies een engine die stemklonen ondersteunt, zoals OmniVoice."
   },
   "dub": {
     "timing_label": "Timing",
@@ -647,6 +649,9 @@
     "remove_cookie_file": "Cookiebestand verwijderen",
     "remove_video": "Video verwijderen",
     "remove_video_confirm": "Deze video, het transcript en niet-opgeslagen wijzigingen verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    "remove_audio": "Audio verwijderen",
+    "remove_audio_confirm": "Deze audio, het transcript en niet-opgeslagen bewerkingen verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    "remove_interrupted_confirm": "Deze bron verwijderen en de onderbroken uitvoering verwerpen? Het transcript, de gedeeltelijke uitvoer en niet-opgeslagen bewerkingen gaan verloren. Dit kan niet ongedaan worden gemaakt.",
     "cookie_transport_error": "Cookie-exports vereisen HTTPS of de lokale desktop-app.",
     "cookie_size_error": "De cookie-export mag maximaal 1 MB zijn.",
     "save": "Opslaan",
@@ -2117,7 +2122,8 @@
     "all_size": "Alles ~{{size}} GB",
     "download_all_remaining_title": "Alle resterende aanbevolen modellen downloaden",
     "reco_disk_free": "{{free}} GB vrij op de modelschijf",
-    "reco_low_disk": "Niet genoeg ruimte voor de volledige bundel: er is ongeveer {{need}} GB nodig, maar slechts {{free}} GB is vrij. Installeer alleen de vereiste modellen of maak eerst ruimte vrij.",
+    "reco_low_disk": "Niet genoeg ruimte voor de volledige bundel: deze downloadt ~{{need}} GB en houdt daarna {{headroom}} GB vrij ({{total}} GB in totaal), maar er is maar {{free}} GB vrij. Installeer alleen de vereiste modellen of maak eerst ruimte vrij.",
+    "pack_low_disk": "Niet genoeg ruimte voor dit pakket: het downloadt ~{{need}} GB en houdt daarna {{headroom}} GB vrij ({{total}} GB in totaal), maar er is maar {{free}} GB vrij. Maak eerst ruimte vrij of verplaats de modellenmap naar een grotere schijf.",
     "req_tag": "aanvr",
     "reco_install_one": "{{label}} installeren"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "Maak minstens {{gib}} GiB vrij op de schijf van de app en probeer het opnieuw.",
     "setup_access": "Sta schrijftoegang toe tot de gegevensmap van de app en probeer het opnieuw.",
     "setup_unsupported_platform": "Deze Intel-Mac kan de lokale AI-backend niet uitvoeren — PyTorch levert geen macOS-Intel-wheels. Verbind hieronder een externe backend; geen lokale installatie nodig.",
+    "setup_wrong_architecture": "Dit is de Intel-versie (x64) van VoiceStudio die via Rosetta op een Mac met Apple Silicon draait, dus de lokale AI-backend kan niet worden geïnstalleerd. Sluit de app, installeer de Apple Silicon-DMG (arm64) eroverheen en open hem opnieuw — je stemmen en projecten blijven behouden.",
+    "download_apple_silicon": "Apple Silicon-versie downloaden",
     "ready": "Engine gereed",
     "show_log": "Logboek tonen",
     "hide_log": "Logboek verbergen",
@@ -2136,6 +2144,9 @@
     "attaching": "Verbinding maken met de actieve engine…",
     "crashed": "De lokale engine is onverwacht gestopt.",
     "unresponsive": "De lokale engine is bezet en reageert nu niet — hij komt vanzelf weer terug.",
+    "unresponsive_remote": "De verbinding met de externe engine kan niet worden bevestigd — er wordt automatisch opnieuw geprobeerd.",
+    "unhealthy": "De engine reageert, maar meldt dat hij niet gezond is. Bekijk Instellingen → Logboeken → Backend en probeer het opnieuw.",
+    "auth_required": "De externe engine accepteert de aanmelding van deze app niet meer. Verbind opnieuw met de API-sleutel.",
     "failed": "De lokale engine kon niet worden gestart.",
     "idle": "Wachten op de lokale engine…",
     "log_label": "Engine-logboek",

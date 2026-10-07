@@ -615,7 +615,9 @@
   },
   "designWorkspace": {
     "title": "Tasarla",
-    "save_failed": "Ses profili kaydedilemedi"
+    "save_failed": "Ses profili kaydedilemedi",
+    "engine_cannot_design": "{{engine}} referans klip gerektirdiği için ses tasarlayamaz. OmniVoice gibi ses tasarımını destekleyen bir motora geçin ya da bunun yerine bir ses klonlayın.",
+    "engine_cannot_reuse_sample": "{{engine}} referans ses kullanamadığı için kayıtlı bu sesi örneğinden yeniden oluşturamaz. OmniVoice gibi ses klonlamayı destekleyen bir motora geçin."
   },
   "dub": {
     "timing_label": "Zamanlama",
@@ -647,6 +649,9 @@
     "remove_cookie_file": "Çerez dosyasını kaldır",
     "remove_video": "Videoyu kaldır",
     "remove_video_confirm": "Bu video, dökümü ve kaydedilmemiş düzenlemeler silinsin mi? Bu işlem geri alınamaz.",
+    "remove_audio": "Sesi kaldır",
+    "remove_audio_confirm": "Bu ses, transkripti ve kaydedilmemiş düzenlemeler kaldırılsın mı? Bu işlem geri alınamaz.",
+    "remove_interrupted_confirm": "Bu kaynak kaldırılıp yarıda kesilen çalışma silinsin mi? Transkript, kısmi çıktı ve kaydedilmemiş düzenlemeler kaybolur. Bu işlem geri alınamaz.",
     "cookie_transport_error": "Çerez dışa aktarımları HTTPS veya yerel masaüstü uygulamasını gerektirir.",
     "cookie_size_error": "Çerez dışa aktarımı en fazla 1 MB olmalıdır.",
     "save": "Kaydet",
@@ -2117,7 +2122,8 @@
     "all_size": "Hepsi ~{{size}} GB",
     "download_all_remaining_title": "Kalan tüm önerilen modelleri indir",
     "reco_disk_free": "Model diskinde {{free}} GB boş",
-    "reco_low_disk": "Paketin tamamı için yeterli alan yok: ~{{need}} GB gerekir ancak yalnızca {{free}} GB ücretsizdir. Yalnızca gerekli modelleri yükleyin veya önce alanı boşaltın.",
+    "reco_low_disk": "Tam paket için yeterli alan yok: ~{{need}} GB indirir ve sonrasında {{headroom}} GB boş bırakır (toplam {{total}} GB), ancak yalnızca {{free}} GB boş. Yalnızca gerekli modelleri yükleyin veya önce yer açın.",
+    "pack_low_disk": "Bu paket için yeterli alan yok: ~{{need}} GB indirir ve sonrasında {{headroom}} GB boş bırakır (toplam {{total}} GB), ancak yalnızca {{free}} GB boş. Önce yer açın veya model klasörünü daha büyük bir sürücüye taşıyın.",
     "req_tag": "talep",
     "reco_install_one": "{{label}} yükle"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "Uygulamanın sürücüsünde en az {{gib}} GiB alan açıp yeniden deneyin.",
     "setup_access": "Uygulamanın veri klasörüne yazma izni verip yeniden deneyin.",
     "setup_unsupported_platform": "Bu Intel Mac, yerel yapay zekâ arka ucunu çalıştıramaz — PyTorch'ta macOS Intel wheel'leri yok. Bunun yerine aşağıdan bir uzak arka uca bağlanın; yerel kurulum gerekmez.",
+    "setup_wrong_architecture": "Bu, Apple Silicon bir Mac'te Rosetta üzerinden çalışan VoiceStudio Intel (x64) sürümü; bu yüzden yerel yapay zekâ arka ucu kurulamıyor. Uygulamadan çıkın, Apple Silicon (arm64) DMG'sini üzerine kurun ve yeniden açın — sesleriniz ve projeleriniz korunur.",
+    "download_apple_silicon": "Apple Silicon sürümünü indir",
     "ready": "Motor hazır",
     "show_log": "Günlüğü göster",
     "hide_log": "Günlüğü gizle",
@@ -2136,6 +2144,9 @@
     "attaching": "Çalışan motora bağlanılıyor…",
     "crashed": "Yerel motor beklenmedik şekilde durdu.",
     "unresponsive": "Yerel motor şu anda meşgul ve yanıt vermiyor — kendiliğinden toparlanacak.",
+    "unresponsive_remote": "Uzak motorla bağlantı doğrulanamıyor — otomatik olarak yeniden deneniyor.",
+    "unhealthy": "Motor yanıt veriyor ancak sağlıklı olmadığını bildiriyor. Ayarlar → Günlükler → Arka uç bölümüne bakın, ardından yeniden deneyin.",
+    "auth_required": "Uzak motor bu uygulamanın oturum açmasını artık kabul etmiyor. API anahtarıyla yeniden bağlanın.",
     "failed": "Yerel motor başlatılamadı.",
     "idle": "Yerel motor bekleniyor…",
     "log_label": "Motor günlüğü",

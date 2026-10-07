@@ -20,9 +20,11 @@ translate, review the text, then generate. Completed tracks can be previewed and
 exported through the native save dialog.
 
 The import card can clear a pasted URL and its cookie attachment before ingest.
-After loading a source, Remove video returns to the import card, discarding the
-transcript and edit history while retaining production settings. It asks for
-confirmation when transcript edits or segments would be discarded.
+After loading a source, Remove video (Remove audio for audio sources) returns to
+the import card, with its file and URL options, discarding the transcript and edit
+history while retaining production settings. It stays available after an
+interrupted or failed run, and asks for confirmation when transcript edits or
+segments would be discarded.
 
 Segment rows scan as compact source/translation pairs: speaker, voice, fit state,
 selection and timestamp stay visible, while row actions reveal on hover or keyboard

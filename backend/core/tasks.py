@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import time
 import json
 import logging
@@ -138,24 +139,27 @@ class TaskManager:
                 import inspect
                 res = func(*args, **kwargs)
                 if inspect.isasyncgen(res):
-                    async for update in res:
-                        if t.get("cancelled"):
-                            await self._push_event(task_id, f"data: {json.dumps({'type': 'cancelled'})}\n\n")
-                            t["status"] = "cancelled"
-                            try: job_store.mark_cancelled(task_id)
-                            except Exception: logger.exception("job_store.mark_cancelled failed")
-                            break
-                        await self._push_event(task_id, update)
-                        stream_error = _stream_failure(update)
-                        if stream_error is not None:
-                            t["status"] = "failed"
-                            t["error"] = stream_error
-                            try:
-                                job_store.mark_failed(task_id, stream_error)
-                            except Exception:
-                                logger.exception("job_store.mark_failed failed")
-                            await res.aclose()
-                            break
+                    # Close the stream however the task ends (done, cancelled,
+                    # failed or raised) so a render releases what it holds, such
+                    # as voice-file leases, instead of staying suspended (#2535).
+                    async with contextlib.aclosing(res):
+                        async for update in res:
+                            if t.get("cancelled"):
+                                await self._push_event(task_id, f"data: {json.dumps({'type': 'cancelled'})}\n\n")
+                                t["status"] = "cancelled"
+                                try: job_store.mark_cancelled(task_id)
+                                except Exception: logger.exception("job_store.mark_cancelled failed")
+                                break
+                            await self._push_event(task_id, update)
+                            stream_error = _stream_failure(update)
+                            if stream_error is not None:
+                                t["status"] = "failed"
+                                t["error"] = stream_error
+                                try:
+                                    job_store.mark_failed(task_id, stream_error)
+                                except Exception:
+                                    logger.exception("job_store.mark_failed failed")
+                                break
                 elif inspect.iscoroutine(res):
                     await res
                 if t["status"] not in {"cancelled", "failed"}:

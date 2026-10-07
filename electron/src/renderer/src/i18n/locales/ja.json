@@ -615,7 +615,9 @@
   },
   "designWorkspace": {
     "title": "デザイン",
-    "save_failed": "音声プロファイルの保存に失敗しました"
+    "save_failed": "音声プロファイルの保存に失敗しました",
+    "engine_cannot_design": "{{engine}} は参照クリップが必要なため、音声をデザインできません。OmniVoice などボイスデザインに対応したエンジンに切り替えるか、代わりに音声をクローンしてください。",
+    "engine_cannot_reuse_sample": "{{engine}} は参照音声を使用できないため、この保存済みの音声をそのサンプルから再生成できません。OmniVoice など音声クローンに対応したエンジンに切り替えてください。"
   },
   "dub": {
     "timing_label": "タイミング",
@@ -647,6 +649,9 @@
     "remove_cookie_file": "Cookie ファイルを削除",
     "remove_video": "ビデオを削除",
     "remove_video_confirm": "このビデオ、文字起こし、未保存の編集内容を削除しますか？元に戻せません。",
+    "remove_audio": "音声を削除",
+    "remove_audio_confirm": "この音声、文字起こし、未保存の編集を削除しますか?元に戻すことはできません。",
+    "remove_interrupted_confirm": "このソースを削除し、中断された実行を破棄しますか?文字起こし、途中の出力、未保存の編集は失われます。元に戻すことはできません。",
     "cookie_transport_error": "Cookie のエクスポートには HTTPS またはローカルのデスクトップアプリが必要です。",
     "cookie_size_error": "Cookie のエクスポートは 1 MB 以下にしてください。",
     "save": "保存",
@@ -2117,7 +2122,8 @@
     "all_size": "すべて ~{{size}} GB",
     "download_all_remaining_title": "残りの推奨モデルをすべてダウンロード",
     "reco_disk_free": "モデル用ディスクの空き容量：{{free}} GB",
-    "reco_low_disk": "全モデルのインストールには約 {{need}} GB 必要ですが、空き容量は {{free}} GB です。必要なモデルだけをインストールするか、先に空き容量を確保してください。",
+    "reco_low_disk": "全モデルのインストールには約 {{need}} GB のダウンロードと、その後の空き容量 {{headroom}} GB(合計 {{total}} GB)が必要ですが、空き容量は {{free}} GB です。必要なモデルだけをインストールするか、先に空き容量を確保してください。",
+    "pack_low_disk": "このパックには約 {{need}} GB のダウンロードと、その後の空き容量 {{headroom}} GB(合計 {{total}} GB)が必要ですが、空き容量は {{free}} GB です。先に空き容量を確保するか、モデルフォルダーをより大きなドライブに移動してください。",
     "req_tag": "要求",
     "reco_install_one": "{{label}} をインストール"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "アプリのドライブに{{gib}} GiB以上の空き容量を確保して、再試行してください。",
     "setup_access": "アプリのデータフォルダーへの書き込みを許可して、再試行してください。",
     "setup_unsupported_platform": "このIntel MacではローカルAIバックエンドを実行できません — PyTorchにmacOS Intel用wheelがありません。代わりに下でリモートバックエンドに接続してください。ローカルインストールは不要です。",
+    "setup_wrong_architecture": "これは Apple Silicon Mac 上の Rosetta で動作している VoiceStudio の Intel (x64) 版のため、ローカル AI バックエンドをインストールできません。アプリを終了し、Apple Silicon (arm64) 版の DMG を上書きインストールしてから再度開いてください。ボイスとプロジェクトはそのまま残ります。",
+    "download_apple_silicon": "Apple Silicon 版をダウンロード",
     "ready": "エンジン準備完了",
     "show_log": "ログを表示",
     "hide_log": "ログを非表示",
@@ -2136,6 +2144,9 @@
     "attaching": "実行中のエンジンに接続中…",
     "crashed": "ローカルエンジンが予期せず停止しました。",
     "unresponsive": "ローカルエンジンが混雑しており、現在応答していません。処理が終わると自動的に回復します。",
+    "unresponsive_remote": "リモートエンジンへの接続を確認できません。自動的に再試行しています。",
+    "unhealthy": "エンジンは応答していますが、正常ではないと報告しています。設定 → ログ → バックエンドを確認して、もう一度お試しください。",
+    "auth_required": "リモートエンジンがこのアプリのサインインを受け付けなくなりました。API キーで再接続してください。",
     "failed": "ローカルエンジンを起動できませんでした。",
     "idle": "ローカルエンジンを待機中…",
     "log_label": "エンジンログ",

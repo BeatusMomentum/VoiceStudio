@@ -617,7 +617,9 @@
   },
   "designWorkspace": {
     "title": "Desenhar",
-    "save_failed": "Falha ao salvar o perfil de voz"
+    "save_failed": "Falha ao salvar o perfil de voz",
+    "engine_cannot_design": "{{engine}} não consegue criar vozes porque precisa de um clipe de referência. Mude para um motor compatível com design de voz, como o OmniVoice, ou clone uma voz.",
+    "engine_cannot_reuse_sample": "{{engine}} não consegue usar áudio de referência, por isso não pode gerar novamente esta voz salva a partir da amostra. Mude para um motor compatível com clonagem de voz, como o OmniVoice."
   },
   "dub": {
     "timing_label": "Sincronização",
@@ -649,6 +651,9 @@
     "remove_cookie_file": "Remover arquivo de cookies",
     "remove_video": "Remover vídeo",
     "remove_video_confirm": "Remover este vídeo, sua transcrição e edições não salvas? Esta ação não pode ser desfeita.",
+    "remove_audio": "Remover áudio",
+    "remove_audio_confirm": "Remover este áudio, a transcrição e as edições não salvas? Isso não pode ser desfeito.",
+    "remove_interrupted_confirm": "Remover esta fonte e descartar a execução interrompida? A transcrição, a saída parcial e as edições não salvas serão perdidas. Isso não pode ser desfeito.",
     "cookie_transport_error": "A exportação de cookies requer HTTPS ou o aplicativo local.",
     "cookie_size_error": "A exportação de cookies deve ter no máximo 1 MB.",
     "save": "Salvar",
@@ -2119,7 +2124,8 @@
     "all_size": "Todos ~{{size}} GB",
     "download_all_remaining_title": "Baixar todos os modelos recomendados restantes",
     "reco_disk_free": "{{free}} GB livres no disco de modelos",
-    "reco_low_disk": "Não há espaço suficiente para o pacote completo: ele precisa de ~{{need}} GB, mas apenas {{free}} GB é gratuito. Instale apenas os modelos necessários ou libere espaço primeiro.",
+    "reco_low_disk": "Espaço insuficiente para o pacote completo: ele baixa ~{{need}} GB e mantém {{headroom}} GB livres depois ({{total}} GB no total), mas só há {{free}} GB livres. Instale apenas os modelos necessários ou libere espaço primeiro.",
+    "pack_low_disk": "Espaço insuficiente para este pacote: ele baixa ~{{need}} GB e mantém {{headroom}} GB livres depois ({{total}} GB no total), mas só há {{free}} GB livres. Libere espaço ou mova a pasta de modelos para uma unidade maior primeiro.",
     "req_tag": "solicitação",
     "reco_install_one": "Instalar {{label}}"
   },
@@ -2130,6 +2136,8 @@
     "setup_space": "Liberte pelo menos {{gib}} GiB na unidade da aplicação e tente novamente.",
     "setup_access": "Permita a escrita na pasta de dados da aplicação e tente novamente.",
     "setup_unsupported_platform": "Este Mac Intel não consegue executar o backend de IA local — o PyTorch não oferece wheels para macOS Intel. Conecte um backend remoto abaixo; nenhuma instalação local é necessária.",
+    "setup_wrong_architecture": "Esta é a versão Intel (x64) do VoiceStudio executada pelo Rosetta num Mac com Apple Silicon, por isso o backend de IA local não pode ser instalado. Feche o app, instale por cima o DMG para Apple Silicon (arm64) e abra-o novamente — suas vozes e projetos são mantidos.",
+    "download_apple_silicon": "Baixar a versão para Apple Silicon",
     "ready": "Motor pronto",
     "show_log": "Mostrar registro",
     "hide_log": "Ocultar registro",
@@ -2138,6 +2146,9 @@
     "attaching": "Conectando ao motor em execução…",
     "crashed": "O motor local parou inesperadamente.",
     "unresponsive": "O motor local está ocupado e não está a responder neste momento — recupera sozinho.",
+    "unresponsive_remote": "Não é possível confirmar a ligação ao motor remoto — a tentar novamente automaticamente.",
+    "unhealthy": "O motor está a responder, mas indica que não está saudável. Verifique Definições → Registos → Backend e tente novamente.",
+    "auth_required": "O motor remoto já não aceita o início de sessão desta aplicação. Volte a ligar com a respetiva chave de API.",
     "failed": "Não foi possível iniciar o motor local.",
     "idle": "Aguardando o motor local…",
     "log_label": "Registro do motor",

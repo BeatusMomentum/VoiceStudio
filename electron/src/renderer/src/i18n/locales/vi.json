@@ -615,7 +615,9 @@
   },
   "designWorkspace": {
     "title": "Thiết kế",
-    "save_failed": "Không lưu được hồ sơ giọng nói"
+    "save_failed": "Không lưu được hồ sơ giọng nói",
+    "engine_cannot_design": "{{engine}} không thể thiết kế giọng nói vì cần một đoạn âm thanh tham chiếu. Hãy chuyển sang công cụ hỗ trợ thiết kế giọng nói, chẳng hạn OmniVoice, hoặc nhân bản một giọng nói.",
+    "engine_cannot_reuse_sample": "{{engine}} không thể dùng âm thanh tham chiếu nên không thể tạo lại giọng đã lưu này từ mẫu của nó. Hãy chuyển sang công cụ hỗ trợ nhân bản giọng nói, chẳng hạn OmniVoice."
   },
   "dub": {
     "timing_label": "Căn thời gian",
@@ -647,6 +649,9 @@
     "remove_cookie_file": "Xóa tệp cookie",
     "remove_video": "Xóa video",
     "remove_video_confirm": "Xóa video này, bản chép lời và các chỉnh sửa chưa lưu? Không thể hoàn tác.",
+    "remove_audio": "Xóa âm thanh",
+    "remove_audio_confirm": "Xóa âm thanh này, bản chép lời và các chỉnh sửa chưa lưu? Không thể hoàn tác.",
+    "remove_interrupted_confirm": "Xóa nguồn này và hủy lần chạy bị gián đoạn? Bản chép lời, kết quả một phần và các chỉnh sửa chưa lưu sẽ bị mất. Không thể hoàn tác.",
     "cookie_transport_error": "Tệp cookie xuất yêu cầu HTTPS hoặc ứng dụng máy tính cục bộ.",
     "cookie_size_error": "Tệp cookie xuất phải có dung lượng không quá 1 MB.",
     "save": "Lưu",
@@ -2117,7 +2122,8 @@
     "all_size": "Tất cả ~{{size}} GB",
     "download_all_remaining_title": "Tải xuống tất cả mô hình đề xuất còn lại",
     "reco_disk_free": "{{free}} GB trống trên ổ đĩa mô hình",
-    "reco_low_disk": "Không đủ dung lượng cho gói đầy đủ: nó cần ~{{need}} GB nhưng chỉ {{free}} GB là miễn phí. Chỉ cài đặt các mô hình cần thiết hoặc giải phóng dung lượng trước.",
+    "reco_low_disk": "Không đủ dung lượng cho toàn bộ gói: gói tải xuống ~{{need}} GB và giữ trống {{headroom}} GB sau đó (tổng cộng {{total}} GB), nhưng chỉ còn trống {{free}} GB. Chỉ cài các mô hình bắt buộc hoặc giải phóng dung lượng trước.",
+    "pack_low_disk": "Không đủ dung lượng cho gói này: gói tải xuống ~{{need}} GB và giữ trống {{headroom}} GB sau đó (tổng cộng {{total}} GB), nhưng chỉ còn trống {{free}} GB. Hãy giải phóng dung lượng hoặc chuyển thư mục mô hình sang ổ lớn hơn trước.",
     "req_tag": "yêu cầu",
     "reco_install_one": "Cài đặt {{label}}"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "Giải phóng ít nhất {{gib}} GiB trên ổ đĩa của ứng dụng rồi thử lại.",
     "setup_access": "Cho phép ghi vào thư mục dữ liệu của ứng dụng rồi thử lại.",
     "setup_unsupported_platform": "Máy Mac Intel này không thể chạy backend AI cục bộ — PyTorch không có wheel cho macOS Intel. Hãy kết nối backend từ xa bên dưới; không cần cài đặt cục bộ.",
+    "setup_wrong_architecture": "Đây là bản VoiceStudio cho Intel (x64) đang chạy qua Rosetta trên máy Mac Apple Silicon, nên không thể cài backend AI cục bộ. Hãy thoát ứng dụng, cài đè bản DMG Apple Silicon (arm64) rồi mở lại — giọng nói và dự án của bạn vẫn được giữ nguyên.",
+    "download_apple_silicon": "Tải bản Apple Silicon",
     "retry": "Thử lại",
     "ready": "Bộ máy sẵn sàng",
     "show_log": "Hiện nhật ký",
@@ -2136,6 +2144,9 @@
     "attaching": "Đang kết nối với bộ máy đang chạy…",
     "crashed": "Bộ máy cục bộ đã dừng đột ngột.",
     "unresponsive": "Động cơ cục bộ đang bận và tạm thời không phản hồi — nó sẽ tự phục hồi.",
+    "unresponsive_remote": "Không thể xác nhận kết nối tới công cụ từ xa — đang tự động thử lại.",
+    "unhealthy": "Công cụ có phản hồi nhưng báo rằng nó không ổn định. Hãy xem Cài đặt → Nhật ký → Backend rồi thử lại.",
+    "auth_required": "Công cụ từ xa không còn chấp nhận đăng nhập của ứng dụng này. Hãy kết nối lại bằng khóa API của nó.",
     "failed": "Không thể khởi động bộ máy cục bộ.",
     "idle": "Đang chờ bộ máy cục bộ…",
     "log_label": "Nhật ký bộ máy",

@@ -615,7 +615,9 @@
   },
   "designWorkspace": {
     "title": "Designa",
-    "save_failed": "Det gick inte att spara röstprofilen"
+    "save_failed": "Det gick inte att spara röstprofilen",
+    "engine_cannot_design": "{{engine}} kan inte designa röster eftersom den behöver ett referensklipp. Byt till en motor som stöder röstdesign, till exempel OmniVoice, eller klona en röst i stället.",
+    "engine_cannot_reuse_sample": "{{engine}} kan inte använda referensljud och kan därför inte återskapa den sparade rösten från dess exempel. Byt till en motor som stöder röstkloning, till exempel OmniVoice."
   },
   "dub": {
     "timing_label": "Tajming",
@@ -647,6 +649,9 @@
     "remove_cookie_file": "Ta bort cookie-filen",
     "remove_video": "Ta bort video",
     "remove_video_confirm": "Ta bort videon, transkriptet och osparade ändringar? Det går inte att ångra.",
+    "remove_audio": "Ta bort ljud",
+    "remove_audio_confirm": "Ta bort det här ljudet, dess transkription och osparade ändringar? Det går inte att ångra.",
+    "remove_interrupted_confirm": "Ta bort den här källan och förkasta den avbrutna körningen? Transkription, delresultat och osparade ändringar går förlorade. Det går inte att ångra.",
     "cookie_transport_error": "Cookie-exporter kräver HTTPS eller den lokala skrivbordsappen.",
     "cookie_size_error": "Cookie-exporten får vara högst 1 MB.",
     "save": "Spara",
@@ -2117,7 +2122,8 @@
     "all_size": "Alla ~{{size}} GB",
     "download_all_remaining_title": "Ladda ner alla återstående rekommenderade modeller",
     "reco_disk_free": "{{free}} GB ledigt på modelldisken",
-    "reco_low_disk": "Inte tillräckligt med utrymme för hela paketet: det behöver ~{{need}} GB men endast {{free}} GB är gratis. Installera bara de modeller som krävs, eller frigör utrymme först.",
+    "reco_low_disk": "Inte tillräckligt med utrymme för hela paketet: det laddar ner ~{{need}} GB och lämnar {{headroom}} GB ledigt efteråt ({{total}} GB totalt), men bara {{free}} GB är ledigt. Installera bara de nödvändiga modellerna eller frigör utrymme först.",
+    "pack_low_disk": "Inte tillräckligt med utrymme för det här paketet: det laddar ner ~{{need}} GB och lämnar {{headroom}} GB ledigt efteråt ({{total}} GB totalt), men bara {{free}} GB är ledigt. Frigör utrymme eller flytta modellmappen till en större enhet först.",
     "req_tag": "req",
     "reco_install_one": "Installera {{label}}"
   },
@@ -2128,6 +2134,8 @@
     "setup_space": "Frigör minst {{gib}} GiB på appens disk och försök igen.",
     "setup_access": "Tillåt skrivåtkomst till appens datamapp och försök igen.",
     "setup_unsupported_platform": "Den här Intel-Macen kan inte köra den lokala AI-backendservern — PyTorch saknar macOS Intel-hjul. Anslut en fjärrbackend nedan istället; ingen lokal installation behövs.",
+    "setup_wrong_architecture": "Det här är Intel-versionen (x64) av VoiceStudio som körs via Rosetta på en Mac med Apple Silicon, så den lokala AI-backenden kan inte installeras. Avsluta appen, installera Apple Silicon-DMG:n (arm64) ovanpå och öppna den igen – dina röster och projekt finns kvar.",
+    "download_apple_silicon": "Ladda ned Apple Silicon-versionen",
     "retry": "Försök igen",
     "ready": "Motorn är redo",
     "show_log": "Visa logg",
@@ -2136,6 +2144,9 @@
     "attaching": "Ansluter till den körande motorn…",
     "crashed": "Den lokala motorn stannade oväntat.",
     "unresponsive": "Den lokala motorn är upptagen och svarar inte just nu — den återgår av sig själv.",
+    "unresponsive_remote": "Det går inte att bekräfta anslutningen till den fjärranslutna motorn — försöker igen automatiskt.",
+    "unhealthy": "Motorn svarar men rapporterar att den inte mår bra. Kontrollera Inställningar → Loggar → Backend och försök igen.",
+    "auth_required": "Den fjärranslutna motorn godkänner inte längre den här appens inloggning. Anslut igen med dess API-nyckel.",
     "failed": "Den lokala motorn kunde inte startas.",
     "idle": "Väntar på den lokala motorn…",
     "log_label": "Motorlogg",

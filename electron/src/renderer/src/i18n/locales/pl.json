@@ -619,7 +619,9 @@
   },
   "designWorkspace": {
     "title": "Projektuj",
-    "save_failed": "Nie udało się zapisać profilu głosowego"
+    "save_failed": "Nie udało się zapisać profilu głosowego",
+    "engine_cannot_design": "{{engine}} nie może projektować głosów, ponieważ wymaga klipu referencyjnego. Wybierz silnik obsługujący projektowanie głosu, np. OmniVoice, albo sklonuj głos.",
+    "engine_cannot_reuse_sample": "{{engine}} nie może używać dźwięku referencyjnego, więc nie odtworzy tego zapisanego głosu z jego próbki. Wybierz silnik obsługujący klonowanie głosu, np. OmniVoice."
   },
   "dub": {
     "timing_label": "Synchronizacja",
@@ -651,6 +653,9 @@
     "remove_cookie_file": "Usuń plik cookie",
     "remove_video": "Usuń wideo",
     "remove_video_confirm": "Usunąć ten film, jego transkrypcję i niezapisane zmiany? Tej operacji nie można cofnąć.",
+    "remove_audio": "Usuń audio",
+    "remove_audio_confirm": "Usunąć to audio, jego transkrypcję i niezapisane zmiany? Tej operacji nie można cofnąć.",
+    "remove_interrupted_confirm": "Usunąć to źródło i odrzucić przerwane uruchomienie? Transkrypcja, częściowy wynik i niezapisane zmiany zostaną utracone. Tej operacji nie można cofnąć.",
     "cookie_transport_error": "Eksport plików cookie wymaga HTTPS lub lokalnej aplikacji komputerowej.",
     "cookie_size_error": "Eksport plików cookie może mieć najwyżej 1 MB.",
     "save": "Zapisz",
@@ -2121,7 +2126,8 @@
     "all_size": "Wszystko ~{{size}} GB",
     "download_all_remaining_title": "Pobierz wszystkie pozostałe zalecane modele",
     "reco_disk_free": "{{free}} GB wolnego miejsca na dysku modeli",
-    "reco_low_disk": "Za mało miejsca na cały pakiet: potrzebuje ~{{need}} GB, ale tylko {{free}} GB jest wolny. Zainstaluj tylko wymagane modele lub najpierw zwolnij miejsce.",
+    "reco_low_disk": "Za mało miejsca na pełny pakiet: pobiera ~{{need}} GB i zostawia potem {{headroom}} GB wolnego miejsca (łącznie {{total}} GB), a wolne jest tylko {{free}} GB. Zainstaluj tylko wymagane modele lub najpierw zwolnij miejsce.",
+    "pack_low_disk": "Za mało miejsca na ten pakiet: pobiera ~{{need}} GB i zostawia potem {{headroom}} GB wolnego miejsca (łącznie {{total}} GB), a wolne jest tylko {{free}} GB. Najpierw zwolnij miejsce lub przenieś folder modeli na większy dysk.",
     "req_tag": "wymaganie",
     "reco_install_one": "Zainstaluj {{label}}"
   },
@@ -2132,6 +2138,8 @@
     "setup_space": "Zwolnij co najmniej {{gib}} GiB na dysku aplikacji i spróbuj ponownie.",
     "setup_access": "Zezwól na zapis w folderze danych aplikacji i spróbuj ponownie.",
     "setup_unsupported_platform": "Ten Mac z procesorem Intel nie może uruchomić lokalnego backendu AI — PyTorch nie udostępnia pakietów wheel dla macOS Intel. Podłącz zdalny backend poniżej; instalacja lokalna nie jest potrzebna.",
+    "setup_wrong_architecture": "To jest wersja Intel (x64) VoiceStudio uruchomiona przez Rosetta na Macu z Apple Silicon, więc lokalnego backendu AI nie da się zainstalować. Zamknij aplikację, zainstaluj na niej obraz DMG dla Apple Silicon (arm64) i otwórz ją ponownie — Twoje głosy i projekty zostaną zachowane.",
+    "download_apple_silicon": "Pobierz wersję dla Apple Silicon",
     "ready": "Silnik gotowy",
     "show_log": "Pokaż dziennik",
     "hide_log": "Ukryj dziennik",
@@ -2140,6 +2148,9 @@
     "attaching": "Łączenie z działającym silnikiem…",
     "crashed": "Lokalny silnik nieoczekiwanie się zatrzymał.",
     "unresponsive": "Silnik lokalny jest zajęty i nie odpowiada — sam wróci do normy.",
+    "unresponsive_remote": "Nie można potwierdzić połączenia ze zdalnym silnikiem — ponawiam automatycznie.",
+    "unhealthy": "Silnik odpowiada, ale zgłasza, że nie jest sprawny. Sprawdź Ustawienia → Dzienniki → Backend i spróbuj ponownie.",
+    "auth_required": "Zdalny silnik nie akceptuje już logowania tej aplikacji. Połącz się ponownie, używając jego klucza API.",
     "failed": "Nie udało się uruchomić lokalnego silnika.",
     "idle": "Oczekiwanie na lokalny silnik…",
     "log_label": "Dziennik silnika",

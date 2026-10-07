@@ -29,4 +29,6 @@ mute, volume, playback rate and enter/exit fullscreen controls. Dubbing keeps on
 Vidstack instance while changing preview sources, adds revisioned byte-range URLs,
 and displays the source thumbnail while a first preview is prepared. Audio preview
 buttons show pending/buffering and unavailable states instead of silently swallowing
-playback failures. Playback labels are translated in all 21 locales.
+playback failures. An audio-only dub's preview mixes the dubbed track with the
+background once and reuses that file for every seek; regenerating the track
+replaces the old mix. Playback labels are translated in all 21 locales.

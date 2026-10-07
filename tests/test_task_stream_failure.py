@@ -40,3 +40,45 @@ def test_error_stream_is_terminal(event, monkeypatch):
 
 def test_warnings_remain_non_terminal():
     assert _stream_failure('data: {"type":"warning","error":"retrying"}\n\n') is None
+
+
+@pytest.mark.parametrize('outcome', ['cancelled', 'raised'])
+def test_stream_is_closed_however_the_task_ends(outcome, monkeypatch):
+    # A render holds resources (voice-file leases) until its generator closes;
+    # cancellation and errors must close it, not leave it suspended (#2535).
+    job_store = TaskManager.worker.__globals__["job_store"]
+    run_sentinel = TaskManager.worker.__globals__["run_sentinel"]
+    for name in ['create', 'mark_running', 'append_event', 'mark_failed', 'mark_done', 'mark_cancelled']:
+        monkeypatch.setattr(job_store, name, lambda *a, **kw: None)
+    monkeypatch.setattr(run_sentinel, 'touch_activity', lambda *a: None)
+    closed = []
+
+    async def run():
+        manager = TaskManager()
+
+        async def stream():
+            try:
+                yield 'data: {"type":"progress"}\n\n'
+                if outcome == 'cancelled':
+                    manager.cancel_task('test')
+                    yield 'data: {"type":"progress"}\n\n'
+                else:
+                    raise RuntimeError('boom')
+                yield 'data: {"type":"done"}\n\n'
+            finally:
+                closed.append(True)
+
+        await manager.add_task('test', 'dub_generate', stream)
+        worker = asyncio.create_task(manager.worker())
+        try:
+            await asyncio.wait_for(manager.queue.join(), 2)
+            assert manager.active_tasks['test']['status'] == ('cancelled' if outcome == 'cancelled' else 'failed')
+            # Closed while the worker is still alive and waiting for the next task.
+            assert closed == [True]
+        finally:
+            worker.cancel()
+            try: await worker
+            except asyncio.CancelledError: pass
+
+    asyncio.run(run())
+    assert closed == [True]
