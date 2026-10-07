@@ -248,7 +248,7 @@ def reject_cross_site_get(request: Request) -> None:
 def _network_authorized_only(connection) -> bool:
     """True when nothing but network position would authorise this request.
 
-    That is what a rebinding page exploits: loopback and trusted-network
+    These are the requests a page on a renamed host could make: loopback and trusted-network
     callers, and anonymous callers of a backend with no API key. Requests
     that present a valid API key or administrator session prove
     knowledge of a secret a rebinding page does not have — even from a
