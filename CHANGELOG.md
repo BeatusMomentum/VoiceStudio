@@ -158,14 +158,14 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - The microphone level meter releases the audio device if it fails to start (#2654) — thanks @rudycelekli!
 - Stopping or failing a long-form render always releases the stream connection (#2652) — thanks @rudycelekli!
 - Spelled-out text keeps emoji and rare characters whole (#2650) — thanks @rudycelekli!
-- Dubbing keeps the previous track when subtitles are imported or the render is cancelled before it finishes, and asks you to generate again for the new subtitles (#2585)
-- Cancelled, superseded or failed dubs leave segment previews and cached speech untouched, so previews and partial regeneration never use rejected audio (#2585)
-- A regenerated dub drops quality-check marks measured on the previous track (#2585)
-- Transcription no longer overwrites subtitles imported, or a dub published, while it runs (#2585)
-- Subtitles imported during transcription keep their matched voice references instead of audio from the discarded pass (#2585)
-- Re-transcribing replaces the previous transcript's voice references instead of reusing them on different lines (#2585)
-- A dub that finishes just as it is cancelled reports done instead of cancelled (#2585)
-- First-run setup tracks a package's download when uv spells its name with underscores on one line and hyphens on another (#2585)
+- Dubbing keeps the previous track when subtitles are imported or the render is cancelled before it finishes, and asks you to generate again for the new subtitles (#2614)
+- Cancelled, superseded or failed dubs leave segment previews and cached speech untouched, so previews and partial regeneration never use rejected audio (#2614)
+- A regenerated dub drops quality-check marks measured on the previous track (#2614)
+- Transcription no longer overwrites subtitles imported, or a dub published, while it runs (#2614)
+- Subtitles imported during transcription keep their matched voice references instead of audio from the discarded pass (#2614)
+- Re-transcribing replaces the previous transcript's voice references instead of reusing them on different lines (#2614)
+- A dub that finishes just as it is cancelled reports done instead of cancelled (#2614)
+- First-run setup tracks a package's download when uv spells its name with underscores on one line and hyphens on another (#2614)
 - Voice cloning finds a speech-to-text model installed through Model Catalogue instead of asking you to install one (#2442, #2498) — thanks @drakeo338, @Bad-ptr!
 - A reference over 20 s with no speech-to-text model says it is too long and to trim it to 3-10 s (#2442) — thanks @drakeo338, @Bad-ptr!
 - A generate can no longer crash the backend while the start-up model preload is still running (#2394) — thanks @manoooo202020!
