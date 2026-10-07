@@ -19,11 +19,17 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 | Platform | Installer |
 | --- | --- |
 | Windows x64 | [Installer](https://github.com/debpalash/VoiceStudio/releases/download/v0.5.7/VoiceStudio-Electron-0.5.7-win-x64.exe) |
+| Windows ARM64 (experimental) | [Installer](https://github.com/debpalash/VoiceStudio/releases/download/v0.5.7/VoiceStudio-Electron-0.5.7-win-arm64.exe) |
 | macOS Apple Silicon | [DMG](https://github.com/debpalash/VoiceStudio/releases/download/v0.5.7/VoiceStudio-Electron-0.5.7-mac-arm64.dmg) |
 | macOS Intel | [DMG](https://github.com/debpalash/VoiceStudio/releases/download/v0.5.7/VoiceStudio-Electron-0.5.7-mac-x64.dmg) |
 | Linux x64 | [AppImage](https://github.com/debpalash/VoiceStudio/releases/download/v0.5.7/VoiceStudio-Electron-0.5.7-linux-x64.AppImage) · [deb](https://github.com/debpalash/VoiceStudio/releases/download/v0.5.7/VoiceStudio-Electron-0.5.7-linux-x64.deb) |
 
 **Upgrading:** Install over your existing Electron app; voices, projects and settings are kept. If setup asks, choose **Install local runtime** to refresh its dependencies.
+
+- Update remote workers to 0.5.7 too; the app refuses older workers with an upgrade message.
+- Docker, LAN or reverse-proxy access by a host name, without an API key or session, needs that name in `OMNIVOICE_ALLOWED_HOSTS`; IP addresses, `localhost`, `*.ts.net` and `host.docker.internal` work as before.
+- URL imports from servers on your own network need `OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1`.
+- [Where to set these variables](https://github.com/debpalash/VoiceStudio/blob/v0.5.7/docs/api-auth.md#requests-from-other-websites-and-host-names): a line in `~/.config/omnivoice/env` (macOS, Linux) or `%USERPROFILE%\.config\omnivoice\env` (Windows) for the desktop app, `-e` for Docker.
 
 **Moving from Tauri:** Close the app, back up its data directory, install Electron, and verify your voices and projects before removing Tauri. Follow the [migration guide](https://github.com/debpalash/VoiceStudio/blob/v0.5.7/docs/electron-migration.md). Tauri v0.5.3 remains the final Tauri release; its updater cannot install Electron.
 
@@ -47,7 +53,7 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - Home prioritizes creation tools with clearer descriptions and controls; the footer can collapse and reopen (#2407)
 - Enter Studio opens its optional permissions and shortcut settings expanded by default (#2407)
 - Model packs can be selected and installed before preset-compatible engines are active, with changes applied only when installing or using the chosen pack (#2407)
-- First-run setup stops Intel Macs before downloading dependencies and explains remote-backend access (#2387) — thanks @JoAdo07!
+- First-run setup stops Intel Macs before downloading dependencies and explains remote-backend access (#2419) — thanks @JoAdo07!
 - Machines without an NVIDIA GPU install the small CPU PyTorch build (about 5 GB instead of 9 GB free) and load voice models in float32 instead of float16 (#2500) — thanks @RobAsticles, @tiropictor!
 - Engines that could use a GPU report a CPU fallback, naming the card, when the installed PyTorch cannot use it (#2468, #2501) — thanks @Pates2004!
 - Setup names your Radeon card instead of blaming a missing NVIDIA driver, and ignores a ROCm override on Windows and macOS (#2468, #2501) — thanks @Pates2004!
@@ -95,13 +101,13 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - `OMNIVOICE_TORCH_VARIANT=auto|cuda|cpu` and `OMNIVOICE_CPU_DTYPE=bfloat16` override the automatic PyTorch build and CPU precision (#2500)
 - Bug reports include CPU architecture, free disk space and the active speech recognition engine (#2433) — thanks @HoneyTyagii, @Rey-de-la-Tierra!
 - `VOICESTUDIO_DISABLE_UPDATER=1` turns off the in-app updater for package-managed installs, and the Linux guide lists the community AUR package (#2557)
-- MCP agents can design a voice from a text description and reuse it by `profile_id` (`describe_voice`, `design_voice`) (#2368) — thanks @thelselutopia!
-- Dictation vocabulary hint in Settings → Dictation shortcut: names and jargon that Faster Whisper, MLX Whisper and OpenAI-compatible engines should expect (#2395) — thanks @m061i6!
-- Cheaper Inference is available as an optional LLM provider (#2325) — thanks @aiapienthusiast!
+- MCP agents can design a voice from a text description and reuse it by `profile_id` (`describe_voice`, `design_voice`) (#2419) — thanks @thelselutopia!
+- Dictation vocabulary hint in Settings → Dictation shortcut: names and jargon that Faster Whisper, MLX Whisper and OpenAI-compatible engines should expect (#2419) — thanks @m061i6!
+- Cheaper Inference is available as an optional LLM provider (#2419) — thanks @aiapienthusiast!
 - Choose 16/24/32-bit WAV precision, sampling effort and mastering in Clone and Design, with file sizes and optional audio checks (#2406)
 - Language selection adds searchable flags, native names and codes in a responsive virtual grid, with supported model languages first and accessible keyboard navigation (#2408)
 - Run local narration, transcription, translation and voice-conversion recipes with resumable steps and WAV/TXT exports (#2333)
-- Workflows Condition step routes each item by a text phrase, preserves output on direct-to-End branches, and uses one phrase editor (#2380) — thanks @shivsin25!
+- Workflows Condition step routes each item by a text phrase, preserves output on direct-to-End branches, and uses one phrase editor (#2419) — thanks @shivsin25!
 - Call agent backend: place or answer phone calls that hold a task conversation in your verified or designed voice, with an editable AI disclosure, take-over and an after-call summary (#2306)
 - Calls workspace with a live transcript, take-over, hang-up and an after-call summary (#2305)
 - Create Story from a dub: its speakers become characters, its segments become lines, and each character keeps the voice the dub assigned — no retyping the script (#2300) — thanks @shivsin25!
@@ -125,7 +131,7 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - Hardware support table with CPU-only and Windows-on-ARM guidance (#2500)
 - Maintainer guide for repository settings that can't live in code; the licence notice scope and the contributing guide's list of network calls match the current app (#2556)
 - Contact addresses are now hi@voicestudio.sh (general and licensing), partner@voicestudio.sh (partnerships) and security@voicestudio.sh (security reports) (#2556)
-- Chinese README now matches the Electron installation and migration guide (#2377) — thanks @lg114!
+- Chinese README now matches the Electron installation and migration guide (#2419) — thanks @lg114!
 - Record the supplied audio comparisons and installed-engine quality validation (#2406)
 - New call agent guide covering setup, disclosure, recording consent and safeguards (#2306)
 - The Twilio guide and integration directory describe the guided setup and in-app integration pages (#2304)
@@ -137,7 +143,7 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 ### Fixed
 
 - On Windows, updating the app no longer stops at "EPERM: operation not permitted, rename" when antivirus briefly holds the new runtime files (#2669) — thanks @javalovelinux-cmd!
-- MCP speech tools wait through model loading and progress-extended CPU renders instead of timing out before the backend (#2609)
+- MCP speech tools wait through model loading and progress-extended CPU renders instead of timing out before the backend (#2609) — thanks @JopsTaku!
 - On Windows, the GPU report finds your graphics card again, and CPU-only hosts with integrated graphics are no longer told to fix an NVIDIA driver (#2620) — thanks @creatorliao!
 - Stretch Video exports that keep the original background no longer fail with HTTP 409 when subtitle cues sit close together or have no length (#2616) — thanks @quan0pek!
 - Failed desktop saves and exports show the app's explanation instead of a bare "HTTP 409" (#2616) — thanks @quan0pek!
@@ -245,9 +251,10 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - Pronunciation dictionary backups keep which duplicate entry wins, and the list, test and synthesis use one order (#2552) — thanks @rudycelekli!
 - Pronunciation entries scoped by language name or 3-letter code now match the right language, and Spanish entries no longer apply to Estonian (#2542) — thanks @rudycelekli!
 - Network Sharing from packaged desktop apps serves the web interface to LAN devices on macOS, Windows and Linux, and never redirects them to their own `localhost` (#2599) — thanks @Xpertfall!
-- URL imports accept only http(s) links and refuse private-network addresses unless `OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1` is set, download only through the guarded downloader, cut gallery clips locally and refuse live streams; gallery, dubbing, voice-profile and batch uploads accept audio and video files only, refuse playlists named like media, and ffmpeg reads only local files
+- URL imports accept only http(s) links and refuse private-network addresses unless `OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS=1` is set, download only through the guarded downloader, cut gallery clips locally and refuse live streams
+- Gallery, dubbing, voice-profile and batch uploads accept audio and video files only and refuse playlists named like media, and ffmpeg reads only local files
 - Model downloads keep every file inside the model cache, mirrors never receive your Hugging Face token (gated models install from Hugging Face even when Auto picked a mirror), mirror URLs must use HTTPS, and voice bundle imports and GGUF checksum checks are stricter
-- The local API refuses requests sent by other websites or addressed by unrecognized host names; `host.docker.internal` and requests carrying a valid API key or session still work, and `OMNIVOICE_ALLOWED_HOSTS` adds other names
+- The local API refuses requests sent by other websites or addressed by unrecognized host names; `host.docker.internal` and requests carrying a valid API key or session still work, `OMNIVOICE_ALLOWED_HOSTS` adds other names, and a UI on an allowed origin still loads video previews and downloads
 - Remote workers open only the files a task sends as inputs, never a path named in its parameters
 - Remote worker registration signs a fresh single-use challenge from the app, so a recorded registration cannot be reused
 - The desktop app attaches only to a local backend that identifies itself as VoiceStudio, not to any service on its port
@@ -266,31 +273,31 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - Exclude downloaded caption comments while preserving spoken metadata words (#2510) — thanks @rudycelekli!
 - Stopping a live Dubbing preview releases its stream and synthesis slot so another render can start (#2511) — thanks @rudycelekli!
 - Count interrupted sidecar installs and report unreadable engine scans in Storage usage (#2479) — thanks @rudycelekli!
-- Dub assembly, cached segments and audio tools can read generated WAV files when TorchCodec is missing or cannot load (#2379) — thanks @tokutei58301-boop!
-- Remote API-key and share-PIN clients can record and read export history while native filesystem operations stay local (#2383, #2384) — thanks @sedatdagg!
-- Concurrent job events receive unique sequence numbers (#2384) — thanks @sedatdagg!
-- Streaming reuses warm engines, follows model changes and protects active streams during eviction (#2391, #2400) — thanks @DeepanshuPal and @Kishore-MR!
-- VoxCPM2 performs one complete generation attempt with the requested sampling effort and enough time for CPU and MPS inference (#2412) — thanks @strauss-visuals!
+- Dub assembly, cached segments and audio tools can read generated WAV files when TorchCodec is missing or cannot load (#2419) — thanks @tokutei58301-boop!
+- Remote API-key and share-PIN clients can record and read export history while native filesystem operations stay local (#2419) — thanks @sedatdagg!
+- Concurrent job events receive unique sequence numbers (#2419) — thanks @sedatdagg!
+- Streaming reuses warm engines, follows model changes and protects active streams during eviction (#2419) — thanks @DeepanshuPal and @Kishore-MR!
+- VoxCPM2 performs one complete generation attempt with the requested sampling effort and enough time for CPU and MPS inference (#2419) — thanks @strauss-visuals!
 - Voice Clone explains when the selected model cannot clone instead of silently ignoring the reference (#2419)
 - GitHub Star count refreshes from the repository API, and macOS tray icons keep the intended menu-bar size (#2419)
 - MLX-Audio OuteTTS generates again with a reference clip or its default voice (#2419)
 - MLX Qwen3-TTS receives the selected language correctly; MeloTTS explains missing text resources without downloading during generation (#2419)
 - The language picker offers only the languages each MLX-Audio model supports (Kokoro, CSM, Qwen3-TTS, Dia, Chatterbox, MeloTTS, OuteTTS), per their model cards, instead of every language (#977) — thanks @scprdytj2s-beep!
-- The Enter that confirms Korean, Japanese or Chinese input no longer also submits project renames, language search, pronunciation, worker or MCP fields (#2338) — thanks @HEOJUNFO!
-- English text normalization speaks a dollar amount followed by a period or comma ("It costs $5.") instead of leaving the digits (#2390) — thanks @kevin9327!
-- Voice Design sends descriptions unchanged to free-text engines and restores the original design when reopening a take (#2401) — thanks @CauaMatheus and @dominikj-cf!
+- The Enter that confirms Korean, Japanese or Chinese input no longer also submits project renames, language search, pronunciation, worker or MCP fields (#2419) — thanks @HEOJUNFO!
+- English text normalization speaks a dollar amount followed by a period or comma ("It costs $5.") instead of leaving the digits (#2419) — thanks @kevin9327!
+- Voice Design sends descriptions unchanged to free-text engines and restores the original design when reopening a take (#2419) — thanks @CauaMatheus and @dominikj-cf!
 - Voice Design keeps a detail you pick when you edit the description, unless the new text says otherwise, and reopening a take restores the description and picks it was made with (#2389) — thanks @dominikj-cf!
-- A snapshot interrupted mid-copy (crash, kill or power loss) is no longer listed as a database backup or counted toward the three kept; the leftover partial file is cleaned up on the next snapshot (#2402) — thanks @fadiroot!
+- A snapshot interrupted mid-copy (crash, kill or power loss) is no longer listed as a database backup or counted toward the three kept; the leftover partial file is cleaned up on the next snapshot (#2419) — thanks @fadiroot!
 - Low-disk notifications open Storage settings directly (#2407)
 - Preserve float audio and requested seeds through OmniVoice/VoxCPM2 sidecars, and keep playback and saved WAV precision consistent (#2406)
 - Development launches rebuild main and preload changes so embedded website previews do not keep stale browser IPC after UI updates (#2407)
 - Dubbing reports damaged source files clearly and removes partial or failed copies when storage runs out (#2411)
-- Streaming previews keep audio edges intact, preserve crossfades for late chunks, and use the PCM rate when supported (#2409) — thanks @dajiaohuang and @Marcin-CCC!
-- Installed performance packs can be activated when all required models are present, even below the download-space reserve (#2410) — thanks @dajiaohuang!
+- Streaming previews keep audio edges intact, preserve crossfades for late chunks, and use the PCM rate when supported (#2419) — thanks @dajiaohuang and @Marcin-CCC!
+- Installed performance packs can be activated when all required models are present, even below the download-space reserve (#2419) — thanks @dajiaohuang!
 - macOS development launches use the maintained Electron version and icon paths (#2351)
 - Electron detects and repairs incomplete PyTorch, torchaudio and torchvision runtime wheels before backend startup (#2354) — thanks @jonathanmoronta1-lab!
 - Returning to local mode discards sessions from unsaved remote-backend connection tests (#2356)
-- EPUB chapters without a table-of-contents entry are named after their whole heading, not only its first styled fragment (#2393) — thanks @kevin9327!
+- EPUB chapters without a table-of-contents entry are named after their whole heading, not only its first styled fragment (#2419) — thanks @kevin9327!
 - Remote administrator sessions survive reloads and new tabs without storing the master API key (#2352) — thanks @brunobarrientos!
 - Dub extraction shows ffmpeg's actual error instead of its Homebrew version banner (#2353) — thanks @lyrenth!
 - Main-source installs use the built app version even when platform tooling has its own `Version` variable (#2343)
@@ -314,7 +321,7 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 - Dub QC scores Chinese, Japanese and Thai lines per character, so a single wrong character no longer counts as total drift and flags the line (#2335) — thanks @kevin9327!
 - `/generate` writes an uploaded clone reference with its real extension instead of always `.wav`, so a non-WAV one-shot clip still decodes (#2311) — thanks @kevin9327!
 - A reference longer than 20 s is transcribed with the speech-to-text model already installed, instead of failing when OmniVoice's own Whisper snapshot is not cached (#2301) — thanks @Cengokill!
-- Pronunciation dictionary entries in Japanese, Chinese and Thai apply inside a sentence, not only to a line that is the key alone (#2392) — thanks @kevin9327!
+- Pronunciation dictionary entries in Japanese, Chinese and Thai apply inside a sentence, not only to a line that is the key alone (#2419) — thanks @kevin9327!
 - Speed/quality tiers apply to the crash-isolated OmniVoice engine too (#2578)
 - A browser UI on another origin receives each take's id, seed, timing and routing details (#2578)
 - Long or queued generations no longer show a failure after 21 minutes while the backend is still working (#2578)

@@ -174,7 +174,9 @@ adds there are root-owned).
   mapping to `0.0.0.0:3900:3900` for LAN access.
 - Behind a reverse proxy on a different origin, set
   `-e OMNIVOICE_PUBLIC_API_BASE=https://api.your-host.example` so the UI targets
-  the right API base (works on the prebuilt image; no rebuild needed).
+  the right API base (works on the prebuilt image; no rebuild needed), and
+  `-e OMNIVOICE_ALLOWED_ORIGINS=https://ui.your-host.example` so the API accepts
+  the UI's requests, video previews and downloads included.
 - The image ships with `OMNIVOICE_SERVER_MODE=1`, which relaxes the desktop-only
   loopback-origin gate so the admin UI works through Docker's NAT. Set it to `0`
   if you front the container with your own loopback auth proxy.

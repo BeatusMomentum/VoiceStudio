@@ -45,6 +45,8 @@ import urllib.request
 from collections.abc import Iterator
 from urllib.parse import urlsplit
 
+from core.user_env import DESKTOP_ENV_FILE_HINT
+
 ALLOW_PRIVATE_ENV = "OMNIVOICE_ALLOW_PRIVATE_URL_IMPORTS"
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
@@ -57,8 +59,11 @@ PRIVATE_DESTINATION_DETAIL = (
     "This URL points to a private network address (this computer, the local "
     "network, or a link-local service), which URL imports don't fetch. Use a "
     "public link or download the file and add it directly. To import from a "
-    "server on your own network, set "
-    f"{ALLOW_PRIVATE_ENV}=1 and restart VoiceStudio."
+    f"server on your own network, set {ALLOW_PRIVATE_ENV}=1 "
+    f"({DESKTOP_ENV_FILE_HINT}) and restart VoiceStudio. A VPN or proxy app "
+    "in TUN or fake-IP mode (such as Clash, Surge or sing-box, which answer "
+    "with 198.18.x.x addresses) can cause this for public links too: turn on "
+    "that mode's real-IP DNS option, or set the same variable."
 )
 LIVE_SOURCE_DETAIL = (
     "This link is a live stream or an upcoming premiere, which URL imports "

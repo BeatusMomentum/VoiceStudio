@@ -11,7 +11,7 @@ For another device on the same network — e.g. opening the web UI on your phone
    - a **QR code** — scan it from a phone/tablet to open the UI pre-authenticated,
    - **copy** and **open-in-browser** buttons,
    - the **access PIN**.
-3. On the other device, scan the QR (or open the URL and enter the PIN when prompted).
+3. On the other device, scan the QR (or open the URL and enter the PIN when prompted). Use the IP address the panel shows: a router DNS name such as `mypc.lan` is refused unless it is listed in `OMNIVOICE_ALLOWED_HOSTS` (see [host names](api-auth.md#requests-from-other-websites-and-host-names)).
 4. Click **Stop sharing** (or flip back to **Local**) to close the network socket again.
 
 You can also drive this from **Settings → Sharing & Remote Access**.

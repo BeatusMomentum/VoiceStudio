@@ -43,10 +43,12 @@ from starlette.requests import Request
 from core.csrf import (
     DEFAULT_DESKTOP_ORIGINS,
     SAFE_HTTP_METHODS,
+    _destination_origin,
     _origin_tuple,
     allowed_origin_values,
-    origin_allowed,
+    configured_allowed_origins,
 )
+from core.user_env import DESKTOP_ENV_FILE_HINT
 
 ALLOWED_HOSTS_ENV = "OMNIVOICE_ALLOWED_HOSTS"
 _MCP_HOSTS_ENV = "OMNIVOICE_MCP_ALLOWED_HOSTS"
@@ -72,9 +74,8 @@ CROSS_SITE_DETAIL = (
 HOST_DETAIL = (
     "Request refused: VoiceStudio was addressed by an unrecognized host name. "
     "Open it via localhost or an IP address, send the API key, or add the "
-    "host name to OMNIVOICE_ALLOWED_HOSTS (for the desktop app, as a line in "
-    "~/.config/omnivoice/env on macOS and Linux, or "
-    "%USERPROFILE%\\.config\\omnivoice\\env on Windows) and restart VoiceStudio."
+    f"host name to OMNIVOICE_ALLOWED_HOSTS ({DESKTOP_ENV_FILE_HINT}) and "
+    "restart VoiceStudio."
 )
 
 
@@ -179,16 +180,35 @@ def host_allowed(host_header: str | None) -> bool:
     return wildcard or host in exact or any(host.endswith(suffix) for suffix in suffixes)
 
 
-def _trusted_origin(connection) -> bool:
-    if origin_allowed(connection):
-        return True
-    presented = _origin_tuple(connection.headers.get("origin"))
+def _origin_trusted(connection, presented) -> bool:
+    """Whether an origin tuple is one this backend accepts browser requests from:
+    its own origin, ``OMNIVOICE_ALLOWED_ORIGINS``, the desktop renderer and
+    MCP hosts. The one allowlist for both ``Origin`` and ``Referer``."""
     if presented is None:
         return False
+    if presented == _destination_origin(connection) or presented in configured_allowed_origins():
+        return True
     extra = [*DEFAULT_DESKTOP_ORIGINS]
     for host in _env_list(_MCP_HOSTS_ENV):
         extra += [f"http://{host}", f"https://{host}"]
     return presented in {origin for value in extra if (origin := _origin_tuple(value))}
+
+
+def _trusted_origin(connection) -> bool:
+    return _origin_trusted(connection, _origin_tuple(connection.headers.get("origin")))
+
+
+def _referer_origin(value: str | None):
+    """Origin tuple of a ``Referer`` URL, or None when it is absent or malformed."""
+    if not value:
+        return None
+    try:
+        parsed = urlsplit(value.strip())
+    except ValueError:
+        return None
+    if not parsed.scheme or not parsed.netloc or "@" in parsed.netloc:
+        return None
+    return _origin_tuple(f"{parsed.scheme}://{parsed.netloc}")
 
 
 def is_cross_site(connection) -> bool:
@@ -197,13 +217,20 @@ def is_cross_site(connection) -> bool:
     An ``Origin`` header is authoritative when present (``null`` included).
     Without one, ``Sec-Fetch-Site: cross-site`` / ``same-site`` marks a
     request from another site — ``same-site`` covers other local web apps on
-    a different localhost port. Requests with neither header are not from a
-    browser page and are never treated as cross-site.
+    a different localhost port — unless its ``Referer`` names an allowed
+    origin. Browsers send no ``Origin`` on media and download GETs
+    (``<video src>``, download links), so a UI served from another allowed
+    origin (``OMNIVOICE_PUBLIC_API_BASE`` deployments) is recognised by its
+    ``Referer``; a page cannot forge that header, only omit it, and a missing
+    or foreign ``Referer`` is still refused. Requests with neither header are
+    not from a browser page and are never treated as cross-site.
     """
     headers = connection.headers
     if "origin" in headers:
         return not _trusted_origin(connection)
-    return headers.get("sec-fetch-site", "").strip().lower() in _CROSS_SITE_FETCH
+    if headers.get("sec-fetch-site", "").strip().lower() not in _CROSS_SITE_FETCH:
+        return False
+    return not _origin_trusted(connection, _referer_origin(headers.get("referer")))
 
 
 def reject_cross_site_get(request: Request) -> None:

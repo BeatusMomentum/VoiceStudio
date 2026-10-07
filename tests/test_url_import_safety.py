@@ -76,6 +76,20 @@ def test_private_answers_are_refused_and_public_allowed(monkeypatch):
     assert check_public_url(" https://www.youtube.com/watch?v=x ") == "https://www.youtube.com/watch?v=x"
 
 
+def test_fake_ip_answers_stay_refused_and_the_message_says_what_to_do(monkeypatch):
+    """Clash, Surge and sing-box in TUN/fake-IP mode answer every lookup with
+    198.18.0.0/15. The range stays refused; the message names the cause, the
+    fix, and where a desktop user sets the variable."""
+    monkeypatch.setattr(url_safety.socket, "getaddrinfo", _answers("198.18.0.7"))
+    with pytest.raises(UnsafeURLError) as refused:
+        check_public_url("https://www.youtube.com/watch?v=x")
+    detail = str(refused.value)
+    assert f"{ALLOW_PRIVATE_ENV}=1" in detail
+    assert "198.18." in detail and "fake-IP" in detail and "real-IP DNS" in detail
+    assert "~/.config/omnivoice/env" in detail
+    assert "%USERPROFILE%\\.config\\omnivoice\\env" in detail
+
+
 def test_opt_in_allows_private_destinations(monkeypatch):
     monkeypatch.setattr(url_safety.socket, "getaddrinfo", _answers("192.168.1.10"))
     monkeypatch.setenv(ALLOW_PRIVATE_ENV, "1")

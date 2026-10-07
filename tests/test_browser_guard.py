@@ -114,6 +114,67 @@ def test_configured_extra_origin_passes(spawned, public_dns, monkeypatch):
     assert _client().post(_DOWNLOAD, headers={"Origin": "https://ui.example"}).status_code == 500
 
 
+# A UI on another allowed origin (OMNIVOICE_PUBLIC_API_BASE deployments) loads
+# media and downloads with plain GETs: browsers send no Origin there, only
+# Sec-Fetch-Site and the page's Referer.
+_MEDIA_GET = "/audio/not-an-id.ogg"  # the route 404s before touching disk or DB
+_UI = "https://ui.example"
+
+
+@pytest.mark.parametrize("site", ["same-site", "cross-site"])
+def test_media_get_from_an_allowed_ui_origin_passes_by_referer(monkeypatch, site):
+    monkeypatch.setenv("OMNIVOICE_ALLOWED_ORIGINS", _UI)
+    response = _client().get(
+        _MEDIA_GET, headers={"Sec-Fetch-Site": site, "Referer": f"{_UI}/dub?tab=export"}
+    )
+    assert response.status_code == 404  # reached the route, which has no such audio
+
+
+@pytest.mark.parametrize(
+    "referer",
+    [
+        None,  # suppressed by the page (Referrer-Policy: no-referrer)
+        f"{EVIL}/page",
+        "https://ui.example.evil.example/",  # not an exact origin match
+        "http://ui.example/",  # scheme differs
+        "https://ui.example:8443/",  # port differs
+        "https://ui.example@evil.example/",  # userinfo
+        "null",
+        "not a url",
+    ],
+)
+@pytest.mark.parametrize("site", ["same-site", "cross-site"])
+def test_media_get_with_a_missing_or_foreign_referer_is_refused(monkeypatch, site, referer):
+    monkeypatch.setenv("OMNIVOICE_ALLOWED_ORIGINS", _UI)
+    headers = {"Sec-Fetch-Site": site}
+    if referer is not None:
+        headers["Referer"] = referer
+    response = _client().get(_MEDIA_GET, headers=headers)
+    assert response.status_code == 403
+    assert "another website" in response.json()["detail"]
+
+
+def test_referer_never_overrides_a_foreign_origin(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_ALLOWED_ORIGINS", _UI)
+    response = _client().get(
+        _MEDIA_GET, headers={"Origin": EVIL, "Sec-Fetch-Site": "cross-site", "Referer": f"{_UI}/"}
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Sec-Fetch-Site": "same-origin"},
+        {"Sec-Fetch-Site": "same-origin", "Referer": f"{EVIL}/"},
+        {"Sec-Fetch-Site": "none"},
+        {},
+    ],
+)
+def test_same_origin_and_non_browser_media_gets_are_unaffected_by_referer(headers):
+    assert _client().get(_MEDIA_GET, headers=headers).status_code == 404
+
+
 def test_cross_site_post_cannot_enable_lan_sharing(monkeypatch):
     from services import network_share
 

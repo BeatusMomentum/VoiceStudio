@@ -52,9 +52,10 @@ _REF_ALLOWLIST = (
     # owner-authored hardening committed without a public issue
     "The local API refuses requests sent by other websites",
     "URL imports accept only http(s) links",
+    "Gallery, dubbing, voice-profile and batch uploads accept audio and video files only",
     # owner-authored download hardening, no public issue
     "Model downloads keep every file inside the model cache",
-    # owner-authored hardening from private reports, no public issue
+    # owner-authored entries without a public reference
     "Remote workers open only the files a task sends as inputs",
     "Remote worker registration signs a fresh single-use challenge",
     "The desktop app attaches only to a local backend that identifies itself",

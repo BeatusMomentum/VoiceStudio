@@ -242,7 +242,11 @@ is closed with code **1008** and reason `loopback origin required`.
 `OMNIVOICE_TRUSTED_NETWORKS` is a comma-separated list of **CIDR ranges** whose
 clients are treated as loopback-trusted by the **consumption** gates — so a
 reverse proxy or a trusted LAN/Tailnet can reach the API **without a PIN or key**
-(useful when a proxy strips the `Authorization` header).
+(useful when a proxy strips the `Authorization` header). Such requests are still
+host-checked: a proxy that forwards the original `Host` (Caddy and Nginx Proxy
+Manager do) needs its host name in `OMNIVOICE_ALLOWED_HOSTS`, as does any
+other name clients use besides an IP address, `localhost`, this machine's name
+or a `*.ts.net` name — see [host names](#requests-from-other-websites-and-host-names).
 
 ```bash
 export OMNIVOICE_TRUSTED_NETWORKS="192.168.1.0/24,10.0.0.0/8"
@@ -306,9 +310,8 @@ that opaque authorization reaches the backend. `/export` therefore accepts an `a
 `destination_path`; revealing an arbitrary exported path runs in the native
 process, while the HTTP fallback is limited to the server-owned data root.
 `/system/set-env` does not accept executable-path keys at all, and sidecar
-engine folders (`OMNIVOICE_*_DIR`, whose interpreter the backend runs) accept a
-new value only as a desktop `authorization` token; over HTTP they can only be
-cleared. Server mode and
+engine folders (`OMNIVOICE_*_DIR`, whose interpreter the backend runs) are set
+in the env file (or left unset); the HTTP API can only clear them. Server mode and
 an API key do not weaken that native boundary.
 
 This is the fix for a real escalation (#1213): before it, server mode made the
@@ -374,6 +377,9 @@ traffic in **every** configuration, loopback included:
   `PATCH`, `DELETE`) or WebSocket handshake whose `Origin` is not allowed is
   refused with `403` (WebSocket close `1008`), as is one whose
   `Sec-Fetch-Site` is `cross-site` or `same-site` without an allowed `Origin`.
+  Browsers send no `Origin` on media and download `GET`s (`<video src>`,
+  download links); those pass when their `Referer` is an allowed origin, and a
+  missing or foreign `Referer` is refused.
   `GET` routes that start work or reach outside the machine refuse cross-site
   `Sec-Fetch-Site` too: dub downloads and exports (video, audio, MP3, stems,
   segment clips), dub segment and video previews, transcription streams, voice
