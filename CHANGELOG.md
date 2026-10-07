@@ -8,6 +8,14 @@ metadata and the backend fallback mirror it.
 
 ## [Unreleased]
 
+**Highlights**
+
+- MCP speech tools stay connected through cold starts and slow, progressing renders (#2612)
+
+### Fixed
+
+- MCP speech tools wait through model loading and progress-extended CPU renders instead of timing out before the backend (#2609)
+
 ## [0.5.7] — 2026-10-05
 
 **VoiceStudio now runs on PCs without a GPU and recovers instead of giving up.** Voice cloning uses the speech-to-text model you installed from Model Catalogue, GPU-less computers get the small CPU PyTorch build, and slow or busy backends are no longer reported as failed.
@@ -287,6 +295,7 @@ This release also adds a GPU acceleration panel with honest Radeon reporting, th
 
 ### CI
 
+- The Windows ARM64 installer is built for ARM64 only, and the packaging rehearsal runs on Windows, Intel Mac and ARM64 without host-specific test failures (#2615)
 - Pull requests fail when a commit uses a leaked personal email, a placeholder identity, or an AI agent identity, or when a commit or the description credits an AI agent (#2556)
 - GitHub Actions are pinned to exact commits and kept current by Dependabot (#2556)
 - Release Docker images publish when the GitHub Release is published; `:latest` only ever comes from `main` (#2578)
