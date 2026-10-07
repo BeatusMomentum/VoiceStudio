@@ -273,7 +273,8 @@ def test_transcription_tests_neutralize_the_asr_model_preflight():
     from the cause."""
     import re
 
-    calls = re.compile(r"dub_transcribe(_stream)?\(|[\"']/dub/transcribe")
+    # A direct router call, or an HTTP request to the route (not a bare path in a route list).
+    calls = re.compile(r"dub_transcribe(_stream)?\(|\.(get|post|stream)\(\s*f?[\"']/dub/transcribe")
     offenders = []
     for root in (Path(__file__).parent, BACKEND / "tests"):
         for path in sorted(root.rglob("test_*.py")):
